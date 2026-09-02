@@ -6,6 +6,7 @@ The word document is in the Assignment 1 folder. Each person then has their own 
 
 ### Waldo:
 Question 2. 
+Question 4.
 Create base word document & create repo.
 
 ### Christian
@@ -13,5 +14,5 @@ Question 1
 Question 3
 
 ### Marco
-Question 4
+Do assignment 1 individually and have it due by 24th September 2026 (After discussion with Department Head of Programming Science (DR Anila Mundackal - via email on 2 September) )
 
