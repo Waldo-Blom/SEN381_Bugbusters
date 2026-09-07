@@ -1,13 +1,3 @@
----
-name: Documentation
-about: PED updates, requirements, risk register, or other project documentation
-title: "[DOCS] Clear description of what needs documenting"
-labels: documentation
-assignees: ''
-type: Task
-
----
-
 ## Documentation Category
 - [ ] PED (Project Engineering Document) section
 - [ ] Requirements / RTM update
@@ -23,7 +13,7 @@ type: Task
 
 ## Acceptance Criteria
 - [ ] Content is clear and complete
-- [ ] Linked to relevant evidence (requirement ID, risk ID, commit, PR, etc.)
+- [ ] Linked to relevant evidence (requirement ID, risk ID, commit, PR, etc.) (If applicable)
 - [ ] Consistent with project standards
 
 ## Related To
