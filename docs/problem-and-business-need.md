@@ -1,0 +1,5 @@
+# Problem and business need
+
+The problem is that the community focused organization currently manages service requests through different commutation platforms: email, telephone calls, WhatsApp messages, spreadsheets and paper-based protocols. This approach creates operational problems such as: requests are frequently duplicated, overlooked, or lost between channels; requesters don’t visibility into the status of their requests; staff struggle to coordinate and prioritize tasks; management does not have enough information about the outstanding, overdue and resolved work; there is no way to keep track of the different requests logged.
+
+The organization requires a digital platform that can provide a reliable, and easy way to submit, manage, monitor, and report on these different requests. This digital platform aims to solve these operational problems identified above. Stakeholders each have different business needs will interact with the application in different ways, this is further explained in the `stakeholder-analysis.md`
