@@ -82,7 +82,9 @@ These are explicit decisions that that we will not be moving forward with and ar
 
 1. **AI chatbot**
 
-   We will not create an AI chatbot for users to communicate with.It is unlikely that users will make use of this feature. Also, when implementing something like this it can be complex there are certain risks such as people misusing the chatbot for personal reasons like the Chipotle chat bot that was able "hacked" to answer questions related to leetcode questions. There are security and implementation risks associated that are not worth the potential value that it could add.
+    We will not create an AI chatbot for users to communicate with. 
+    It is unlikely that users will make use of this feature. Also, when implementing something like this it can be complex there are certain risks such as people misusing the chatbot for personal reasons. There are security and implementation risks associated that are not worth the potential value that it could add.
+
 
 2. **Internal real time messaging system**
 
