@@ -10,11 +10,13 @@ We will have two main branches that we will use `main` and `dev`. From these two
 
 According to our project brief the `main` branch should be treated as a fully protected branch that does not allow commits on the branch unless through a pull request and detailed review. We achieve this through applying a ruleset to the `main` and `dev` branch with the following settings:
 
-- **Requires a pull request before merging:*** All commits must be made to a non protected branch and submitted via a pull request before they can be merged into main. Direct development on main it is therefore not possible.
-- **Requires approvals:** Pull requests targeting main require a minimum number of approvals.We have set the required number of approvals before merging to 2 thereby matching the project master brief.
-- **Force pushes are blocked:** The "Allow force pushes" setting is disabled, so force pushes to main are not permitted.
+- **Requires a pull request before merging:** All commits must be made to a non protected branch and submitted via a pull request before they can be merged into main. Direct development on main it is therefore not possible.
+- **Requires approvals:** Pull requests targeting main require a minimum number of approvals. We have set the required number of approvals before merging to **2** for the `main` branch, thereby matching the project master brief for production stability. For the `dev` branch, we require **1 independent approval** (a reviewer who is not the same person as the code author). This balances peer review with our small 3-person team size and helps prevent integration bottlenecks while still maintaining code quality through human review.
+- **Force pushes are blocked:** The "Allow force pushes" setting is disabled, so force pushes to main and dev are not permitted.
 - **Deletions are blocked:** When the "Allow deletions" setting is disabled, the `main` and `dev` branch can't be deleted (Just to avoid accidental deletion of our production and development branches) 
 - **Do not allow bypassing the above settings:** This setting just makes sure no matter the role that the above-mentioned settings can be bypassed by admin privileges or roles
+
+**Note on Approval Requirements:** The initial Milestone 1 specification required 2 approvals for the dev branch. However, during Assignment 2, the team identified a collaboration risk: requiring 2 independent reviewers on a 3-person team could create bottlenecks if either reviewer is unavailable, potentially stalling progress and leading to larger, riskier merges. The dev branch approval requirement has therefore been adjusted to 1 independent approval to mitigate this risk while maintaining peer review and code quality. This change is documented in decision-log.md (see DEC-009).
 
 Let's take a practical example:
 
