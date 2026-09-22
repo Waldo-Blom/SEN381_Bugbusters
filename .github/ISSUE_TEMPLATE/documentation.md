@@ -1,3 +1,11 @@
+---
+name: Documentation Task ([DOCS])
+about: Documentation changes
+title: '[DOCS] '
+labels: 'documentation, priority: medium'
+assignees: ''
+---
+
 ## Documentation Category
 - [ ] PED (Project Engineering Document) section
 - [ ] Requirements / RTM update
@@ -13,15 +21,9 @@
 
 ## Acceptance Criteria
 - [ ] Content is clear and complete
-- [ ] Linked to relevant evidence (requirement ID, risk ID, commit, PR, etc.) (If applicable)
-- [ ] Consistent with project standards
-
-## Related To
-- Issue/PR: #XX
-- Milestone: M1 / M2 / M3 / M4
 
 ## Location
 [Where does it go? docs/ folder, PED, code comments, GitHub wiki?]
 
 ## Notes
-[Anything additional you would like to add]
+[Any specific format or quality standards?]
