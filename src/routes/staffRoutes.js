@@ -1,8 +1,6 @@
 const router = require('express').Router();
 const staffController = require('../controllers/staffController');
-const { isAuthenticated, authorizeRole } = require('../middleware/authMiddleware');
-
-router.use(isAuthenticated, authorizeRole('staff'));
+const {  } = require('../middleware/authMiddleware');
 
 //   GET  /list_of_requests (use a queue maybe??)       FR-203, FR-207 (dept-filtered)
 //   GET  /requests/:id           FR-205

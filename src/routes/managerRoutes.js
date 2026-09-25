@@ -1,8 +1,6 @@
 const router = require('express').Router();
 const managerController = require('../controllers/managerController');
-const { isAuthenticated, authorizeRole } = require('../middleware/authMiddleware');
-
-router.use(isAuthenticated, authorizeRole('manager'));
+const {  } = require('../middleware/authMiddleware');
 
 //   GET  /dashboard              FR-301
 //   GET  /requests               FR-304 (analysis/filter)

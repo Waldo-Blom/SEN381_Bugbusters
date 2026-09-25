@@ -1,8 +1,6 @@
 const router = require('express').Router();
 const requesterController = require('../controllers/requesterController');
-const { isAuthenticated, authorizeRole } = require('../middleware/authMiddleware');
-
-router.use(isAuthenticated, authorizeRole('requester'));
+const {  } = require('../middleware/authMiddleware');
 
 //   GET  /dashboard                FR-103  (history)
 //   GET  /track                    FR-102  (lookup form)
