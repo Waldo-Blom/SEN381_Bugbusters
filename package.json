@@ -7,11 +7,11 @@
     "doc": "docs",
     "test": "tests"
   },
-"scripts": {
-  "watch:css": "npx @tailwindcss/cli -i ./src/public/styles/input.css -o ./src/public/styles/output.css --watch",
-  "dev": "nodemon src/server.js",
-  "start": "node src/server.js"
-},
+  "scripts": {
+    "watch:css": "npx @tailwindcss/cli -i ./src/public/styles/input.css -o ./src/public/styles/output.css --watch",
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Waldo-Blom/SEN381_Bugbusters.git"
@@ -28,6 +28,7 @@
     "dotenv": "^18.0.4",
     "ejs": "^6.0.1",
     "express": "^5.2.1",
+    "express-session": "^1.19.0",
     "pg": "^8.23.0",
     "tailwindcss": "^4.3.3"
   },
