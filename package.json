@@ -1,0 +1,38 @@
+{
+  "name": "sen381_bugbusters",
+  "version": "1.0.0",
+  "description": "CivicConnect is a digital platform designed to address operational challenges faced by a community-focused organization in managing citizen service requests. The organization currently manages requests through fragmented channels (email, telephone, WhatsApp, spreadsheets, paper-based protocols), resulting in duplicated, overlooked, or lost requests with no visibility into status or management oversight.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "watch:css": "npx @tailwindcss/cli -i ./src/public/styles/input.css -o ./src/public/styles/output.css --watch",
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Waldo-Blom/SEN381_Bugbusters.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Waldo-Blom/SEN381_Bugbusters/issues"
+  },
+  "homepage": "https://github.com/Waldo-Blom/SEN381_Bugbusters#readme",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "dotenv": "^18.0.4",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "pg": "^8.23.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
