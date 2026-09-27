@@ -85,7 +85,7 @@ CREATE TABLE "departments" (
   "department_id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "name" varchar(100) UNIQUE NOT NULL,
   "description" text,
-  "manager_id" uuid NOT NULL,
+  "manager_id" uuid NOT NULL UNIQUE,   -- UNIQUE enforces one-to-one with users
   "is_active" boolean NOT NULL DEFAULT true,
   "created_at" timestamp NOT NULL DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now())
@@ -197,6 +197,9 @@ CREATE TABLE "admin_audit_log" (
 -- ==========================================
 CREATE UNIQUE INDEX ON "staff_assignments" ("staff_id", "department_id");
 
+-- Enforce "one active department per staff member"
+CREATE UNIQUE INDEX "unique_active_staff_assignment" ON "staff_assignments" ("staff_id") WHERE "is_active" = true;
+
 CREATE INDEX ON "service_requests" ("requester_id");
 
 CREATE INDEX ON "service_requests" ("assigned_staff_id");
@@ -278,4 +281,3 @@ ALTER TABLE "request_comments" ADD CONSTRAINT "writes" FOREIGN KEY ("commented_b
 
 -- Audit Log Relationships
 ALTER TABLE "admin_audit_log" ADD CONSTRAINT "performs" FOREIGN KEY ("admin_id") REFERENCES "users" ("user_id") DEFERRABLE INITIALLY IMMEDIATE;
-
