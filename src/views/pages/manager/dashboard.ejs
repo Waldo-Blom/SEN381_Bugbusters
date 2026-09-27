@@ -1,0 +1,123 @@
+<%- include('../../partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<%
+  const open     = requests.filter(r => ['Submitted','Assigned','In Progress'].includes(r.status));
+  const overdue  = requests.filter(r => r.overdue);
+  const resolved = requests.filter(r => r.status === 'Resolved');
+  const closed   = requests.filter(r => r.status === 'Closed');
+
+  const statusData = [
+    { label: 'Submitted',   value: requests.filter(r => r.status === 'Submitted').length,   color: 'bg-slate-500' },
+    { label: 'Assigned',    value: requests.filter(r => r.status === 'Assigned').length,    color: 'bg-blue-500' },
+    { label: 'In Progress', value: requests.filter(r => r.status === 'In Progress').length, color: 'bg-amber-500' },
+    { label: 'Resolved',    value: resolved.length,                                          color: 'bg-emerald-500' },
+    { label: 'Closed',      value: closed.length,                                            color: 'bg-gray-400' },
+  ];
+  const total = requests.length;
+  const deptData = [
+    { label: 'Public Works', value: 3 }, { label: 'Utilities', value: 2 },
+    { label: 'Sanitation', value: 1 },   { label: 'Parks', value: 1 },
+    { label: 'Transport', value: 1 },    { label: 'General Svcs', value: 1 },
+  ];
+  const maxDept = Math.max(...deptData.map(d => d.value), 1);
+%>
+
+<div class="space-y-5">
+
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Open Requests</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= open.length %></p>
+      <p class="mt-1 text-xs font-medium text-emerald-600">&uarr; +12%</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Overdue</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= overdue.length %></p>
+      <p class="mt-1 text-xs font-medium text-red-600">&uarr; +3</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Resolved</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= resolved.length %></p>
+      <p class="mt-1 text-xs font-medium text-emerald-600">&uarr; +18%</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Closed</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= closed.length %></p>
+      <p class="mt-1 text-xs font-medium text-red-600">&darr; -5%</p>
+    </div>
+  </div>
+
+  <div class="grid gap-5 lg:grid-cols-3">
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Status Distribution</h3></div>
+      <div class="px-5 py-4">
+        <div class="space-y-2">
+          <% statusData.forEach(function (d) { %>
+            <div class="flex items-center gap-2.5">
+              <span class="h-3 w-3 rounded-full <%= d.color %>"></span>
+              <span class="text-sm text-slate-600"><%= d.label %></span>
+              <span class="ml-auto text-sm font-semibold text-slate-800"><%= d.value %></span>
+            </div>
+          <% }); %>
+          <div class="border-t border-slate-100 pt-2 flex items-center gap-2.5">
+            <span class="text-sm font-medium text-slate-700">Total</span>
+            <span class="ml-auto text-sm font-bold text-slate-900"><%= total %></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
+      <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Requests by Department</h3></div>
+      <div class="px-5 py-4">
+        <div class="flex items-end justify-between gap-3 h-44">
+          <% deptData.forEach(function (d) { %>
+            <div class="flex flex-1 flex-col items-center gap-2">
+              <span class="text-xs font-semibold text-slate-700"><%= d.value %></span>
+              <div class="w-full max-w-[40px] rounded-t-lg bg-blue-600" style="height: <%= (d.value / maxDept) * 100 %>%; min-height: 4px"></div>
+              <span class="text-[10px] text-slate-500 text-center truncate w-full"><%= d.label %></span>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid gap-5 lg:grid-cols-3">
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Avg. Response Time</h3></div>
+      <div class="px-5 py-4"><p class="text-3xl font-bold text-slate-900">4.2<span class="text-base font-normal text-slate-400"> hrs</span></p>
+        <p class="mt-1 text-xs font-medium text-emerald-600">&darr; 15% faster than last week</p></div>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Resolution Rate</h3></div>
+      <div class="px-5 py-4"><p class="text-3xl font-bold text-slate-900">87<span class="text-base font-normal text-slate-400">%</span></p>
+        <p class="mt-1 text-xs font-medium text-emerald-600">&uarr; +4% this month</p></div>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">SLA Compliance</h3></div>
+      <div class="px-5 py-4"><p class="text-3xl font-bold text-slate-900">92<span class="text-base font-normal text-slate-400">%</span></p>
+        <p class="mt-1 text-xs font-medium text-red-600">&darr; 2% below target</p></div>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Recent Activity</h3></div>
+    <div class="divide-y divide-slate-100">
+      <% requests.slice(0, 5).forEach(function (r) { %>
+        <a href="/manager/requests/<%= r.id %>" class="flex w-full items-center gap-4 px-5 py-3.5 text-left hover:bg-slate-50 transition-colors">
+          <div class="flex-1 min-w-0">
+            <p class="truncate text-sm font-medium text-slate-800"><%= r.title %></p>
+            <p class="text-xs text-slate-400"><%= r.reference %> &middot; <%= r.department %> &middot; <%= r.updatedAt %></p>
+          </div>
+          <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"><%= r.status %></span>
+          <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"><%= r.priority %></span>
+        </a>
+      <% }); %>
+    </div>
+  </div>
+</div>
+
+<%- include('../../partials/app-layout-foot') %>

@@ -1,15 +1,10 @@
-// use pasport.js maybe??
-//https://www.theodinproject.com/lessons/node-path-nodejs-authentication-basics
-
-// Maybe use this ??? : https://clerk.com/docs/expressjs/getting-started/quickstart
-
 const router = require('express').Router();
 const authController = require('../controllers/authController');
 
-//   GET  /login
-//   POST /login
-//   GET  /register
-//   POST /register
-//   POST /logout
+router.get('/login',           authController.loginPage);
+router.post('/login',          authController.login);
+router.get('/register',        authController.registerPage);
+router.get('/password-reset',  authController.passwordResetPage);
+router.get('/logout',          authController.logout);
 
 module.exports = router;
