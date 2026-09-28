@@ -10,7 +10,8 @@ const base = {
 
 exports.dashboard = (req, res) => {
   res.render('pages/staff/dashboard', {
-    ...base, title: 'Staff Dashboard',
+    ...base,
+    title: 'Staff Dashboard',
     activeHref: '/staff/dashboard',
     pageTitle: 'Staff Dashboard',
     pageSubtitle: 'Requests assigned to your department',
@@ -20,7 +21,8 @@ exports.dashboard = (req, res) => {
 
 exports.search = (req, res) => {
   res.render('pages/staff/search', {
-    ...base, title: 'Search & Filter',
+    ...base,
+    title: 'Search & Filter',
     activeHref: '/staff/search',
     pageTitle: 'Search & Filter',
     pageSubtitle: 'Find requests across all categories',
@@ -31,7 +33,8 @@ exports.search = (req, res) => {
 exports.requestDetail = (req, res) => {
   const request = mockRequests.find((r) => r.id === req.params.id) || mockRequests[0];
   res.render('pages/staff/request-detail', {
-    ...base, title: 'Request Details',
+    ...base,
+    title: 'Request Details',
     activeHref: '/staff/dashboard',
     pageTitle: 'Request Details',
     pageSubtitle: 'Manage and resolve this request',
