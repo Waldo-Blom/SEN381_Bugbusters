@@ -1,13 +1,13 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const express = require('express');
 const session = require('express-session');
-const path    = require('path');
+const path = require('path');
 
-const pageRoutes      = require('./routes/pageRoutes');
-const authRoutes      = require('./routes/authRoutes');
+const pageRoutes = require('./routes/pageRoutes');
+const authRoutes = require('./routes/authRoutes');
 const requesterRoutes = require('./routes/requesterRoutes');
-const staffRoutes     = require('./routes/staffRoutes');
-const managerRoutes   = require('./routes/managerRoutes');
+const staffRoutes = require('./routes/staffRoutes');
+const managerRoutes = require('./routes/managerRoutes');
 
 const app = express();
 
@@ -20,11 +20,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-}));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+  })
+);
 
 // Make the logged-in user available to every EJS view as `user`
 app.use((req, res, next) => {
@@ -33,12 +35,16 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/',          pageRoutes);       // Landing page
-app.use('/auth',      authRoutes);       // Login / Signup / Logout
-app.use('/requester', requesterRoutes);  // Requester-only area
-app.use('/staff',     staffRoutes);      // Staff-only area
-app.use('/manager',   managerRoutes);    // Manager-only area
+app.use('/', pageRoutes); // Landing page
+app.use('/auth', authRoutes); // Login / Signup / Logout
+app.use('/requester', requesterRoutes); // Requester-only area
+app.use('/staff', staffRoutes); // Staff-only area
+app.use('/manager', managerRoutes); // Manager-only area
 
+// Health check for CI
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 // // TEMP route to deliberately throw a 500 error for testing
 // app.get('/_test-500', (req, res) => {
@@ -48,11 +54,9 @@ app.use('/manager',   managerRoutes);    // Manager-only area
 // 404 & Error handlers
 app.use((req, res) => res.status(404).render('pages/404', { title: 'Not Found' }));
 
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   console.error(err);
   res.status(500).render('pages/500', { title: 'Server Error' });
 });
-
-
 
 module.exports = app;

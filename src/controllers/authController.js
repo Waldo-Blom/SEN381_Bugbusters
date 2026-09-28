@@ -16,7 +16,7 @@ exports.passwordResetPage = (req, res) => {
 exports.login = (req, res) => {
   const role = req.body.role || 'requester';
   req.session.user = mockUsers[role];
-  if (role === 'staff')    return res.redirect('/staff/dashboard');
+  if (role === 'staff') return res.redirect('/staff/dashboard');
   if (role === 'management') return res.redirect('/manager/dashboard');
   return res.redirect('/requester/my-requests');
 };

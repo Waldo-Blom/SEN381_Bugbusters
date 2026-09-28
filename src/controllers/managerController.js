@@ -10,7 +10,8 @@ const base = {
 
 exports.dashboard = (req, res) => {
   res.render('pages/manager/dashboard', {
-    ...base, title: 'Management Dashboard',
+    ...base,
+    title: 'Management Dashboard',
     activeHref: '/manager/dashboard',
     pageTitle: 'Management Dashboard',
     pageSubtitle: 'Operational overview and metrics',
@@ -20,7 +21,8 @@ exports.dashboard = (req, res) => {
 
 exports.allRequests = (req, res) => {
   res.render('pages/manager/all-requests', {
-    ...base, title: 'All Requests',
+    ...base,
+    title: 'All Requests',
     activeHref: '/manager/requests',
     pageTitle: 'All Requests',
     pageSubtitle: 'Every request across all departments',
@@ -31,7 +33,8 @@ exports.allRequests = (req, res) => {
 exports.requestDetail = (req, res) => {
   const request = mockRequests.find((r) => r.id === req.params.id) || mockRequests[0];
   res.render('pages/manager/request-detail', {
-    ...base, title: 'Request Details',
+    ...base,
+    title: 'Request Details',
     activeHref: '/manager/requests',
     pageTitle: 'Request Details',
     pageSubtitle: 'Manager view with assignment controls',
@@ -41,7 +44,8 @@ exports.requestDetail = (req, res) => {
 
 exports.reporting = (req, res) => {
   res.render('pages/manager/reporting', {
-    ...base, title: 'Reporting & Audit',
+    ...base,
+    title: 'Reporting & Audit',
     activeHref: '/manager/reporting',
     pageTitle: 'Reporting & Audit',
     pageSubtitle: 'Request lifecycle and action history',
@@ -51,7 +55,8 @@ exports.reporting = (req, res) => {
 
 exports.users = (req, res) => {
   res.render('pages/manager/users', {
-    ...base, title: 'User Management',
+    ...base,
+    title: 'User Management',
     activeHref: '/manager/users',
     pageTitle: 'User Management',
     pageSubtitle: 'Manage staff accounts and departments',

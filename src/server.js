@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 3000;
       });
     };
 
-    process.on('SIGINT',  () => shutdown('SIGINT'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
   } catch (err) {
     console.error('Failed to start server:', err);
