@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= title %> | CivicConnect</title>
+  <link rel="stylesheet" href="/styles/output.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <header class="bg-white shadow-sm">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <a href="/" class="text-xl font-bold text-blue-700">CivicConnect</a>
+      <nav class="flex items-center space-x-6 text-sm">
+        <% if (user) { %>
+          <span class="text-slate-500">Signed in as <strong><%= user.name %></strong></span>
+          <form action="/auth/logout" method="POST" class="inline">
+            <button type="submit" class="text-blue-600 hover:underline">Logout</button>
+          </form>
+        <% } else { %>
+          <a href="/auth/login"  class="text-slate-600 hover:text-blue-600">Login</a>
+          <a href="/auth/signup" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Sign Up</a>
+        <% } %>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-grow">

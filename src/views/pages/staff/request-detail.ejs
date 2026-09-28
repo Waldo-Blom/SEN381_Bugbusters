@@ -1,0 +1,27 @@
+<div class="space-y-5">
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Request Info</h3></div>
+    <div class="px-5 py-4 space-y-3.5 text-sm">
+      <div><p class="text-xs text-slate-400">Category</p><p class="font-medium text-slate-700"><%= request.category %></p></div>
+      <div><p class="text-xs text-slate-400">Department</p><p class="font-medium text-slate-700"><%= request.department %></p></div>
+      <div><p class="text-xs text-slate-400">Location</p><p class="font-medium text-slate-700"><%= request.location %></p></div>
+      <div><p class="text-xs text-slate-400">Submitted</p><p class="font-medium text-slate-700"><%= request.submittedAt %></p></div>
+      <div><p class="text-xs text-slate-400">Last updated</p><p class="font-medium text-slate-700"><%= request.updatedAt %></p></div>
+      <% if (request.assignedTo) { %>
+        <div><p class="text-xs text-slate-400">Assigned to</p><p class="font-medium text-slate-700"><%= request.assignedTo %></p></div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Status Controls</h3></div>
+    <div class="px-5 py-4 space-y-3">
+      <label class="block text-sm font-medium text-slate-700">Update status</label>
+      <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
+        <option>Submitted</option><option>Assigned</option><option>In Progress</option><option>Resolved</option><option>Closed</option>
+      </select>
+      <button class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Mark as Resolved</button>
+      <button class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Assign to me</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= title %> | CivicConnect</title>
+  <link rel="stylesheet" href="/styles/output.css" />
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="flex min-h-screen">
+
+    <!-- Brand panel -->
+    <div class="hidden w-1/2 flex-col justify-between bg-blue-700 p-12 lg:flex">
+      <div class="flex items-center gap-3">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white font-bold text-lg">C</div>
+        <span class="text-2xl font-bold text-white">CivicConnect</span>
+      </div>
+
+      <div class="space-y-8">
+        <div>
+          <h2 class="text-3xl font-bold leading-tight text-white">
+            Connecting citizens and city services in one place.
+          </h2>
+          <p class="mt-3 text-blue-100">
+            Submit, track, and resolve civic service requests — from potholes to streetlights, all in one transparent platform.
+          </p>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="rounded-xl bg-white/10 px-4 py-3"><span class="text-sm font-medium text-white">Citizen Portal</span></div>
+          <div class="rounded-xl bg-white/10 px-4 py-3"><span class="text-sm font-medium text-white">Staff Console</span></div>
+          <div class="rounded-xl bg-white/10 px-4 py-3"><span class="text-sm font-medium text-white">Management Insights</span></div>
+          <div class="rounded-xl bg-white/10 px-4 py-3"><span class="text-sm font-medium text-white">Secure &amp; Tracked</span></div>
+        </div>
+      </div>
+
+      <p class="text-sm text-blue-200">&copy; 2026 CivicConnect. All rights reserved.</p>
+    </div>
+
+    <!-- Form panel -->
+    <div class="flex w-full flex-col items-center justify-center bg-slate-50 px-6 py-12 lg:w-1/2">
+      <div class="w-full max-w-md">
+        <div class="mb-8 flex items-center gap-3 lg:hidden">
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white font-bold text-lg">C</div>
+          <span class="text-2xl font-bold text-slate-900">CivicConnect</span>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-900"><%= authTitle %></h1>
+        <p class="mt-1.5 text-sm text-slate-500"><%= authSubtitle %></p>
+        <div class="mt-8">
