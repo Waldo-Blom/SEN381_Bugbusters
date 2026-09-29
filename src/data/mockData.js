@@ -27,6 +27,8 @@ const mockUsers = {
   },
 };
 
+// ---------- Timeline generators ----------
+
 const timelineForSubmitted = () => [
   {
     id: 't1',
@@ -112,6 +114,121 @@ const timelineForSubmittedOnly = () => [
   },
 ];
 
+// General Services timelines
+const timelineGeneralAssigned = () => [
+  {
+    id: 't1',
+    status: 'Submitted',
+    label: 'Request submitted',
+    timestamp: '2026-09-24 08:30',
+    actor: 'Diane Okafor',
+  },
+  {
+    id: 't2',
+    status: 'Assigned',
+    label: 'Assigned to Nomvula Dlamini — General Services',
+    timestamp: '2026-09-24 10:00',
+    actor: 'Priya Raman',
+  },
+];
+
+const timelineGeneralInProgress = () => [
+  {
+    id: 't1',
+    status: 'Submitted',
+    label: 'Request submitted',
+    timestamp: '2026-09-23 09:15',
+    actor: 'Robert Chen',
+  },
+  {
+    id: 't2',
+    status: 'Assigned',
+    label: 'Assigned to Nomvula Dlamini — General Services',
+    timestamp: '2026-09-23 11:00',
+    actor: 'Priya Raman',
+  },
+  {
+    id: 't3',
+    status: 'In Progress',
+    label: 'Work in progress',
+    timestamp: '2026-09-24 08:30',
+    actor: 'Nomvula Dlamini',
+    comment: 'Site inspected. Materials ordered.',
+  },
+];
+
+const timelineGeneralResolved = () => [
+  {
+    id: 't1',
+    status: 'Submitted',
+    label: 'Request submitted',
+    timestamp: '2026-09-20 07:45',
+    actor: 'Thomas Beck',
+  },
+  {
+    id: 't2',
+    status: 'Assigned',
+    label: 'Assigned to Nomvula Dlamini — General Services',
+    timestamp: '2026-09-20 09:30',
+    actor: 'Priya Raman',
+  },
+  {
+    id: 't3',
+    status: 'In Progress',
+    label: 'Work in progress',
+    timestamp: '2026-09-21 08:00',
+    actor: 'Nomvula Dlamini',
+  },
+  {
+    id: 't4',
+    status: 'Resolved',
+    label: 'Marked as resolved',
+    timestamp: '2026-09-22 15:00',
+    actor: 'Nomvula Dlamini',
+    comment: 'Issue resolved and site cleaned up.',
+  },
+];
+
+const timelineGeneralClosed = () => [
+  {
+    id: 't1',
+    status: 'Submitted',
+    label: 'Request submitted',
+    timestamp: '2026-09-15 10:00',
+    actor: 'Amelia Carter',
+  },
+  {
+    id: 't2',
+    status: 'Assigned',
+    label: 'Assigned to Nomvula Dlamini — General Services',
+    timestamp: '2026-09-15 12:00',
+    actor: 'Priya Raman',
+  },
+  {
+    id: 't3',
+    status: 'In Progress',
+    label: 'Work in progress',
+    timestamp: '2026-09-16 09:00',
+    actor: 'Nomvula Dlamini',
+  },
+  {
+    id: 't4',
+    status: 'Resolved',
+    label: 'Marked as resolved',
+    timestamp: '2026-09-18 14:00',
+    actor: 'Nomvula Dlamini',
+  },
+  {
+    id: 't5',
+    status: 'Closed',
+    label: 'Request closed',
+    timestamp: '2026-09-19 11:00',
+    actor: 'Priya Raman',
+  },
+];
+
+// ---------- Comments ----------
+
 const commentsForResolved = [
   {
     id: 'c1',
@@ -129,7 +246,37 @@ const commentsForResolved = [
   },
 ];
 
+const commentsForGeneralResolved = [
+  {
+    id: 'cg1',
+    author: 'Nomvula Dlamini',
+    authorRole: 'General Services Staff',
+    text: 'Inspected the site and documented the extent of the issue.',
+    timestamp: '2026-09-21 08:30',
+  },
+  {
+    id: 'cg2',
+    author: 'Nomvula Dlamini',
+    authorRole: 'General Services Staff',
+    text: 'Cleanup completed and area restored.',
+    timestamp: '2026-09-22 14:55',
+  },
+];
+
+const commentsForGeneralInProgress = [
+  {
+    id: 'cg3',
+    author: 'Nomvula Dlamini',
+    authorRole: 'General Services Staff',
+    text: 'Materials ordered. Crew scheduled for tomorrow morning.',
+    timestamp: '2026-09-24 08:30',
+  },
+];
+
+// ---------- Requests ----------
+
 const mockRequests = [
+  // -------- Existing --------
   {
     id: 'r1',
     reference: 'CC-2026-0481',
@@ -336,7 +483,292 @@ const mockRequests = [
     comments: [],
     overdue: false,
   },
+
+  // -------- New: General Services (managed by Priya Raman) --------
+  {
+    id: 'r9',
+    reference: 'CC-2026-0511',
+    title: 'Vandalised bus shelter on King Street',
+    description:
+      'The bus shelter on King Street has had its side panels shattered and the bench inside is broken.',
+    category: 'Other',
+    department: 'General Services',
+    status: 'In Progress',
+    priority: 'High',
+    location: 'King Street Bus Shelter, District 3',
+    requesterName: 'Hannah Pretorius',
+    requesterEmail: 'h.pretorius@email.com',
+    requesterPhone: '+1 (555) 211-9987',
+    submittedAt: '2026-09-23 09:15',
+    updatedAt: '2026-09-24 08:30',
+    assignedTo: 'Nomvula Dlamini',
+    hasAttachment: true,
+    attachmentCount: 2,
+    timeline: timelineGeneralInProgress(),
+    comments: commentsForGeneralInProgress,
+    overdue: false,
+  },
+  {
+    id: 'r10',
+    reference: 'CC-2026-0512',
+    title: 'Illegal dumping on Pine Road',
+    description:
+      'A pile of construction rubble and household waste has been dumped on the verge along Pine Road.',
+    category: 'Other',
+    department: 'General Services',
+    status: 'Resolved',
+    priority: 'Medium',
+    location: 'Pine Road, near the sports field',
+    requesterName: 'Thomas Beck',
+    requesterEmail: 'tbeck@email.com',
+    requesterPhone: '+1 (555) 990-4456',
+    submittedAt: '2026-09-20 07:45',
+    updatedAt: '2026-09-22 15:00',
+    assignedTo: 'Nomvula Dlamini',
+    hasAttachment: true,
+    attachmentCount: 3,
+    timeline: timelineGeneralResolved(),
+    comments: commentsForGeneralResolved,
+    overdue: false,
+  },
+  {
+    id: 'r11',
+    reference: 'CC-2026-0513',
+    title: 'Abandoned vehicle on Oak Street',
+    description:
+      'A silver sedan has been parked on Oak Street without moving for over 3 weeks. No license plates.',
+    category: 'Other',
+    department: 'General Services',
+    status: 'Assigned',
+    priority: 'Medium',
+    location: 'Oak Street, near house 47',
+    requesterName: 'Diane Okafor',
+    requesterEmail: 'd.okafor@email.com',
+    requesterPhone: '+1 (555) 330-7712',
+    submittedAt: '2026-09-24 08:30',
+    updatedAt: '2026-09-24 10:00',
+    assignedTo: 'Nomvula Dlamini',
+    hasAttachment: true,
+    attachmentCount: 1,
+    timeline: timelineGeneralAssigned(),
+    comments: [],
+    overdue: false,
+  },
+  {
+    id: 'r12',
+    reference: 'CC-2026-0514',
+    title: 'Noise complaint at Riverside Park',
+    description:
+      'Persistent late-night noise from the parking area at Riverside Park disturbing nearby residents.',
+    category: 'Other',
+    department: 'General Services',
+    status: 'Submitted',
+    priority: 'Low',
+    location: 'Riverside Park, parking area',
+    requesterName: 'Robert Chen',
+    requesterEmail: 'r.chen@email.com',
+    requesterPhone: '+1 (555) 442-1190',
+    submittedAt: '2026-09-25 21:40',
+    updatedAt: '2026-09-25 21:40',
+    hasAttachment: false,
+    attachmentCount: 0,
+    timeline: timelineForSubmittedOnly(),
+    comments: [],
+    overdue: false,
+  },
+  {
+    id: 'r13',
+    reference: 'CC-2026-0515',
+    title: 'Broken park bench in Central Plaza',
+    description:
+      'One of the benches in Central Plaza is completely broken — slats missing and legs rusted through.',
+    category: 'Parks & Recreation',
+    department: 'General Services',
+    status: 'Closed',
+    priority: 'Low',
+    location: 'Central Plaza, near the fountain',
+    requesterName: 'Amelia Carter',
+    requesterEmail: 'amelia.carter@email.com',
+    requesterPhone: '+1 (555) 234-1872',
+    submittedAt: '2026-09-15 10:00',
+    updatedAt: '2026-09-19 11:00',
+    assignedTo: 'Nomvula Dlamini',
+    hasAttachment: true,
+    attachmentCount: 1,
+    timeline: timelineGeneralClosed(),
+    comments: commentsForGeneralResolved,
+    overdue: false,
+  },
+  {
+    id: 'r14',
+    reference: 'CC-2026-0516',
+    title: 'Graffiti in the Meridian underpass',
+    description: 'Extensive spray-painted graffiti covering both walls of the Meridian underpass.',
+    category: 'Graffiti',
+    department: 'General Services',
+    status: 'In Progress',
+    priority: 'Medium',
+    location: 'Meridian Underpass, District 6',
+    requesterName: 'Sofia Nakamura',
+    requesterEmail: 'sofia.n@email.com',
+    requesterPhone: '+1 (555) 667-3398',
+    submittedAt: '2026-09-23 09:15',
+    updatedAt: '2026-09-24 08:30',
+    assignedTo: 'Nomvula Dlamini',
+    hasAttachment: true,
+    attachmentCount: 2,
+    timeline: timelineGeneralInProgress(),
+    comments: commentsForGeneralInProgress,
+    overdue: true,
+  },
+  {
+    id: 'r15',
+    reference: 'CC-2026-0517',
+    title: 'Overflowing public bin at Vine Street stop',
+    description:
+      'The public bin at the Vine Street bus stop has been overflowing for several days and is attracting pests.',
+    category: 'Waste Collection',
+    department: 'General Services',
+    status: 'Submitted',
+    priority: 'Medium',
+    location: 'Vine Street Bus Stop, District 4',
+    requesterName: 'Hannah Pretorius',
+    requesterEmail: 'h.pretorius@email.com',
+    requesterPhone: '+1 (555) 211-9987',
+    submittedAt: '2026-09-26 07:50',
+    updatedAt: '2026-09-26 07:50',
+    hasAttachment: false,
+    attachmentCount: 0,
+    timeline: timelineForSubmittedOnly(),
+    comments: [],
+    overdue: false,
+  },
+
+  // -------- New: other departments (for staff / overview variety) --------
+  {
+    id: 'r16',
+    reference: 'CC-2026-0518',
+    title: 'Fallen tree branch on Baker Street',
+    description:
+      'A large branch has fallen onto the road on Baker Street after the storm, partially blocking traffic.',
+    category: 'Tree Trimming',
+    department: 'Public Works',
+    status: 'Submitted',
+    priority: 'Urgent',
+    location: 'Baker Street, District 2',
+    requesterName: 'James Whitfield',
+    requesterEmail: 'j.whitfield@email.com',
+    requesterPhone: '+1 (555) 881-2204',
+    submittedAt: '2026-09-26 06:30',
+    updatedAt: '2026-09-26 06:30',
+    hasAttachment: false,
+    attachmentCount: 0,
+    timeline: timelineForSubmittedOnly(),
+    comments: [],
+    overdue: false,
+  },
+  {
+    id: 'r17',
+    reference: 'CC-2026-0519',
+    title: 'Leaking fire hydrant on King Street',
+    description:
+      'A fire hydrant on King Street is leaking steadily, wasting water and pooling onto the pavement.',
+    category: 'Water Leak',
+    department: 'Utilities',
+    status: 'In Progress',
+    priority: 'High',
+    location: 'King Street & 8th Avenue, District 3',
+    requesterName: 'Thomas Beck',
+    requesterEmail: 'tbeck@email.com',
+    requesterPhone: '+1 (555) 990-4456',
+    submittedAt: '2026-09-24 13:10',
+    updatedAt: '2026-09-25 09:00',
+    assignedTo: 'Sarah Lin',
+    hasAttachment: true,
+    attachmentCount: 2,
+    timeline: timelineForInProgress(),
+    comments: [
+      {
+        id: 'c6',
+        author: 'Sarah Lin',
+        authorRole: 'Utilities Staff',
+        text: 'Valve isolated. Replacement part ordered.',
+        timestamp: '2026-09-25 09:00',
+      },
+    ],
+    overdue: false,
+  },
+  {
+    id: 'r18',
+    reference: 'CC-2026-0520',
+    title: 'Missed recycling pickup on Elm Street',
+    description:
+      'Recycling was not collected on Elm Street this week. Bins are full and blocking the sidewalk.',
+    category: 'Waste Collection',
+    department: 'Sanitation',
+    status: 'Assigned',
+    priority: 'Low',
+    location: 'Elm Street, District 7',
+    requesterName: 'Diane Okafor',
+    requesterEmail: 'd.okafor@email.com',
+    requesterPhone: '+1 (555) 330-7712',
+    submittedAt: '2026-09-25 15:20',
+    updatedAt: '2026-09-25 17:00',
+    assignedTo: 'David Osei',
+    hasAttachment: false,
+    attachmentCount: 0,
+    timeline: timelineForAssigned(),
+    comments: [],
+    overdue: false,
+  },
+  {
+    id: 'r19',
+    reference: 'CC-2026-0521',
+    title: 'Broken swing in Riverside Park',
+    description:
+      'One of the swings in the Riverside Park playground is broken — the chain has snapped on one side.',
+    category: 'Parks & Recreation',
+    department: 'Parks',
+    status: 'Submitted',
+    priority: 'High',
+    location: 'Riverside Park playground',
+    requesterName: 'Hannah Pretorius',
+    requesterEmail: 'h.pretorius@email.com',
+    requesterPhone: '+1 (555) 211-9987',
+    submittedAt: '2026-09-26 08:10',
+    updatedAt: '2026-09-26 08:10',
+    hasAttachment: true,
+    attachmentCount: 1,
+    timeline: timelineForSubmittedOnly(),
+    comments: [],
+    overdue: false,
+  },
+  {
+    id: 'r20',
+    reference: 'CC-2026-0522',
+    title: 'Missing stop sign at 3rd & Pine',
+    description:
+      'The stop sign at the corner of 3rd Avenue and Pine Road has been knocked over and is missing.',
+    category: 'Signage',
+    department: 'Transportation',
+    status: 'Assigned',
+    priority: 'Urgent',
+    location: '3rd Avenue & Pine Road, District 5',
+    requesterName: 'Sofia Nakamura',
+    requesterEmail: 'sofia.n@email.com',
+    requesterPhone: '+1 (555) 667-3398',
+    submittedAt: '2026-09-25 18:45',
+    updatedAt: '2026-09-26 08:00',
+    assignedTo: 'James Park',
+    hasAttachment: true,
+    attachmentCount: 1,
+    timeline: timelineForAssigned(),
+    comments: [],
+    overdue: true,
+  },
 ];
+
+// ---------- Staff & management users ----------
 
 const mockStaffUsers = [
   {
@@ -380,6 +812,14 @@ const mockStaffUsers = [
     avatarInitials: 'JP',
   },
   {
+    id: 'u8',
+    name: 'Nomvula Dlamini',
+    email: 'nomvula.dlamini@civic.gov',
+    role: 'staff',
+    department: 'General Services',
+    avatarInitials: 'ND',
+  },
+  {
     id: 'u3',
     name: 'Priya Raman',
     email: 'priya.raman@civic.gov',
@@ -389,7 +829,10 @@ const mockStaffUsers = [
   },
 ];
 
+// ---------- Audit log ----------
+
 const auditLog = [
+  // Existing entries
   {
     id: 'a1',
     action: 'Request created',
@@ -468,6 +911,128 @@ const auditLog = [
     actor: 'Priya Raman',
     timestamp: '2026-09-19 11:30',
     detail: 'CC-2026-0428: Resolved → Closed',
+    type: 'status',
+  },
+
+  // New General Services activity
+  {
+    id: 'a11',
+    action: 'Request created',
+    actor: 'Thomas Beck',
+    timestamp: '2026-09-20 07:45',
+    detail: 'CC-2026-0512 — Illegal dumping on Pine Road',
+    type: 'create',
+  },
+  {
+    id: 'a12',
+    action: 'Manual assignment',
+    actor: 'Priya Raman',
+    timestamp: '2026-09-20 09:30',
+    detail: 'CC-2026-0512 assigned to Nomvula Dlamini',
+    type: 'assign',
+  },
+  {
+    id: 'a13',
+    action: 'Status changed',
+    actor: 'Nomvula Dlamini',
+    timestamp: '2026-09-21 08:00',
+    detail: 'CC-2026-0512: Assigned → In Progress',
+    type: 'status',
+  },
+  {
+    id: 'a14',
+    action: 'Status changed',
+    actor: 'Nomvula Dlamini',
+    timestamp: '2026-09-22 15:00',
+    detail: 'CC-2026-0512: In Progress → Resolved',
+    type: 'status',
+  },
+  {
+    id: 'a15',
+    action: 'Request created',
+    actor: 'Hannah Pretorius',
+    timestamp: '2026-09-23 09:15',
+    detail: 'CC-2026-0511 — Vandalised bus shelter on King Street',
+    type: 'create',
+  },
+  {
+    id: 'a16',
+    action: 'Manual assignment',
+    actor: 'Priya Raman',
+    timestamp: '2026-09-23 11:00',
+    detail: 'CC-2026-0511 assigned to Nomvula Dlamini',
+    type: 'assign',
+  },
+  {
+    id: 'a17',
+    action: 'Status changed',
+    actor: 'Nomvula Dlamini',
+    timestamp: '2026-09-24 08:30',
+    detail: 'CC-2026-0511: Assigned → In Progress',
+    type: 'status',
+  },
+  {
+    id: 'a18',
+    action: 'Comment added',
+    actor: 'Nomvula Dlamini',
+    timestamp: '2026-09-24 08:30',
+    detail: 'CC-2026-0511: "Materials ordered..."',
+    type: 'comment',
+  },
+  {
+    id: 'a19',
+    action: 'Request created',
+    actor: 'Diane Okafor',
+    timestamp: '2026-09-24 08:30',
+    detail: 'CC-2026-0513 — Abandoned vehicle on Oak Street',
+    type: 'create',
+  },
+  {
+    id: 'a20',
+    action: 'Manual assignment',
+    actor: 'Priya Raman',
+    timestamp: '2026-09-24 10:00',
+    detail: 'CC-2026-0513 assigned to Nomvula Dlamini',
+    type: 'assign',
+  },
+  {
+    id: 'a21',
+    action: 'Request created',
+    actor: 'Robert Chen',
+    timestamp: '2026-09-25 21:40',
+    detail: 'CC-2026-0514 — Noise complaint at Riverside Park',
+    type: 'create',
+  },
+  {
+    id: 'a22',
+    action: 'Request created',
+    actor: 'Hannah Pretorius',
+    timestamp: '2026-09-26 07:50',
+    detail: 'CC-2026-0517 — Overflowing public bin at Vine Street stop',
+    type: 'create',
+  },
+  {
+    id: 'a23',
+    action: 'Comment added',
+    actor: 'Nomvula Dlamini',
+    timestamp: '2026-09-24 08:30',
+    detail: 'CC-2026-0516: "Site inspected..."',
+    type: 'comment',
+  },
+  {
+    id: 'a24',
+    action: 'Priority escalated',
+    actor: 'Priya Raman',
+    timestamp: '2026-09-24 09:00',
+    detail: 'CC-2026-0516: Medium → High',
+    type: 'status',
+  },
+  {
+    id: 'a25',
+    action: 'Request closed',
+    actor: 'Priya Raman',
+    timestamp: '2026-09-19 11:00',
+    detail: 'CC-2026-0515: Resolved → Closed',
     type: 'status',
   },
 ];
