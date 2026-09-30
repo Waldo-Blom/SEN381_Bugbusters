@@ -1,0 +1,96 @@
+<%
+  const isAvailable = r => r.status === 'Submitted' || r.status === 'Assigned';
+  const isMine      = r => r.status === 'In Progress';
+  const isResolved  = r => r.status === 'Resolved';
+
+  const tabs = [
+    { key: 'all',       label: 'All',            count: requests.length },
+    { key: 'available', label: 'Available',      count: requests.filter(isAvailable).length },
+    { key: 'mine',      label: 'Assigned to me', count: requests.filter(isMine).length },
+    { key: 'overdue',   label: 'Overdue',        count: requests.filter(r => r.overdue).length },
+    { key: 'resolved',  label: 'Resolved',       count: requests.filter(isResolved).length }
+  ];
+%>
+
+<div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+
+  <div class="flex gap-1 overflow-x-auto border-b border-slate-200 px-3" role="tablist">
+    <% tabs.forEach(function (t, i) { %>
+      <button type="button" role="tab" data-tab="<%= t.key %>"
+              aria-selected="<%= i === 0 %>"
+              class="tab-btn -mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium border-transparent text-slate-500 hover:text-slate-800 aria-selected:border-blue-600 aria-selected:text-blue-700">
+        <%= t.label %>
+        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"><%= t.count %></span>
+      </button>
+    <% }); %>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th class="px-5 py-3 font-medium">Request</th>
+          <th class="hidden px-3 py-3 font-medium md:table-cell">Requester</th>
+          <th class="hidden px-3 py-3 font-medium lg:table-cell">Location</th>
+          <th class="hidden px-3 py-3 font-medium sm:table-cell">Submitted</th>
+          <th class="px-3 py-3 font-medium">Priority</th>
+          <th class="px-5 py-3 font-medium">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% requests.forEach(function (r) {
+             const groups = [];
+             if (isAvailable(r)) groups.push('available');
+             if (isMine(r))      groups.push('mine');
+             if (r.overdue)      groups.push('overdue');
+             if (isResolved(r))  groups.push('resolved');
+        %>
+          <tr data-groups="<%= groups.join(' ') %>" class="hover:bg-slate-50">
+            <td class="px-5 py-3">
+              <a href="/staff/requests/<%= r.id %>" class="block">
+                <span class="font-mono text-xs text-slate-400"><%= r.reference %></span>
+                <% if (r.overdue) { %><span class="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-600">Overdue</span><% } %>
+                <span class="block font-medium text-slate-900 hover:text-blue-700"><%= r.title %></span>
+              </a>
+            </td>
+            <td class="hidden px-3 py-3 text-slate-600 md:table-cell"><%= r.requesterName %></td>
+            <td class="hidden px-3 py-3 text-slate-600 lg:table-cell"><%= r.location %></td>
+            <td class="hidden whitespace-nowrap px-3 py-3 text-slate-600 sm:table-cell"><%= r.submittedAt %></td>
+            <td class="px-3 py-3 text-slate-700"><%= r.priority %></td>
+            <td class="px-5 py-3">
+              <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"><%= r.status %></span>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+
+    <p id="empty-state" class="hidden px-5 py-10 text-center text-sm text-slate-500">No requests in this tab.</p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var buttons = document.querySelectorAll('.tab-btn');
+    var rows = document.querySelectorAll('tbody tr[data-groups]');
+    var empty = document.getElementById('empty-state');
+
+    function show(key) {
+      var visible = 0;
+      rows.forEach(function (row) {
+        var match = key === 'all' || row.dataset.groups.split(' ').indexOf(key) !== -1;
+        row.classList.toggle('hidden', !match);
+        if (match) visible++;
+      });
+      buttons.forEach(function (b) {
+        b.setAttribute('aria-selected', b.dataset.tab === key);
+      });
+      empty.classList.toggle('hidden', visible > 0);
+    }
+
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () { show(b.dataset.tab); });
+    });
+    show('all');
+  })();
+</script>

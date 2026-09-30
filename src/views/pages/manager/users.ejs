@@ -2,56 +2,129 @@
   title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
 }) %>
 
+<%
+  // Managers only ever see staff in their own department.
+  // Management accounts (including themselves) are excluded — they can only manage staff.
+  const scopedStaff = staffUsers.filter(function (u) {
+    return u.department === user.department && u.role === 'staff';
+  });
+
+  const totalStaff = scopedStaff.length;
+  const totalManagers = 1; // the logged-in manager only
+%>
+
 <div class="space-y-5">
 
-  <div class="grid grid-cols-3 gap-3">
-    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Total Users</p><p class="mt-1 text-2xl font-bold text-slate-900"><%= staffUsers.length %></p></div>
-    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Staff Members</p><p class="mt-1 text-2xl font-bold text-slate-900"><%= staffUsers.filter(u => u.role === 'staff').length %></p></div>
-    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Departments</p><p class="mt-1 text-2xl font-bold text-slate-900">6</p></div>
+  <!-- Department banner -->
+  <div class="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2.5">
+    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</span>
+    <span class="text-sm font-medium text-slate-800"><%= user.department %></span>
   </div>
 
-  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
-    <div class="px-5 py-4 space-y-4">
-      <input type="text" placeholder="Search users by name or email..."
-             class="w-full sm:max-w-md rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-      <div class="grid gap-3 sm:grid-cols-2">
-        <div class="space-y-1.5"><label class="text-sm font-medium text-slate-700">Role</label>
-          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"><option>All</option><option>Staff</option><option>Management</option></select></div>
-        <div class="space-y-1.5"><label class="text-sm font-medium text-slate-700">Department</label>
-          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"><option>All</option><option>Public Works</option><option>Utilities</option><option>Sanitation</option><option>Parks</option><option>Transportation</option><option>General Services</option></select></div>
-      </div>
+  <!-- Summary -->
+  <div class="grid grid-cols-2 gap-3">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Staff Members</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= totalStaff %></p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Department Manager</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= totalManagers %></p>
     </div>
   </div>
 
+  <!-- Search + Register -->
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="px-5 py-4 space-y-4">
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div class="flex-1 space-y-1.5">
+          <label class="text-sm font-medium text-slate-700">Search</label>
+          <input type="text" placeholder="Search staff by name or email..."
+                 class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+        </div>
+        <button type="button"
+                class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 whitespace-nowrap">
+          + Register Staff Member
+        </button>
+      </div>
+
+      <!-- Inline register form (would be toggled in real UI) -->
+      <details class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+        <summary class="cursor-pointer text-sm font-semibold text-slate-700">
+          Add a staff member to <%= user.department %>
+        </summary>
+        <form class="mt-3 grid gap-3 sm:grid-cols-2">
+          <div class="space-y-1.5">
+            <label class="text-sm font-medium text-slate-700">Full name</label>
+            <input type="text" placeholder="Jane Smith"
+                   class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-sm font-medium text-slate-700">Email</label>
+            <input type="email" placeholder="jane.smith@civic.gov"
+                   class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          </div>
+
+          <!-- Department is fixed to the manager's own department -->
+          <div class="space-y-1.5 sm:col-span-2">
+            <label class="text-sm font-medium text-slate-700">Department</label>
+            <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5">
+              <span class="text-sm font-medium text-slate-800"><%= user.department %></span>
+              <span class="ml-auto text-xs text-slate-400">Locked to your department</span>
+            </div>
+          </div>
+
+          <div class="sm:col-span-2 flex justify-end gap-2 pt-1">
+            <button type="button"
+                    class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              Cancel
+            </button>
+            <button type="button"
+                    class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              Create staff member
+            </button>
+          </div>
+        </form>
+      </details>
+    </div>
+  </div>
+
+  <!-- Staff table -->
   <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
     <table class="w-full text-left text-sm">
       <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
         <tr>
           <th class="px-4 py-3 font-semibold">User</th>
           <th class="px-4 py-3 font-semibold">Role</th>
-          <th class="px-4 py-3 font-semibold">Department</th>
           <th class="px-4 py-3 font-semibold">Email</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
-        <% staffUsers.forEach(function (u) { %>
-          <tr class="hover:bg-slate-50 transition-colors">
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-3">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-semibold"><%= u.avatarInitials %></div>
-                <span class="font-medium text-slate-800"><%= u.name %></span>
-              </div>
+        <% if (scopedStaff.length === 0) { %>
+          <tr>
+            <td colspan="3" class="px-4 py-8 text-center text-sm text-slate-400">
+              No staff members in <%= user.department %> yet.
             </td>
-            <td class="px-4 py-3">
-              <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium
-                <%= u.role === 'management' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' %>">
-                <%= u.role === 'management' ? 'Manager' : 'Staff' %>
-              </span>
-            </td>
-            <td class="px-4 py-3 text-slate-600"><%= u.department || '—' %></td>
-            <td class="px-4 py-3 text-slate-600"><%= u.email %></td>
           </tr>
-        <% }); %>
+        <% } else { %>
+          <% scopedStaff.forEach(function (u) { %>
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-semibold"><%= u.avatarInitials %></div>
+                  <span class="font-medium text-slate-800"><%= u.name %></span>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                  Staff
+                </span>
+              </td>
+              <td class="px-4 py-3 text-slate-600"><%= u.email %></td>
+            </tr>
+          <% }); %>
+        <% } %>
       </tbody>
     </table>
   </div>

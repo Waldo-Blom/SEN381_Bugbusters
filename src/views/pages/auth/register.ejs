@@ -3,6 +3,12 @@
   authTitle: 'Create your account',
   authSubtitle: 'Join CivicConnect to report and track civic issues in your area.'
 }) %>
+<a href="/" class="mb-6 inline-flex items-center gap-1.5 rounded text-sm font-medium text-slate-500 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors">
+  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+  </svg>
+  Back to home
+</a>
 
 <form action="/auth/login" method="POST" class="space-y-5">
   <input type="hidden" name="role" value="requester" />
@@ -27,7 +33,7 @@
   </div>
 
   <div class="space-y-1.5">
-    <label class="block text-sm font-medium text-slate-700">Phone number (optional)</label>
+    <label class="block text-sm font-medium text-slate-700">Phone number</label>
     <input type="text" placeholder="+1 (555) 000-0000"
            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
   </div>

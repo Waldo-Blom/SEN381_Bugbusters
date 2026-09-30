@@ -14,7 +14,6 @@
           <p class="font-semibold text-slate-800"><%= user.name %></p>
           <p class="text-sm text-slate-500"><%= user.email %></p>
         </div>
-        <button class="ml-auto rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Change photo</button>
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
         <div class="space-y-1.5"><label class="block text-sm font-medium text-slate-700">Full name</label>
@@ -54,28 +53,25 @@
         <span class="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-600"><span class="inline-block h-4 w-4 transform translate-x-6 rounded-full bg-white shadow-sm"></span></span>
       </div>
       <div class="border-t border-slate-100"></div>
-
-      <div class="flex items-center justify-between gap-4">
-        <div><p class="text-sm font-medium text-slate-700">Weekly digest</p><p class="text-xs text-slate-500">Receive a weekly summary of your requests</p></div>
-        <span class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300"><span class="inline-block h-4 w-4 transform translate-x-1 rounded-full bg-white shadow-sm"></span></span>
-      </div>
     </div>
   </div>
 
   <!-- Security -->
-  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
-    <div class="border-b border-slate-100 px-5 py-4"><h2 class="text-base font-bold text-slate-900">Security</h2></div>
-    <div class="px-5 py-4 space-y-4">
-      <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Change password</button>
-      <div class="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-        <div>
-          <p class="text-sm font-medium text-slate-700">Two-factor authentication</p>
-          <p class="text-xs text-slate-500">Add an extra layer of security to your account</p>
-        </div>
-        <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Enable</button>
-      </div>
+  <section aria-labelledby="security-heading" class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4">
+      <h2 id="security-heading" class="text-base font-bold text-slate-900">Security</h2>
     </div>
-  </div>
+    <div class="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p class="text-sm font-semibold text-slate-900">Password</p>
+        <p class="text-sm text-slate-500">Update your password to keep your account secure.</p>
+      </div>
+      <button type="button"
+        class="self-start rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:self-auto">
+        Change password
+      </button>
+    </div>
+  </section>
 
   <div class="flex justify-center pt-2">
     <a href="/auth/logout" class="rounded-lg px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Sign out of CivicConnect</a>
