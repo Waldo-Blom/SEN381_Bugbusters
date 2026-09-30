@@ -1,10 +1,10 @@
-# Scope Baseline & Constraints
+## 2. Scope Baseline & Constraints
 
-## Scope baseline
+### 2.1 Scope Baseline
 
-### In scope
+#### 2.1.1 In Scope
 
-These are the core features and things that are application will and must be able to do. These are the things that we are promising to ensure that our system will perform, this is the baseline scope and will be adjusted as the project progresses (note in the event that the scope is adjusted we will properly document these changes):
+These are the core features and things that our application will and must be able to do. These are the things that we are promising to ensure that our system will perform, this is the baseline scope and will be adjusted as the project progresses (note in the event that the scope is adjusted we will properly document these changes):
 
 1. **User login, registration and authentication**
 
@@ -12,13 +12,15 @@ These are the core features and things that are application will and must be abl
 
    This authentication will also help with staff and management functionality as they will also have accounts. This will help with things such as staff being assigned to a specific department and also to a specific management person.
 
+   M2 Review: IN PEDv1 we established register for Requesters, Management and Staff. After further consideration we identified in PEDV2 that requesters will be able to self-register. Management will register staff for only their department. A special Admin user will register the management users and will also be able to manage staff across all departments.
+
 2. **Requesters submit a new service request**
 
-   Requesters will be able to submit a new service request containing all the required information
+   Requesters will be able to submit a new service request containing all the required information.
 
 3. **Add images to a request**
 
-   Requesters will also be able to attach images to a specific request in the event that it is needed. However, images will be limited to a certain file size (still to be determined at a later stage what this established limitation is, as it depends on the database architecture limitations and free teer availability)
+   Requesters will also be able to attach images to a specific request in the event that it is needed. However, images will be limited to a certain file size (still to be determined at a later stage what this established limitation is, as it depends on the database architecture limitations and free tier availability).
 
 4. **Controlled request categorization**
 
@@ -76,15 +78,13 @@ These are the core features and things that are application will and must be abl
 
     For our proposed digital platform, some of the screens we will adapt for mobile as this will improve the user experience for the requesters.
 
-### Out scope
+### 2.1.2 Out of Scope
 
 These are explicit decisions that that we will not be moving forward with and are excluded from the baseline scope.
 
 1. **AI chatbot**
 
-    We will not create an AI chatbot for users to communicate with. 
-    It is unlikely that users will make use of this feature. Also, when implementing something like this it can be complex there are certain risks such as people misusing the chatbot for personal reasons. There are security and implementation risks associated that are not worth the potential value that it could add.
-
+   We will not create an AI chatbot for users to communicate with. It is unlikely that users will make use of this feature. Also, when implementing something like this it can be complex there are certain risks such as people missing the chatbot for personal reasons (Schuman, 2026). There are security and implementation risks associated that are not worth the potential value that it could add (Schuman, 2026).
 
 2. **Internal real time messaging system**
 
@@ -100,23 +100,23 @@ These are explicit decisions that that we will not be moving forward with and ar
 
 5. **Social media login**
 
-   We will provide one method of registration and that is email along with a password. We will not be integrating Google login, Login via Facebook. This overcomplicates the issues and requires additional API's that could change or break. This could add to the technical debt of the application.
+   We will provide one method of registration and that is email along with a password. We will not be integrating Google login, Login via Facebook. This overcomplicates the issue and requires an additional API's that could change or break. This could add to the technical debt of the application.
 
-### Deferred scope
+### 2.1.3 Deferred Scope
 
 These are recognised possible future things we could implement in future milestones, but we deliberately postpone these issues due to schedule, cost, risk or missing evidence.
 
 1. **Auto assign issues to the same task**
 
-   Ideally it would be beneficial for the system to automatically group multiple requests to the same underlying issue. For example, a specific website that the community focused organization manages and is in charge of. They might get multiple requests that the website
+   Ideally, it would be beneficial for the system to automatically group multiple requests to the same underlying issue. For example, a specific website that the community focused organization manages and is in charge of goes down. They might get multiple requests that the website is no longer accessible. So instead of dealing with each individual request we treat it as single issue. This could be advantageous, but this decision is differed as we would first like to implement the basic functionality first. This is a "nice to have".
 
 2. **Portal for requesters to review their interactions with the staff**
 
-   Adding a reviews portal where requesters could review their interaction with a specific staff member if they had one.
+   Adding a reviews portal where requesters could review their interaction with a specific staff member if they had one. This is also another "nice to have".
 
 3. **Additional role for across all management departments**
 
-   An additional user role that will have access to a dashboard to view overall metrics of the system such as how many tasks assigned to what department, how long on average does each department take to resolve specific issues. It would give metrics about the performance of the service staff and management overall at a glance (Like an Admin user). So, this is not department specific but a user that has a greater level of access. We defer this decision as we would first like to establish a baseline system and then if there is available time for this feature we will implement it
+   An additional user role that will have access to a dashboard to view overall metrics of the system such as how many tasks assigned to what department, how long on average does each department take to resolve specific issues. It would give metrics about the performance of the staff and management overall at a glance (Like an Admin user). So, this is not department specific but a user that has a greater level of access. We defer this decision as we would first like to establish a baseline system and then if there is available time for this feature, we will implement it
 
 4. **Extent of the Mobile adaptability**
 
