@@ -1,183 +1,186 @@
-# SEN381 Bugbusters - CivicConnect Project 
+# CivicConnect
 
-## Project Overview
+**SEN381 · Team Bugbusters · Belgium Campus ITversity**
 
-CivicConnect is a digital platform designed to address operational challenges faced by a community-focused organization in managing citizen service requests. The organization currently manages requests through fragmented channels (email, telephone, WhatsApp, spreadsheets, paper-based protocols), resulting in duplicated, overlooked, or lost requests with no visibility into status or management oversight.
+CivicConnect is a web platform that gives a community-focused organisation one reliable place for citizens to submit service requests, for staff to resolve them, and for management to monitor the work.
 
-The CivicConnect platform provides a reliable, unified way for citizens to submit, staff to manage, and management to monitor service requests, ensuring accountability and operational efficiency.
+**Status:** Active development. Milestone 2 (Architecture & Design baseline) submitted. Milestone 3 (Implementation) is next.
 
-### The Problem
+---
 
-The community-focused organization experiences:
-- Duplicated and lost service requests across multiple channels
-- No visibility for requesters into request status
-- Difficulty coordinating and prioritizing tasks for staff
-- Lack of management information on outstanding, overdue, and resolved work
-- No centralized tracking mechanism
+## Table of Contents
 
-## Key Stakeholders
+1. [The Problem](#the-problem)
+2. [Stakeholders and Roles](#stakeholders-and-roles)
+3. [Key Features](#key-features)
+4. [Tech Stack](#tech-stack)
+5. [Data Model](#data-model)
+6. [Getting Started](#getting-started)
+7. [Project Documentation (Live Artefacts)](#project-documentation-live-artefacts)
+8. [Engineering Practices](#engineering-practices)
+9. [Team](#team)
 
-CivicConnect serves five distinct stakeholder groups with different needs:
+---
 
-1. **Product Owner** - Community-focused organization defining requirements and business needs
-2. **Development Team (Bugbusters)** - Waldo Blom, Christian Janse van Rensburg, Marco Reiners
-3. **Requesters** - Citizens submitting service requests and tracking status
-4. **Staff** - People who are assigned to investigate and resolve requests
-5. **Management** - Department managers overseeing staff and monitoring request resolution
+## The Problem
 
-# Live Atrifacts
-The following documents are maintained throughout the project lifecycle and updated as engineering decisions and requirements evolve:
-- [Project Scope](./docs/scope-baseline.md)
-- [Risk Register](./docs/registers/risk-register.md)
-- [Decision Log](./docs/registers/decision-log.md)
-- [AI Usage Register](./docs/registers/ai-usage-register.md)
+The organisation currently handles requests through email, telephone, WhatsApp, spreadsheets and paper protocols. This leads to:
 
-# Project Master Brief
-See `docs\PED\SEN381 Master Project Brief.pdf` for the comlete breakdown of project requirements
+- Duplicated, overlooked or lost requests
+- No visibility for requesters into the status of their request
+- Difficulty coordinating and prioritising work for staff
+- No management information on outstanding, overdue and resolved work
+- No central tracking mechanism
 
+CivicConnect replaces these fragmented channels with a single, accountable workflow.
 
-## GitHub Workflow & Development Practices
-GitHub is a tool but just because you make use of GitHub does not mean that you applied proper software engineering. In this project we applied software software engineering practices as follows:
-### Branch Strategy
+## Stakeholders and Roles
 
-We follow a **main/dev branching model** with temporary feature branches to ensure code quality and maintain a clean development history.
+| Role | What they do in CivicConnect |
+|------|------------------------------|
+| **Requester** | Self-registers, submits requests (with optional images), tracks status, views history, receives optional email notifications |
+| **Staff** | Sees requests in their department, accepts responsibility, updates status, records resolution details and closes requests |
+| **Management** | Oversees one department: dashboard (open / overdue / resolved / closed), assigns and reassigns requests, approves access to requester contact details, can revert a closure |
+| **Admin** | Registers management users and manages staff across all departments |
+| **Product Owner** | The organisation defining the business need; reviews each milestone (does not submit requests) |
 
-#### Main Branches
-- **`main`**: Production-ready code
-  - Fully protected branch (cannot accept direct commits)
-  - Requires pull requests for all changes
-  - Requires 2 approvals before merge
-  - Force pushes are blocked
-  - Deletions are blocked
-  - Admin bypass is disabled
-  
-- **`dev`**: Integration branch for active development
-  - Protected branch with similar rules to main
-  - Used for testing feature integration before production release
+## Key Features
 
-#### Feature Branches
-Temporary feature branches are created from `dev` or `main` and use naming prefixes to categorize work:
+- Email and password registration and login (no social login)
+- Request submission using a controlled category list, routed to the relevant department only
+- Image attachments (images only; size limit to be finalised against free-tier storage)
+- Status tracking through a controlled workflow: `SUBMITTED → ASSIGNED → IN_PROGRESS → RESOLVED → CLOSED` (`REJECTED` as an exception state)
+- Staff self-assignment within their department, with management override
+- Search, filter and sort for staff and management
+- Management dashboard and full audit history of status and assignment changes
+- Requester contact details hidden by default; released to staff only after manager approval
+- Optional email notifications on status change
+- Mobile-friendly requester screens
 
-```
-docs/<description>                      # Documentation updates (e.g., docs/ai-usage-register-m1-waldo)
-feature/<requirement-id>-<description>  # New functionality (e.g., feature/FR-implement-login)
-```
+**Out of scope:** AI chatbot, internal real-time messaging, video upload, voice input, social login.
+**Deferred:** grouping duplicate requests, staff review portal, cross-department metrics role, full mobile support for staff and management.
 
-**Example branches:**
-- `docs/problem-and-business-need`
-- `docs/ai-usage-register-m1-waldo`
-- `feature/FR-implement-login`
-- `feature/NFR-improve-login-loading-time`
+## Tech Stack
 
-**Branch Cleanup:** Feature branches are deleted after merging to keep the repository clean and structured. Before deletion, the branch is merged into the relevant target branch (main or dev), and all commit history is preserved in the target branch.
+A JavaScript-centric MVC web application, chosen for a three-person team on a short schedule and free-tier hosting.
 
-### Pull Requests & Code Review
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Runtime / API | Node.js 24 + Express | I/O-bound workload, one language across the stack |
+| Frontend | EJS (server-side rendering) + Tailwind CSS | Fast page loads, less client state, easy responsive layouts |
+| Database | PostgreSQL | Relational integrity, row-level locking, JSONB for audit payloads |
+| DB access | node-postgres (`pg`) | Transaction blocks for atomic status transitions |
+| Email | Nodemailer (SMTP) | Ethereal in dev/test, Gmail SMTP in production |
+| Quality gates | Jest, ESLint (+ Prettier), GitHub Actions | Automated evidence on every PR |
 
-Every change goes through a structured code review process:
+## Data Model
 
-1. **Create a feature branch** from `dev` or `main`
-2. **Make commits** in your local environment with clear commit messages
-3. **Open a pull request** with:
-   - Descriptive title linked to the requirement or issue
-   - Detailed description of changes
-   - Reference to related issue(s) where applicable
-4. **Code review** by team members (Marco, Christian, or Waldo)
-   - Reviewers examine code quality, logic, and adherence to standards
-   - Feedback is provided through PR comments
-   - Changes are requested if needed
-5. **Address feedback** and commit additional changes as needed
-6. **Approval** by all required reviewers (minimum 2 approvals for main branch)
-7. **Merge** the PR into target branch
-   - Merge conflicts are resolved in the feature branch before final merge
-   - Branch is deleted at the start of a new Milestone
+Core entities: `users`, `departments`, `staff_assignments`, `request_categories`, `service_requests`, `request_attachments`, `request_comments`, `request_status_history`, `request_assignment_history`, `admin_audit_log`.
 
-**Important Notes:**
-- Self-approval is not permitted. Authors cannot approve their own PRs.
-- The ruleset enforces these requirements automatically.
+View the full ERD on [dbdiagram.io](https://dbdiagram.io/d/CivicConnect_BugBusters-6ab7b2250f25a52d0113c01b).
 
-### Issues & Task Management
+## Getting Started
 
-#### Creating and Managing Issues
-- Create a **New issue** on GitHub for each task
-- Provide clear **Title** and **Description**
-- Assign the issue to a **Milestone** (M1, M2, M3, or M4)
-  - Every issue must be assigned to exactly one milestone
-  - Milestone view shows completion percentage and helps track progress
-- Apply relevant **Labels** for categorization
-- Assign to the person responsible for the task (before starting work)
-- Update status through linked pull requests
+### Prerequisites
 
-#### Linking Issues in Commits and Pull Requests
-Reference issues in commit messages or PR descriptions to create automatic links:
-```
-git commit -m "Implement login form - closes #24"
-git commit -m "Add password validation - fixes #18"
+- Node.js 24 (version pinned in `.nvmrc`; use `nvm use`)
+- PostgreSQL `<version>` (local install or a hosted free-tier instance)
+
+### Setup
+
+```bash
+git clone https://github.com/Waldo-Blom/SEN381_Bugbusters.git
+cd SEN381_Bugbusters
+nvm use
+npm ci
+cp .env.example .env   
 ```
 
-Keywords like `closes`, `fixes`, or `resolves` will automatically close the linked issue when the PR is merged.
+### Environment variables
 
-### Milestones
+Secrets are never committed. Copy `.env.example` to `.env` and set:
 
-GitHub milestones correspond directly to project milestones and represent the deliverables for each phase:
+| Variable | Purpose |
+|----------|---------|
+| `SESSION_SECRET` | Signs `express-session` cookies |
+| `DATABASE_URL` | PostgreSQL connection string (TODO: confirm name) |
+| `NODE_ENV` | Selects the email transport (Ethereal vs Gmail) |
+| `<SMTP variables>` | TODO: Gmail app-password settings |
 
-- **Milestone 1 (M1)**: Engineering Foundation & Requirements Baseline
-- **Milestone 2 (M2)**: Architecture & Design Phase
-- **Milestone 3 (M3)**: Implementation Phase
-- **Milestone 4 (M4)**: Testing & Deployment Phase
+### Run, test and lint
 
-Every issue must be assigned to exactly one milestone. The milestone view automatically shows completion percentage (based on closed vs. open issues) and helps the team verify if progress is on track or falling behind.
+Run these in two terminals during development:
 
-**View milestones:** https://github.com/Waldo-Blom/SEN381_Bugbusters/milestones
+```bash
+npm run watch:css    # Tailwind: builds src/public/styles/output.css, then rebuilds on change
+npm run dev          # Express with nodemon (auto-restart), runs src/server.js
+```
 
-### Labels
+All available scripts:
 
-Labels provide additional clarity and organization for issues and PRs. The labeling convention includes:
+| Command | What it does |
+|---------|--------------|
+| `npm run watch:css` | Compile Tailwind CSS and keep watching for changes |
+| `npm run dev` | Start the app with nodemon (auto-restarts on file changes) |
+| `npm start` | Start the app with Node (no auto-restart) |
+| `npm run lint` | Run ESLint |
+| `npm run lint:fix` | Run ESLint and auto-fix problems |
+| `npm run format` | Format the whole repo with Prettier |
+| `npm test` | Run the Jest test suite |
+| `npm run test:watch` | Run Jest in watch mode |
 
-#### By Priority
-- `priority: Urgent` - Blocking issues, critical bugs
-- `priority: High` - Important but not a blocking issue
-- `priority: Medium` - Normal priority
-- `priority: Low` - Nice to have, can defer
+Before opening a PR, run `npm run lint` and `npm test`. These are the same checks the CI pipeline runs.
 
-#### By Task Type
-- `Feature` - New functionality added
-- `Bug` - Something isn't working
-- `Enhancement` - Improve something or change existing behavior
-- `Documentation` - Improvements or additions to documentation
+## Project Documentation (Live Artefacts)
 
-#### By Work Type
-- `Front end` - UI/Client side changes
-- `Back end` - Server/API work
-- `Database` - Data layer/queries
+These are updated throughout the project as decisions and requirements evolve.
 
-As the project evolves, additional labels may be added for extra clarity, or unused labels may be removed.
+| Document | Location |
+|----------|----------|
+| Master project brief | [`docs/PED/SEN381 Master Project Brief.pdf`](./docs/PED/SEN381%20Master%20Project%20Brief.pdf) |
+| Project scope | [`docs/scope-baseline.md`](./docs/scope-baseline.md) |
+| Risk register | [`docs/registers/risk-register.md`](./docs/registers/risk-register.md) |
+| Decision log | [`docs/registers/decision-log.md`](./docs/registers/decision-log.md) |
+| AI usage register | [`docs/registers/ai-usage-register.md`](./docs/registers/ai-usage-register.md) |
+| GitHub governance | [`docs/github-governance.md`](./docs/github-governance.md) |
 
-## Protected Branch Rules
+Requirements are traced through the RTM in the PED using stable IDs (`FR-1xx` requester, `FR-2xx` staff, `FR-3xx` management, `NFR-` by quality category).
 
-The `main` and `dev` branches are protected with the following rulesets to ensure controlled development:
+## Engineering Practices
 
-### Requires Pull Request Before Merging
-- All commits must be made to a non-protected branch and submitted via a pull request before merging into main or dev
-- Direct development on protected branches is not possible
+We use a protected branching model and mandatory peer review. The short version:
 
-### Requires Approvals
-- Pull requests targeting `main` require a minimum of **2 approvals** from other team members
-- This matches the project master brief requirement for controlled code review
-- Self-approval is not permitted
+| Branch | Purpose | Merge rules |
+|--------|---------|-------------|
+| `main` | Production-ready | PR only, 2 approvals, no force push, no deletion, no admin bypass |
+| `staging` | CI and final testing before `main` | PR only, 1 approval, `CI / build-and-test` must pass |
+| `dev` | Active integration | PR only, 1 approval |
+| `feature/<id>-<desc>`, `docs/<desc>` | Temporary work branches | Cut from `dev` or `main`, deleted after merge |
 
-### Force Pushes Are Blocked
-- The "Allow force pushes" setting is disabled
-- Force pushes to protected branches are not permitted
-- This prevents accidental history rewriting
+- Authors cannot approve their own PRs.
+- Every issue belongs to exactly one milestone (M1 to M4) and is linked from commits and PRs (`closes #24`).
+- CI (GitHub Actions) runs lint and tests on every push and PR to `staging`.
+- Labels cover priority, task type and work type.
 
-### Deletions Are Blocked
-- When "Allow deletions" is disabled, protected branches cannot be deleted
-- This prevents accidental deletion of production and development branches
+Full details, including branch naming, PR process, issue and label conventions, are in [`docs/github-governance.md`](./docs/github-governance.md).
 
-### No Admin Bypass
-- The ruleset cannot be bypassed by admin privileges or roles
-- All team members follow the same review and approval process
+**Milestones**
 
+| Milestone | Focus |
+|-----------|-------|
+| M1 | Engineering foundation and requirements baseline |
+| M2 | Architecture and design |
+| M3 | Implementation |
+| M4 | Testing and deployment |
 
-**Last Updated**: Milestone 1 - (9 Septemeber2026)
-**Repository Status**: Active Development
+Track progress on the [milestones page](https://github.com/Waldo-Blom/SEN381_Bugbusters/milestones).
+
+## Team
+
+| Name | Student no. |
+|------|-------------|
+| Waldo Blom | 578068 |
+| Christian Janse van Rensburg | 601840 |
+| Marco Reiners | 578056 |
+
+*Last updated: Milestone 2, 29 September 2026*
