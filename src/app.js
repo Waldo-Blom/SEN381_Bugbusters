@@ -3,20 +3,17 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 
-const pageRoutes = require('./routes/pageRoutes');
-const authRoutes = require('./routes/authRoutes');
-const requesterRoutes = require('./routes/requesterRoutes');
-const staffRoutes = require('./routes/staffRoutes');
-const managerRoutes = require('./routes/managerRoutes');
+const registerModules = require('./modules');
 
 const app = express();
 
-// Set EJS as the templating engine
+// Set EJS as the templating engine.
+// Views live inside each module, plus shared layouts/partials/errors.
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', [path.join(__dirname, 'modules'), path.join(__dirname, 'shared/views')]);
 
-// Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files from the root-level 'public' directory
+app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -34,12 +31,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-app.use('/', pageRoutes); // Landing page
-app.use('/auth', authRoutes); // Login / Signup / Logout
-app.use('/requester', requesterRoutes); // Requester-only area
-app.use('/staff', staffRoutes); // Staff-only area
-app.use('/manager', managerRoutes); // Manager-only area
+// Routes: each module declares its own paths (see modules/index.js)
+registerModules(app);
 
 // Health check for CI
 app.get('/health', (req, res) => {
@@ -52,11 +45,13 @@ app.get('/health', (req, res) => {
 // });
 
 // 404 & Error handlers
-app.use((req, res) => res.status(404).render('pages/404', { title: 'Not Found' }));
+app.use((req, res) => res.status(404).render('errors/404', { title: 'Not Found' }));
 
-app.use((err, req, res) => {
+// Express only treats a handler as an error handler if it declares four arguments.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).render('pages/500', { title: 'Server Error' });
+  res.status(500).render('errors/500', { title: 'Server Error' });
 });
 
 module.exports = app;

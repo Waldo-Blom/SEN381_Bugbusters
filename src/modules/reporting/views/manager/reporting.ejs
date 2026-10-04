@@ -1,0 +1,59 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<%
+  const avgResolutionData = [
+    { label: 'Mon', value: 5 }, { label: 'Tue', value: 4 }, { label: 'Wed', value: 6 },
+    { label: 'Thu', value: 3 }, { label: 'Fri', value: 4 }, { label: 'Sat', value: 7 }, { label: 'Sun', value: 5 },
+  ];
+  const maxAvg = Math.max(...avgResolutionData.map(d => d.value), 1);
+%>
+
+<div class="space-y-5">
+
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Total Actions Logged</p><p class="mt-1 text-2xl font-bold text-slate-900"><%= auditLog.length %></p></div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Avg. Resolution Time</p><p class="mt-1 text-2xl font-bold text-slate-900">4.2<span class="text-sm text-slate-400"> hrs</span></p></div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Access Authorisations</p><p class="mt-1 text-2xl font-bold text-slate-900">3</p></div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Priority Escalations</p><p class="mt-1 text-2xl font-bold text-slate-900">2</p></div>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Avg. Resolution Time (hours) — This Week</h3></div>
+    <div class="px-5 py-4">
+      <div class="flex items-end justify-between gap-3 h-44">
+        <% avgResolutionData.forEach(function (d) { %>
+          <div class="flex flex-1 flex-col items-center gap-2">
+            <span class="text-xs font-semibold text-slate-700"><%= d.value %></span>
+            <div class="w-full max-w-[40px] rounded-t-lg bg-cyan-500" style="height: <%= (d.value / maxAvg) * 100 %>%; min-height: 4px"></div>
+            <span class="text-[10px] text-slate-500"><%= d.label %></span>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-800">Audit Trail</h3>
+      <button class="text-sm font-medium text-blue-600 hover:text-blue-700">Export log</button>
+    </div>
+    <div class="divide-y divide-slate-100">
+      <% auditLog.forEach(function (entry) { %>
+        <div class="flex items-start gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <p class="text-sm font-semibold text-slate-800"><%= entry.action %></p>
+              <span class="text-xs text-slate-400">&middot; <%= entry.timestamp %></span>
+            </div>
+            <p class="mt-0.5 text-sm text-slate-600"><%= entry.detail %></p>
+            <p class="mt-0.5 text-xs text-slate-400"><%= entry.actor %></p>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/app-layout-foot') %>

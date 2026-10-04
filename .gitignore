@@ -143,3 +143,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Project: generated Tailwind CSS (built from public/styles/input.css)
+public/styles/output.css

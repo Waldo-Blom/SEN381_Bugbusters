@@ -1,0 +1,34 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<%
+  const available = requests.filter(r => r.status === 'Submitted' || r.status === 'Assigned');
+  const assigned  = requests.filter(r => r.status === 'In Progress');
+  const resolved  = requests.filter(r => r.status === 'Resolved');
+  const overdue   = requests.filter(r => r.overdue);
+%>
+
+<div class="space-y-5">
+
+  <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 text-white shadow-sm">
+    <div>
+      <p class="text-blue-100 text-sm">Welcome back, <%= user.name.split(' ')[0] %></p>
+      <h2 class="text-lg font-bold"><%= user.department %> Department</h2>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Available to accept</p><p class="text-xl font-bold text-slate-900"><%= available.length %></p></div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Assigned to me</p><p class="text-xl font-bold text-slate-900"><%= assigned.length %></p></div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Resolved this week</p><p class="text-xl font-bold text-slate-900"><%= resolved.length %></p></div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Overdue</p><p class="text-xl font-bold text-slate-900"><%= overdue.length %></p></div>
+  </div>
+
+  <%- include('requests/views/partials/request-filters') %>
+
+  <%- include('requests/views/partials/request-table', { requests }) %>
+
+</div>
+
+<%- include('partials/app-layout-foot') %>
