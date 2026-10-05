@@ -1,0 +1,83 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<%
+  // Managers only ever see requests that belong to their own department.
+  const myRequests = requests.filter(function (r) {
+    return r.department === user.department;
+  });
+%>
+
+<div class="space-y-5">
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="px-5 py-4 space-y-4">
+
+      <!-- Department banner (read-only context) -->
+      <div class="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2.5">
+        <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</span>
+        <span class="text-sm font-medium text-slate-800"><%= user.department %></span>
+      </div>
+
+      <input type="text" placeholder="Search requests..."
+             class="w-full sm:max-w-md rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div class="space-y-1.5"><label class="text-sm font-medium text-slate-700">Status</label>
+          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"><option>All</option><option>Submitted</option><option>Assigned</option><option>In Progress</option><option>Resolved</option><option>Closed</option></select></div>
+        <div class="space-y-1.5"><label class="text-sm font-medium text-slate-700">Category</label>
+          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"><option>All</option><option>Pothole</option><option>Streetlight</option><option>Water Leak</option></select></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="text-sm text-slate-600">
+    Showing <span class="font-semibold text-slate-900"><%= myRequests.length %></span>
+    request<%= myRequests.length === 1 ? '' : 's' %>
+    for <span class="font-semibold text-slate-900"><%= user.department %></span>
+  </p>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th class="px-4 py-3 font-semibold">Reference</th>
+          <th class="px-4 py-3 font-semibold">Title</th>
+          <th class="px-4 py-3 font-semibold">Category</th>
+          <th class="px-4 py-3 font-semibold">Status</th>
+          <th class="px-4 py-3 font-semibold">Priority</th>
+          <th class="px-4 py-3 font-semibold">Requester</th>
+          <th class="px-4 py-3 font-semibold">Submitted</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% if (myRequests.length === 0) { %>
+          <tr>
+            <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">
+              No requests for your department yet.
+            </td>
+          </tr>
+        <% } else { %>
+          <% myRequests.forEach(function (r) { %>
+            <tr onclick="window.location='/manager/requests/<%= r.id %>'" class="cursor-pointer hover:bg-blue-50/50 transition-colors">
+              <td class="px-4 py-3 font-mono text-xs text-slate-500"><%= r.reference %></td>
+              <td class="px-4 py-3 font-medium text-slate-800 max-w-[200px] truncate"><%= r.title %></td>
+              <td class="px-4 py-3 text-slate-600"><%= r.category %></td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"><%= r.status %></span>
+              </td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"><%= r.priority %></span>
+              </td>
+              <td class="px-4 py-3 text-slate-600"><%= r.requesterName %></td>
+              <td class="px-4 py-3 text-xs text-slate-500"><%= r.submittedAt %></td>
+            </tr>
+          <% }); %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('partials/app-layout-foot') %>

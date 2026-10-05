@@ -1,0 +1,92 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="mx-auto max-w-2xl space-y-6">
+
+  <div class="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3.5">
+    <span class="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-red-600"></span>
+    <p class="text-sm text-red-800">
+      Provide as much detail as possible so our team can address your request quickly. You'll receive updates as your request progresses.
+    </p>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4">
+      <h2 class="text-base font-bold text-slate-900">Service Request Form</h2>
+      <p class="text-sm text-slate-500">All fields marked with * are required.</p>
+    </div>
+
+    <form class="px-5 py-4 space-y-5">
+
+      <div class="space-y-1.5">
+        <label class="block text-sm font-medium text-slate-700">Category *</label>
+        <select class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+          <option value="">Select a category...</option>
+          <option>Pothole</option><option>Streetlight</option><option>Graffiti</option>
+          <option>Waste Collection</option><option>Water Leak</option><option>Tree Trimming</option>
+          <option>Parks &amp; Recreation</option><option>Signage</option><option>Other</option>
+        </select>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-sm font-medium text-slate-700">Title *</label>
+        <input type="text" placeholder="Brief summary of the issue"
+               class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-sm font-medium text-slate-700">Description *</label>
+        <textarea rows="5" placeholder="Describe the issue in detail..."
+                  class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"></textarea>
+        <p class="text-xs text-slate-500">Tip: The more detail you provide, the faster we can resolve the issue.</p>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-sm font-medium text-slate-700">Location *</label>
+        <input type="text" placeholder="e.g. 142 Maple Street, District 4"
+               class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-sm font-medium text-slate-700">Priority (if applicable)</label>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <button type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-center hover:border-slate-300">
+            <span class="block text-sm font-semibold text-slate-800">Low</span>
+            <span class="mt-0.5 block text-[10px] leading-tight text-slate-500">Minor inconvenience</span>
+          </button>
+          <button type="button" class="rounded-lg border-2 border-blue-500 bg-blue-50 px-3 py-2.5 text-center">
+            <span class="block text-sm font-semibold text-slate-800">Medium</span>
+            <span class="mt-0.5 block text-[10px] leading-tight text-slate-500">Should be addressed soon</span>
+          </button>
+          <button type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-center hover:border-slate-300">
+            <span class="block text-sm font-semibold text-slate-800">High</span>
+            <span class="mt-0.5 block text-[10px] leading-tight text-slate-500">Affects safety or traffic</span>
+          </button>
+          <button type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-center hover:border-slate-300">
+            <span class="block text-sm font-semibold text-slate-800">Urgent</span>
+            <span class="mt-0.5 block text-[10px] leading-tight text-slate-500">Immediate hazard</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-sm font-medium text-slate-700">Attach images (optional)</label>
+        <div class="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center hover:border-blue-400 hover:bg-blue-50/50">
+          <p class="text-sm text-slate-600">
+            <span class="font-semibold text-blue-600">Click to upload</span> or drag and drop
+          </p>
+          <p class="mt-1 text-xs text-slate-400">PNG, JPG, or GIF — max 5MB per image</p>
+        </div>
+      </div>
+
+      <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end pt-2">
+        <button type="button" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+          Submit request
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/app-layout-foot') %>
