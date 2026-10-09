@@ -1,0 +1,72 @@
+name: Health Check
+
+on:
+  pull_request:
+    branches: [testing, staging, main]
+
+permissions:
+  contents: read
+
+jobs:
+  health-check:
+    name: "Application Health Check"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: civicconnect_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: civicconnect_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://civicconnect_test:test_password@localhost:5432/civicconnect_test_db
+      NODE_ENV: production
+      SESSION_SECRET: ci_test_session_secret_placeholder
+      PORT: 3000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read Node version from .nvmrc
+        run: echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build CSS (Tailwind)
+        run: npm run build:css
+
+      - name: Run database migrations
+        run: npm run db:migrate
+
+      - name: Start server and verify /health returns 200
+        run: |
+          node src/server.js &
+          SERVER_PID=$!
+          for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health | grep -q "200"; then
+              echo "Health check passed"
+              kill $SERVER_PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Health check failed after 30s"
+          kill $SERVER_PID
+          exit 1
