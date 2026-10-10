@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 
 const { query, closePool } = require('../src/config/database');
@@ -22,9 +21,7 @@ async function testDatabase() {
 
     // 2. Ensure we are testing development
     if (database.database_name !== 'civicconnect_dev') {
-      throw new Error(
-        `Wrong database: ${database.database_name}`
-      );
+      throw new Error(`Wrong database: ${database.database_name}`);
     }
 
     // 3. Check all tables
@@ -47,18 +44,14 @@ async function testDatabase() {
       'request_status_history',
       'request_assignment_history',
       'request_comments',
-      'admin_audit_log'
+      'admin_audit_log',
     ];
 
-    const actualTables = tables.rows.map(row => row.table_name);
-    const missingTables = expectedTables.filter(
-      table => !actualTables.includes(table)
-    );
+    const actualTables = tables.rows.map((row) => row.table_name);
+    const missingTables = expectedTables.filter((table) => !actualTables.includes(table));
 
     if (missingTables.length > 0) {
-      throw new Error(
-        `Missing tables: ${missingTables.join(', ')}`
-      );
+      throw new Error(`Missing tables: ${missingTables.join(', ')}`);
     }
 
     console.log('All 11 CivicConnect tables found!');
@@ -75,10 +68,7 @@ async function testDatabase() {
     `);
 
     console.log('Service requests:', requests.rows[0].total);
-    console.log(
-      'External requesters:',
-      externalRequesters.rows[0].total
-    );
+    console.log('External requesters:', externalRequesters.rows[0].total);
 
     console.log('\nAll database checks passed!');
   } catch (error) {

@@ -1,4 +1,3 @@
-
 const { Pool } = require('pg');
 require('dotenv').config();
 
@@ -32,9 +31,7 @@ const testConnection = async () => {
       SELECT current_database() AS database_name
     `);
 
-    console.log(
-      `PostgreSQL connected to: ${result.rows[0].database_name}`
-    );
+    console.log(`PostgreSQL connected to: ${result.rows[0].database_name}`);
   } finally {
     client.release();
   }
@@ -47,5 +44,5 @@ module.exports = {
   query,
   testConnection,
   closePool,
-  pool
+  pool,
 };
