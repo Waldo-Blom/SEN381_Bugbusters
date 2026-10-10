@@ -146,3 +146,7 @@ vite.config.ts.timestamp-*
 
 # Project: generated Tailwind CSS (built from public/styles/input.css)
 public/styles/output.css
+
+# Antigravity/Neon skills
+.agents/skills/
+skills-lock.json

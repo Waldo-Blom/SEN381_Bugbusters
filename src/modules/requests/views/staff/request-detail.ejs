@@ -124,13 +124,36 @@
 
       <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Status Controls</h3></div>
-        <div class="px-5 py-4 space-y-3">
-          <label class="block text-sm font-medium text-slate-700">Update status</label>
-          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
-            <option>Submitted</option><option>Assigned</option><option>In Progress</option><option>Resolved</option><option>Closed</option>
-          </select>
-          <button class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Mark as Resolved</button>
-          <button class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Assign to me</button>
+        <div class="px-5 py-4 space-y-4">
+          
+          <% if (request.status === 'Submitted') { %>
+            <div class="space-y-3">
+              <form method="POST" action="/staff/requests/<%= request.id %>/assign">
+                <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Assign to me</button>
+              </form>
+              <form method="POST" action="/staff/requests/<%= request.id %>/reject">
+                <button type="submit" class="w-full rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100">Reject Request</button>
+              </form>
+            </div>
+          <% } else if (request.status === 'Assigned') { %>
+            <form method="POST" action="/staff/requests/<%= request.id %>/start-progress">
+              <button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Start Progress</button>
+            </form>
+          <% } else if (request.status === 'In Progress') { %>
+            <form method="POST" action="/staff/requests/<%= request.id %>/resolve" class="space-y-3">
+              <label class="block text-sm font-medium text-slate-700">Resolution Comment</label>
+              <textarea name="comment" rows="3" required placeholder="A comment is required to resolve..."
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"></textarea>
+              <button type="submit" class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                Mark as Resolved
+              </button>
+            </form>
+          <% } else if (request.status === 'Resolved' || request.status === 'Closed' || request.status === 'Rejected') { %>
+            <div class="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-center text-sm text-slate-500">
+              This request is currently <%= request.status %>.
+            </div>
+          <% } %>
+
         </div>
       </div>
     </div>

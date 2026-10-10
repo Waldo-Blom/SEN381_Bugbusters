@@ -12,70 +12,126 @@ exports.submitPage = (req, res) => {
   });
 };
 
-exports.myRequests = (req, res) => {
+exports.myRequests = async (req, res) => {
   res.render('requests/views/requester/my-requests', {
     ...pageContext('requester'),
     title: 'My Requests',
     activeHref: '/requester/my-requests',
     pageTitle: 'My Requests',
     pageSubtitle: 'Track the status of your submissions',
-    requests: requestsService.list(),
+    requests: await requestsService.list(),
   });
 };
 
-exports.requesterDetail = (req, res) => {
+exports.requesterDetail = async (req, res) => {
   res.render('requests/views/requester/request-detail', {
     ...pageContext('requester'),
     title: 'Request Details',
     activeHref: '/requester/my-requests',
     pageTitle: 'Request Details',
     pageSubtitle: 'Full request information and timeline',
-    request: requestsService.getById(req.params.id),
+    request: await requestsService.getById(req.params.id),
   });
 };
 
 // ---- staff ----
-exports.staffSearch = (req, res) => {
+exports.staffSearch = async (req, res) => {
   res.render('requests/views/staff/search', {
     ...pageContext('staff'),
     title: 'Search & Filter',
     activeHref: '/staff/search',
     pageTitle: 'Search & Filter',
     pageSubtitle: 'Find requests across all categories',
-    requests: requestsService.list(),
+    requests: await requestsService.list(),
   });
 };
 
-exports.staffDetail = (req, res) => {
+exports.staffDetail = async (req, res) => {
   res.render('requests/views/staff/request-detail', {
     ...pageContext('staff'),
     title: 'Request Details',
     activeHref: '/staff/dashboard',
     pageTitle: 'Request Details',
     pageSubtitle: 'Manage and resolve this request',
-    request: requestsService.getById(req.params.id),
+    request: await requestsService.getById(req.params.id),
   });
 };
 
 // ---- manager ----
-exports.allRequests = (req, res) => {
+exports.allRequests = async (req, res) => {
   res.render('requests/views/manager/all-requests', {
     ...pageContext('manager'),
     title: 'All Requests',
     activeHref: '/manager/requests',
     pageTitle: 'All Requests',
     pageSubtitle: 'Every request across all departments',
-    requests: requestsService.list(),
+    requests: await requestsService.list(),
   });
 };
 
-exports.managerDetail = (req, res) => {
+exports.managerDetail = async (req, res) => {
   res.render('requests/views/manager/request-detail', {
     ...pageContext('manager'),
     title: 'Request Details',
     activeHref: '/manager/requests',
     pageTitle: 'Request Details',
     pageSubtitle: 'Manager view with assignment controls',
-    request: requestsService.getById(req.params.id),
+    request: await requestsService.getById(req.params.id),
   });
+};
+
+exports.assignRequest = async (req, res) => {
+  const requestId = req.params.id;
+  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+  try {
+    await requestsService.workflow.transitionRequest(requestId, 'Assigned', staffId);
+    res.redirect(`/staff/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+exports.startProgress = async (req, res) => {
+  const requestId = req.params.id;
+  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+  try {
+    await requestsService.workflow.transitionRequest(requestId, 'In Progress', staffId);
+    res.redirect(`/staff/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+exports.resolveRequest = async (req, res) => {
+  const requestId = req.params.id;
+  const { comment } = req.body;
+  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+  try {
+    await requestsService.workflow.transitionRequest(requestId, 'Resolved', staffId, comment);
+    res.redirect(`/staff/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+exports.rejectRequest = async (req, res) => {
+  const requestId = req.params.id;
+  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+  try {
+    await requestsService.workflow.transitionRequest(requestId, 'Rejected', staffId);
+    res.redirect(`/staff/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+exports.closeRequest = async (req, res) => {
+  const requestId = req.params.id;
+  const managerId = req.user?.id || 'manager-1'; // Mocked auth
+  try {
+    await requestsService.workflow.transitionRequest(requestId, 'Closed', managerId);
+    res.redirect(`/manager/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
 };
