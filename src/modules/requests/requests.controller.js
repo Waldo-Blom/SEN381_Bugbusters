@@ -42,6 +42,22 @@ exports.operatorSubmitPage = async (req, res, next) => {
   }
 };
 
+exports.operatorLoggedRequests = async (req, res, next) => {
+  try {
+    const requests = await requestsService.listCreatedByOperator(req.session.user.email);
+    res.render('requests/views/operator/logged-requests', {
+      ...pageContext('operator'),
+      title: 'Logged Requests',
+      activeHref: '/operator/requests',
+      pageTitle: 'Logged Requests',
+      pageSubtitle: 'Requests you have recorded on behalf of community members',
+      requests,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.submitRequest = async (req, res, next) => {
   try {
     await requestsService.submit(req.session.user.email, req.body);

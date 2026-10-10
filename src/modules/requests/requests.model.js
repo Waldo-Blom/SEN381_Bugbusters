@@ -224,3 +224,30 @@ exports.findByRequesterEmail = async (email) => {
 
   return result.rows.map(mapRequest);
 };
+
+exports.findByCreatorEmail = async (email) => {
+  const result = await pool.query(
+    `SELECT sr.request_id, sr.request_number, rc.name AS category_name,
+            sr.title, sr.description, sr.location, sr.status, sr.priority, sr.created_at,
+            sr.submission_channel,
+            external.first_name || ' ' || external.last_name AS external_requester_name,
+            external.email AS external_requester_email,
+            external.phone AS external_requester_phone
+     FROM service_requests sr
+     JOIN users creator ON creator.user_id = sr.created_by
+     JOIN request_categories rc ON rc.category_id = sr.category_id
+     LEFT JOIN external_requesters external
+       ON external.external_requester_id = sr.external_requester_id
+     WHERE creator.email = $1 AND creator.user_type = 'OPERATOR' AND creator.is_active = true
+     ORDER BY sr.created_at DESC`,
+    [email]
+  );
+
+  return result.rows.map((row) => ({
+    ...mapRequest(row),
+    requesterName: row.external_requester_name || 'Portal requester',
+    requesterEmail: row.external_requester_email,
+    requesterPhone: row.external_requester_phone,
+    submissionChannel: row.submission_channel,
+  }));
+};

@@ -100,6 +100,7 @@ exports.getById = async (id) => {
   return requestsModel.findById(id);
 };
 exports.listForRequester = (requesterEmail) => requestsModel.findByRequesterEmail(requesterEmail);
+exports.listCreatedByOperator = (operatorEmail) => requestsModel.findByCreatorEmail(operatorEmail);
 exports.listCategories = () => requestsModel.findCategories();
 exports.generateRequestNumber = generateRequestNumber;
 exports.RequestValidationError = RequestValidationError;

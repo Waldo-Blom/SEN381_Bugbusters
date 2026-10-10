@@ -36,6 +36,7 @@ router.get('/requester/requests/:id', c.requesterDetail);
 // operators are limited to creating requests on behalf of external requesters
 router.get('/operator/submit', requireOperator, c.operatorSubmitPage);
 router.post('/operator/submit', requireOperator, c.operatorSubmitRequest);
+router.get('/operator/requests', requireOperator, c.operatorLoggedRequests);
 
 // staff
 router.get('/staff/search', requireStaff, c.staffSearch);

@@ -8,6 +8,7 @@ jest.mock('../requests.model', () => ({
   create: jest.fn(),
   findByRequesterEmail: jest.fn(),
   findDetailsById: jest.fn(),
+  findByCreatorEmail: jest.fn(),
 }));
 
 const request = require('supertest');
@@ -129,6 +130,44 @@ describe('operator-assisted request submission', () => {
     expect(response.status).toBe(302);
     expect(response.headers.location).toBe('/operator/submit?submitted=CC-2026-0001');
     expect(requestsModel.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows only the signed-in operator’s logged requests', async () => {
+    requestsModel.findByCreatorEmail.mockResolvedValue([
+      {
+        id: '44444444-4444-4444-8444-444444444444',
+        reference: 'CC-2026-0002',
+        requesterName: 'Taylor Morgan',
+        requesterPhone: '555-0100',
+        title: 'Streetlight reported by phone',
+        category: 'Streetlight',
+        location: '12 Oak Street',
+        submissionChannel: 'PHONE',
+        status: 'Submitted',
+        submittedAt: '2026-10-10 10:00',
+      },
+    ]);
+    const operator = request.agent(app);
+    await operator.post('/auth/login').type('form').send({ role: 'operator' });
+
+    const response = await operator.get('/operator/requests');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('CC-2026-0002');
+    expect(response.text).toContain('Taylor Morgan');
+    expect(response.text).toContain('Streetlight reported by phone');
+    expect(response.text).toContain('PHONE');
+    expect(requestsModel.findByCreatorEmail).toHaveBeenCalledWith('sam.rivera@civic.gov');
+  });
+
+  it('does not allow requesters to access operator logged requests', async () => {
+    const requester = request.agent(app);
+    await requester.post('/auth/login').type('form').send({ role: 'requester' });
+
+    const response = await requester.get('/operator/requests');
+
+    expect(response.status).toBe(403);
+    expect(requestsModel.findByCreatorEmail).not.toHaveBeenCalled();
   });
 
   it('rejects operator submissions with no email or phone before persistence', async () => {
