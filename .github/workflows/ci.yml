@@ -1,39 +1,258 @@
 name: CI
 
+# One pipeline for the whole project (SEN381 M3: "one working pipeline is enough").
+# Every PR and push to testing / staging / main runs the same checks, and the
+# `CI gate` job at the bottom is the single required status check.
 on:
   push:
-    branches: [testing]
+    branches: [testing, staging, main]
   pull_request:
-    branches: [testing]
+    branches: [testing, staging, main]
+  workflow_dispatch:
+
+# Cancel superseded runs of the same PR / branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
+# Credentials come from GitHub Secrets (Settings -> Secrets and variables -> Actions):
+#   CI_DB_PASSWORD      password for the throwaway CI Postgres container
+#   CI_SESSION_SECRET   session secret used by the app during CI
+# Nothing sensitive is committed in this file.
+env:
+  DATABASE_URL: postgresql://civicconnect_test:${{ secrets.CI_DB_PASSWORD }}@localhost:5432/civicconnect_test_db
+  SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
+
 jobs:
-  build-and-test:
+  # ------------------------------------------------------------------
+  # STATIC / SECURITY CHECKS
+  # ------------------------------------------------------------------
+  lint:
+    name: Static analysis (ESLint + Prettier)
     runs-on: ubuntu-latest
-
-    env:
-      SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version-file: '.nvmrc'
-          cache: npm
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - run: npm run lint
+      - run: npx prettier --check .
 
-      - name: Install dependencies
-        run: npm ci
+  dependency-audit:
+    name: Dependency check (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          build-css: 'false'
+      # Production dependencies only; fails on high/critical findings.
+      - run: npm audit --omit=dev --audit-level=high
 
-      - name: Build CSS
-        run: npm run build:css
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scan full history, not just the latest commit
+          persist-credentials: false
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz | tar -xz gitleaks
+      - name: Scan repository history
+        run: ./gitleaks detect --source . --redact --verbose
 
-      - name: Run ESLint
-        run: npm run lint
+  # ------------------------------------------------------------------
+  # AUTOMATED TESTS
+  # NOTE: --passWithNoTests lets the pipeline pass while the test folders are
+  # still empty. Remove it once every suite has real tests, otherwise a
+  # green run proves nothing.
+  # ------------------------------------------------------------------
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - name: Run unit tests with coverage
+        run: >
+          npx jest --selectProjects unit --ci --passWithNoTests
+          --coverage --coverageReporters=lcov --coverageDirectory=coverage/unit
+      - name: Upload unit coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage/unit/lcov.info
+          retention-days: 14
+          if-no-files-found: ignore
 
-      - name: Run tests
-        run: npm test
+  integration:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Integration & API tests
+            suite: integration
+            coverage: true
+          - name: Regression suite
+            suite: regression
+            coverage: false
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: civicconnect_test
+          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          POSTGRES_DB: civicconnect_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - run: npm run db:migrate
+      - name: Run ${{ matrix.suite }} tests
+        run: >
+          npx jest --selectProjects ${{ matrix.suite }} --ci --runInBand --passWithNoTests
+          ${{ matrix.coverage && '--coverage --coverageReporters=lcov --coverageDirectory=coverage/integration' || '' }}
+      - name: Upload integration coverage
+        if: always() && matrix.coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-coverage
+          path: coverage/integration/lcov.info
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ------------------------------------------------------------------
+  # SIMULATED STAGING + E2E
+  # Starts the app the way it runs in production (NODE_ENV=production,
+  # migrated database, config from environment variables), waits for
+  # /health, then runs the critical end-to-end journeys against it.
+  # ------------------------------------------------------------------
+  e2e:
+    name: E2E on simulated staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: civicconnect_test
+          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          POSTGRES_DB: civicconnect_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: production
+      PORT: 3000
+      BASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - run: npm run db:migrate
+      - name: Start application
+        run: |
+          node src/server.js > server.log 2>&1 &
+          echo $! > server.pid
+      - name: Wait for /health to return 200
+        run: curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused http://localhost:3000/health
+      - name: Run E2E tests
+        run: npx jest --selectProjects e2e --ci --runInBand --passWithNoTests
+      - name: Show server log on failure
+        if: failure()
+        run: cat server.log
+      - name: Stop application
+        if: always()
+        run: kill "$(cat server.pid)" 2>/dev/null || true
+
+  # ------------------------------------------------------------------
+  # COVERAGE REPORT (reporting only, never fails the build)
+  # Posts / updates one comment on same-repo PRs and writes the run summary.
+  # ------------------------------------------------------------------
+  coverage-report:
+    name: Coverage report
+    needs: [unit-tests, integration]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-coverage'
+          path: coverage-artifacts
+      - name: Build coverage summary
+        run: node .github/scripts/coverage-summary.js coverage-artifacts | tee coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- ci-coverage-report -->';
+            const body = marker + '\n' + fs.readFileSync('coverage-summary.md', 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  # ------------------------------------------------------------------
+  # QUALITY GATE
+  # Make this the required status check in branch protection. If any
+  # required job fails, is cancelled or is skipped, this fails and the PR
+  # cannot be merged.
+  # ------------------------------------------------------------------
+  ci-gate:
+    name: CI gate
+    needs: [lint, dependency-audit, secret-scan, unit-tests, integration, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs succeeded
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
+            echo "One or more required jobs did not succeed."
+            exit 1
+          fi

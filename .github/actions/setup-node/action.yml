@@ -1,0 +1,26 @@
+name: Setup Node and install
+description: Install the Node version from .nvmrc, restore the npm cache, run npm ci and optionally build the Tailwind CSS.
+
+inputs:
+  build-css:
+    description: Run `npm run build:css` after installing dependencies
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js (version from .nvmrc)
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: npm
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Build CSS (Tailwind)
+      if: inputs.build-css == 'true'
+      shell: bash
+      run: npm run build:css
