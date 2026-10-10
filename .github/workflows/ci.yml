@@ -19,11 +19,11 @@ permissions:
   contents: read
 
 # Credentials come from GitHub Secrets (Settings -> Secrets and variables -> Actions):
-#   CI_DB_PASSWORD      password for the throwaway CI Postgres container
+#   NEON_DATABASE_URL   Neon connection string for the preconfigured development database
 #   CI_SESSION_SECRET   session secret used by the app during CI
 # Nothing sensitive is committed in this file.
 env:
-  DATABASE_URL: postgresql://civicconnect_test:${{ secrets.CI_DB_PASSWORD }}@localhost:5432/civicconnect_test_db
+  DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
   SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
 
 jobs:
@@ -103,6 +103,7 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: [db-test]
     strategy:
       fail-fast: false
       matrix:
@@ -113,20 +114,6 @@ jobs:
           - name: Regression suite
             suite: regression
             coverage: false
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: civicconnect_test
-          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
-          POSTGRES_DB: civicconnect_test_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       NODE_ENV: test
     steps:
@@ -134,7 +121,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-node
-      - run: npm run db:migrate
       - name: Run ${{ matrix.suite }} tests
         run: >
           npx jest --selectProjects ${{ matrix.suite }} --ci --runInBand --passWithNoTests
@@ -151,27 +137,14 @@ jobs:
   # ------------------------------------------------------------------
   # SIMULATED STAGING + E2E
   # Starts the app the way it runs in production (NODE_ENV=production,
-  # migrated database, config from environment variables), waits for
+  # preconfigured Neon database, config from environment variables), waits for
   # /health, then runs the critical end-to-end journeys against it.
   # ------------------------------------------------------------------
   e2e:
     name: E2E on simulated staging
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: civicconnect_test
-          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
-          POSTGRES_DB: civicconnect_test_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    needs: [db-test]
     env:
       NODE_ENV: production
       PORT: 3000
@@ -181,7 +154,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-node
-      - run: npm run db:migrate
       - name: Start application
         run: |
           node src/server.js > server.log 2>&1 &
@@ -196,6 +168,20 @@ jobs:
       - name: Stop application
         if: always()
         run: kill "$(cat server.pid)" 2>/dev/null || true
+
+  db-test:
+    name: Neon database check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          build-css: 'false'
+      - name: Check Neon connection and schema
+        run: npm run db:test
 
   # ------------------------------------------------------------------
   # COVERAGE REPORT (reporting only, never fails the build)
@@ -246,7 +232,7 @@ jobs:
   # ------------------------------------------------------------------
   ci-gate:
     name: CI gate
-    needs: [lint, dependency-audit, secret-scan, unit-tests, integration, e2e]
+    needs: [lint, dependency-audit, secret-scan, unit-tests, integration, e2e, db-test]
     if: always()
     runs-on: ubuntu-latest
     steps:

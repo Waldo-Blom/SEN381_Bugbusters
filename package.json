@@ -14,6 +14,7 @@
     "dev": "nodemon src/server.js",
     "prestart": "npm run build:css",
     "start": "node src/server.js",
+    "db:test": "node db/scripts/test-db.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
