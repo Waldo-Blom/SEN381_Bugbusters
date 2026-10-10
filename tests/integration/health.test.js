@@ -65,7 +65,7 @@ describe('Health Check — server startup', () => {
     }
   });
 
-  it('GET /health returns 200 with { status: "ok" }', async () => {
+  it('GET /health returns 200 when the database is reachable', async () => {
     const { statusCode, body } = await new Promise((resolve, reject) => {
       http
         .get(`${BASE_URL}/health`, (res) => {
@@ -77,6 +77,6 @@ describe('Health Check — server startup', () => {
     });
 
     expect(statusCode).toBe(200);
-    expect(JSON.parse(body)).toEqual({ status: 'ok' });
+    expect(JSON.parse(body)).toEqual({ status: 'ok', database: 'connected' });
   });
 });
