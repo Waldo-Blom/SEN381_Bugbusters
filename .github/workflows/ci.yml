@@ -52,7 +52,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-node
         with:
-          build-css: "false"
+          build-css: 'false'
       # Production dependencies only; fails on high/critical findings.
       - run: npm audit --omit=dev --audit-level=high
 
@@ -216,7 +216,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
-          pattern: "*-coverage"
+          pattern: '*-coverage'
           path: coverage-artifacts
       - name: Build coverage summary
         run: node .github/scripts/coverage-summary.js coverage-artifacts | tee coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
