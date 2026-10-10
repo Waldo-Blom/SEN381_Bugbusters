@@ -1,14 +1,13 @@
 name: CI
 
-# CI runs on `testing` only. Staging and main are covered by their own
-# deployment / end-to-end workflows.
+# One pipeline for the whole project (SEN381 M3: "one working pipeline is enough").
+# Every PR and push to testing / staging / main runs the same checks, and the
+# `CI gate` job at the bottom is the single required status check.
 on:
   push:
-    branches: [testing]
-    paths-ignore: ["docs/**", "**/*.md", ".github/ISSUE_TEMPLATE/**"]
+    branches: [testing, staging, main]
   pull_request:
-    branches: [testing]
-    paths-ignore: ["docs/**", "**/*.md", ".github/ISSUE_TEMPLATE/**"]
+    branches: [testing, staging, main]
   workflow_dispatch:
 
 # Cancel superseded runs of the same PR / branch.
@@ -19,17 +18,20 @@ concurrency:
 permissions:
   contents: read
 
+# Credentials come from GitHub Secrets (Settings -> Secrets and variables -> Actions):
+#   CI_DB_PASSWORD      password for the throwaway CI Postgres container
+#   CI_SESSION_SECRET   session secret used by the app during CI
+# Nothing sensitive is committed in this file.
 env:
-  DATABASE_URL: postgresql://civicconnect_test:test_password@localhost:5432/civicconnect_test_db
-  SESSION_SECRET: ci_test_session_secret_placeholder
+  DATABASE_URL: postgresql://civicconnect_test:${{ secrets.CI_DB_PASSWORD }}@localhost:5432/civicconnect_test_db
+  SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
 
 jobs:
   # ------------------------------------------------------------------
-  # Static analysis, unit tests, health check and DB-backed suites all
-  # run in parallel. `ci-gate` below is the single required check.
+  # STATIC / SECURITY CHECKS
   # ------------------------------------------------------------------
   lint:
-    name: Lint (ESLint + Prettier)
+    name: Static analysis (ESLint + Prettier)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -40,6 +42,41 @@ jobs:
       - run: npm run lint
       - run: npx prettier --check .
 
+  dependency-audit:
+    name: Dependency check (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          build-css: "false"
+      # Production dependencies only; fails on high/critical findings.
+      - run: npm audit --omit=dev --audit-level=high
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scan full history, not just the latest commit
+          persist-credentials: false
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz | tar -xz gitleaks
+      - name: Scan repository history
+        run: ./gitleaks detect --source . --redact --verbose
+
+  # ------------------------------------------------------------------
+  # AUTOMATED TESTS
+  # NOTE: --passWithNoTests lets the pipeline pass while the test folders are
+  # still empty. Remove it once every suite has real tests, otherwise a
+  # green run proves nothing.
+  # ------------------------------------------------------------------
   unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -51,8 +88,8 @@ jobs:
       - uses: ./.github/actions/setup-node
       - name: Run unit tests with coverage
         run: >
-          npx jest --config jest.config.js --ci --coverage
-          --coverageReporters=lcov --coverageDirectory=coverage/unit
+          npx jest --selectProjects unit --ci --passWithNoTests
+          --coverage --coverageReporters=lcov --coverageDirectory=coverage/unit
       - name: Upload unit coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -81,7 +118,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: civicconnect_test
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
           POSTGRES_DB: civicconnect_test_db
         ports:
           - 5432:5432
@@ -100,7 +137,7 @@ jobs:
       - run: npm run db:migrate
       - name: Run ${{ matrix.suite }} tests
         run: >
-          npx jest --config jest.${{ matrix.suite }}.config.js --ci --runInBand
+          npx jest --selectProjects ${{ matrix.suite }} --ci --runInBand --passWithNoTests
           ${{ matrix.coverage && '--coverage --coverageReporters=lcov --coverageDirectory=coverage/integration' || '' }}
       - name: Upload integration coverage
         if: always() && matrix.coverage
@@ -111,16 +148,22 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-  health-check:
-    name: Application health check
+  # ------------------------------------------------------------------
+  # SIMULATED STAGING + E2E
+  # Starts the app the way it runs in production (NODE_ENV=production,
+  # migrated database, config from environment variables), waits for
+  # /health, then runs the critical end-to-end journeys against it.
+  # ------------------------------------------------------------------
+  e2e:
+    name: E2E on simulated staging
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_USER: civicconnect_test
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
           POSTGRES_DB: civicconnect_test_db
         ports:
           - 5432:5432
@@ -132,39 +175,31 @@ jobs:
     env:
       NODE_ENV: production
       PORT: 3000
+      BASE_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-node
       - run: npm run db:migrate
-      - name: Start server and verify /health returns 200
+      - name: Start application
         run: |
           node src/server.js > server.log 2>&1 &
-          SERVER_PID=$!
-          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
-
-          for i in $(seq 1 30); do
-            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-              echo "::error::Server exited early"
-              cat server.log
-              exit 1
-            fi
-            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || true)
-            if [ "$code" = "200" ]; then
-              echo "Health check passed after ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
-
-          echo "::error::Health check failed after 30s"
-          cat server.log
-          exit 1
+          echo $! > server.pid
+      - name: Wait for /health to return 200
+        run: curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused http://localhost:3000/health
+      - name: Run E2E tests
+        run: npx jest --selectProjects e2e --ci --runInBand --passWithNoTests
+      - name: Show server log on failure
+        if: failure()
+        run: cat server.log
+      - name: Stop application
+        if: always()
+        run: kill "$(cat server.pid)" 2>/dev/null || true
 
   # ------------------------------------------------------------------
-  # Coverage summary: PR comment (same-repo PRs) + job summary.
-  # Reporting only; it never fails the build.
+  # COVERAGE REPORT (reporting only, never fails the build)
+  # Posts / updates one comment on same-repo PRs and writes the run summary.
   # ------------------------------------------------------------------
   coverage-report:
     name: Coverage report
@@ -204,11 +239,14 @@ jobs:
             }
 
   # ------------------------------------------------------------------
-  # Single required status check for branch protection.
+  # QUALITY GATE
+  # Make this the required status check in branch protection. If any
+  # required job fails, is cancelled or is skipped, this fails and the PR
+  # cannot be merged.
   # ------------------------------------------------------------------
   ci-gate:
     name: CI gate
-    needs: [lint, unit-tests, integration, health-check]
+    needs: [lint, dependency-audit, secret-scan, unit-tests, integration, e2e]
     if: always()
     runs-on: ubuntu-latest
     steps:
