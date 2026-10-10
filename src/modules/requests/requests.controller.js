@@ -80,12 +80,45 @@ exports.managerDetail = (req, res) => {
   });
 };
 
+exports.assignRequest = (req, res) => {
+  const requestId = req.params.id;
+  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+  try {
+    requestsService.workflow.transitionRequest(requestId, 'Assigned', staffId);
+    res.redirect(`/staff/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+exports.startProgress = (req, res) => {
+  const requestId = req.params.id;
+  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+  try {
+    requestsService.workflow.transitionRequest(requestId, 'In Progress', staffId);
+    res.redirect(`/staff/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
 exports.resolveRequest = (req, res) => {
   const requestId = req.params.id;
   const { comment } = req.body;
   const staffId = req.user?.id || 'staff-1'; // Mocked auth
   try {
     requestsService.workflow.transitionRequest(requestId, 'Resolved', staffId, comment);
+    res.redirect(`/staff/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+exports.rejectRequest = (req, res) => {
+  const requestId = req.params.id;
+  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+  try {
+    requestsService.workflow.transitionRequest(requestId, 'Rejected', staffId);
     res.redirect(`/staff/requests/${requestId}`);
   } catch (error) {
     res.status(400).send(error.message);
