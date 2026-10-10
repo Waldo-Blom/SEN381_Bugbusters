@@ -1,6 +1,10 @@
 const requestsModel = require('./requests.model');
-const { REQUEST_STATUSES, ALLOWED_TRANSITIONS } = require('./requests.constants');
-const { validateSubmission } = require('./requests.schema');
+const {
+  REQUEST_STATUSES,
+  ALLOWED_TRANSITIONS,
+  SUBMISSION_CHANNELS,
+} = require('./requests.constants');
+const { validateSubmission, validateExternalRequester } = require('./requests.schema');
 const EventEmitter = require('events');
 
 class RequestValidationError extends Error {
@@ -12,8 +16,11 @@ class RequestValidationError extends Error {
 }
 
 class RequesterAccountNotFoundError extends Error {
-  constructor() {
-    super('Your requester account was not found. Please sign in with an active requester account.');
+  constructor(actorType) {
+    const accountType = actorType === 'OPERATOR' ? 'operator' : 'requester';
+    super(
+      `Your ${accountType} account was not found or is inactive. Please sign in with an active ${accountType} account.`
+    );
     this.name = 'RequesterAccountNotFoundError';
   }
 }
@@ -85,22 +92,52 @@ workflowService.on('RequestStatusChanged', (data) => {
 });
 
 exports.list = () => requestsModel.findAll();
-exports.getById = (id) => requestsModel.findById(id) || requestsModel.findAll()[0];
+exports.getById = async (id) => {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    const persistedRequest = await requestsModel.findDetailsById(id);
+    if (persistedRequest) return persistedRequest;
+  }
+  return requestsModel.findById(id);
+};
 exports.listForRequester = (requesterEmail) => requestsModel.findByRequesterEmail(requesterEmail);
 exports.listCategories = () => requestsModel.findCategories();
 exports.generateRequestNumber = generateRequestNumber;
 exports.RequestValidationError = RequestValidationError;
 exports.RequesterAccountNotFoundError = RequesterAccountNotFoundError;
 
-exports.submit = async (requesterEmail, input) => {
+exports.createServiceRequest = async ({ input, actorEmail, actorType, submissionChannel }) => {
   const { errors, value } = validateSubmission(input);
+  let externalRequester = null;
+
+  if (actorType === 'OPERATOR') {
+    const externalResult = validateExternalRequester(input);
+    Object.assign(errors, externalResult.errors);
+    externalRequester = externalResult.value;
+  } else if (actorType !== 'REQUESTER') {
+    throw new Error('Only requesters and operators can create service requests.');
+  }
+
   if (Object.keys(errors).length > 0) {
     throw new RequestValidationError(errors);
   }
 
-  const requesterId = await requestsModel.findRequesterIdByEmail(requesterEmail);
-  if (!requesterId) {
-    throw new RequesterAccountNotFoundError();
+  if (!Object.values(SUBMISSION_CHANNELS).includes(submissionChannel)) {
+    throw new RequestValidationError({
+      submissionChannel: 'Please select a valid submission channel.',
+    });
+  }
+  if (
+    (actorType === 'REQUESTER' && submissionChannel !== SUBMISSION_CHANNELS.APP) ||
+    (actorType === 'OPERATOR' && submissionChannel === SUBMISSION_CHANNELS.APP)
+  ) {
+    throw new RequestValidationError({
+      submissionChannel: 'The submission channel does not match the submitting role.',
+    });
+  }
+
+  const actorId = await requestsModel.findActiveUserIdByEmail(actorEmail, actorType);
+  if (!actorId) {
+    throw new RequesterAccountNotFoundError(actorType);
   }
 
   const category = await requestsModel.findActiveCategory(value.categoryId);
@@ -110,7 +147,16 @@ exports.submit = async (requesterEmail, input) => {
     });
   }
 
-  const created = await requestsModel.create({ ...value, requesterId }, generateRequestNumber);
+  const created = await requestsModel.create(
+    {
+      ...value,
+      requesterId: actorType === 'REQUESTER' ? actorId : null,
+      externalRequester: actorType === 'OPERATOR' ? externalRequester : null,
+      createdBy: actorId,
+      submissionChannel,
+    },
+    generateRequestNumber
+  );
 
   return {
     id: created.request_id,
@@ -118,4 +164,12 @@ exports.submit = async (requesterEmail, input) => {
     status: REQUEST_STATUSES.SUBMITTED,
   };
 };
+
+exports.submit = (requesterEmail, input) =>
+  exports.createServiceRequest({
+    input,
+    actorEmail: requesterEmail,
+    actorType: 'REQUESTER',
+    submissionChannel: SUBMISSION_CHANNELS.APP,
+  });
 exports.workflow = workflowService;

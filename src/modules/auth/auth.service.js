@@ -4,6 +4,7 @@ const HOME_BY_ROLE = {
   requester: '/requester/my-requests',
   staff: '/staff/dashboard',
   management: '/manager/dashboard',
+  operator: '/operator/submit',
 };
 
 // Temporary: mock login keyed by the form's role field.

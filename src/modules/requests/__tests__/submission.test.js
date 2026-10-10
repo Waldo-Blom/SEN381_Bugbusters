@@ -6,7 +6,7 @@ jest.mock('../requests.model', () => ({
   updateStatus: jest.fn(),
   findCategories: jest.fn(),
   findActiveCategory: jest.fn(),
-  findRequesterIdByEmail: jest.fn(),
+  findActiveUserIdByEmail: jest.fn(),
   create: jest.fn(),
   findByRequesterEmail: jest.fn(),
 }));
@@ -82,7 +82,7 @@ describe('request submission routes', () => {
     submittedRequests = [];
     jest.clearAllMocks();
     requestsModel.findCategories.mockResolvedValue([category]);
-    requestsModel.findRequesterIdByEmail.mockResolvedValue('33333333-3333-4333-8333-333333333333');
+    requestsModel.findActiveUserIdByEmail.mockResolvedValue('33333333-3333-4333-8333-333333333333');
     requestsModel.findActiveCategory.mockImplementation(async (id) =>
       id === category.id ? category : null
     );
@@ -155,6 +155,10 @@ describe('request submission routes', () => {
     expect(response.headers.location).toBe('/requester/my-requests');
     expect(requestsModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        requesterId: '33333333-3333-4333-8333-333333333333',
+        externalRequester: null,
+        createdBy: '33333333-3333-4333-8333-333333333333',
+        submissionChannel: 'APP',
         categoryId: category.id,
         title: formData.title,
         description: formData.description,
@@ -163,7 +167,10 @@ describe('request submission routes', () => {
       }),
       expect.any(Function)
     );
-    expect(requestsModel.findRequesterIdByEmail).toHaveBeenCalledWith('amelia.carter@email.com');
+    expect(requestsModel.findActiveUserIdByEmail).toHaveBeenCalledWith(
+      'amelia.carter@email.com',
+      'REQUESTER'
+    );
 
     const listResponse = await browser.get('/requester/my-requests');
     expect(listResponse.status).toBe(200);
@@ -203,7 +210,7 @@ describe('request submission routes', () => {
   it('shows a useful error if the signed-in requester has no active database account', async () => {
     const browser = request.agent(app);
     await browser.post('/auth/login').type('form').send({ role: 'requester' });
-    requestsModel.findRequesterIdByEmail.mockResolvedValue(null);
+    requestsModel.findActiveUserIdByEmail.mockResolvedValue(null);
 
     const response = await browser.post('/requester/submit').type('form').send(formData);
 

@@ -27,8 +27,13 @@
         </ul>
       </div>
     <% } %>
+    <% if (successReference) { %>
+      <div role="status" class="mx-5 mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        Request <strong><%= successReference %></strong> was logged successfully.
+      </div>
+    <% } %>
 
-    <form action="/requester/submit" method="post" class="px-5 py-4 space-y-5">
+    <form action="<%= formAction || '/requester/submit' %>" method="post" class="px-5 py-4 space-y-5">
 
       <div class="space-y-1.5">
         <label for="categoryId" class="block text-sm font-medium text-slate-700">Category *</label>
@@ -59,6 +64,27 @@
         <input id="location" name="location" type="text" maxlength="255" required value="<%= values.location || '' %>" placeholder="e.g. 142 Maple Street, District 4"
                class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
       </div>
+
+      <% if (isOperator) { %>
+        <%- include('../partials/external-requester-fields', { values }) %>
+
+        <div class="space-y-1.5">
+          <label for="submissionChannel" class="block text-sm font-medium text-slate-700">How was this request received? *</label>
+          <select id="submissionChannel" name="submissionChannel" required
+                  class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            <option value="">Select a channel...</option>
+            <% [
+              { value: 'PHONE', label: 'Phone' },
+              { value: 'EMAIL', label: 'Email' },
+              { value: 'WHATSAPP', label: 'WhatsApp' },
+              { value: 'IN_PERSON', label: 'In person' },
+              { value: 'PAPER', label: 'Paper' },
+            ].forEach(function (channel) { %>
+              <option value="<%= channel.value %>" <%= values.submissionChannel === channel.value ? 'selected' : '' %>><%= channel.label %></option>
+            <% }); %>
+          </select>
+        </div>
+      <% } %>
 
       <div class="space-y-2">
         <label class="block text-sm font-medium text-slate-700">Priority (if applicable)</label>

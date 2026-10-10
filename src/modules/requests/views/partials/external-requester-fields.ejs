@@ -1,0 +1,44 @@
+<div class="space-y-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+  <div>
+    <h3 class="text-sm font-semibold text-slate-800">Community member details</h3>
+    <p class="mt-1 text-xs text-slate-500">Enter the contact details provided by the person reporting this issue.</p>
+  </div>
+
+  <div class="grid gap-5 sm:grid-cols-2">
+    <div class="space-y-1.5">
+      <label for="externalFirstName" class="block text-sm font-medium text-slate-700">First name *</label>
+      <input id="externalFirstName" name="externalFirstName" type="text" maxlength="100" required
+             value="<%= values.externalFirstName || '' %>"
+             class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+    </div>
+    <div class="space-y-1.5">
+      <label for="externalLastName" class="block text-sm font-medium text-slate-700">Last name *</label>
+      <input id="externalLastName" name="externalLastName" type="text" maxlength="100" required
+             value="<%= values.externalLastName || '' %>"
+             class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+    </div>
+    <div class="space-y-1.5">
+      <label for="externalPhone" class="block text-sm font-medium text-slate-700">Phone</label>
+      <input id="externalPhone" name="externalPhone" type="tel" maxlength="30"
+             value="<%= values.externalPhone || '' %>"
+             class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+    </div>
+    <div class="space-y-1.5">
+      <label for="externalEmail" class="block text-sm font-medium text-slate-700">Email</label>
+      <input id="externalEmail" name="externalEmail" type="email" maxlength="255"
+             value="<%= values.externalEmail || '' %>"
+             class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+    </div>
+  </div>
+
+  <div class="space-y-1.5">
+    <label for="preferredContactMethod" class="block text-sm font-medium text-slate-700">Preferred contact method *</label>
+    <select id="preferredContactMethod" name="preferredContactMethod" required
+            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+      <option value="">Select a contact method...</option>
+      <option value="PHONE" <%= values.preferredContactMethod === 'PHONE' ? 'selected' : '' %>>Phone</option>
+      <option value="EMAIL" <%= values.preferredContactMethod === 'EMAIL' ? 'selected' : '' %>>Email</option>
+    </select>
+    <p class="text-xs text-slate-500">Provide at least a phone number or email address.</p>
+  </div>
+</div>

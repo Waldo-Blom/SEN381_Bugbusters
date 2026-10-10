@@ -96,6 +96,8 @@
           <div><p class="text-xs text-slate-400">Department</p><p class="font-medium text-slate-700"><%= request.department %></p></div>
           <div><p class="text-xs text-slate-400">Location</p><p class="font-medium text-slate-700"><%= request.location %></p></div>
           <div><p class="text-xs text-slate-400">Submitted</p><p class="font-medium text-slate-700"><%= request.submittedAt %></p></div>
+          <div><p class="text-xs text-slate-400">Submission channel</p><p class="font-medium text-slate-700"><%= (request.submissionChannel || 'APP').replaceAll('_', ' ') %></p></div>
+          <div><p class="text-xs text-slate-400">Created by</p><p class="font-medium text-slate-700"><%= request.createdBy || request.requesterName %></p></div>
           <div><p class="text-xs text-slate-400">Last updated</p><p class="font-medium text-slate-700"><%= request.updatedAt %></p></div>
           <% if (request.assignedTo) { %>
             <div><p class="text-xs text-slate-400">Assigned to</p><p class="font-medium text-slate-700"><%= request.assignedTo %></p></div>
@@ -110,8 +112,8 @@
             <span class="text-xs text-amber-700">Contact info is visible only because access has been authorised.</span>
           </div>
           <div><p class="text-xs text-slate-400">Name</p><p class="font-medium text-slate-700"><%= request.requesterName %></p></div>
-          <div><p class="text-xs text-slate-400">Email</p><p class="font-medium text-slate-700"><%= request.requesterEmail %></p></div>
-          <div><p class="text-xs text-slate-400">Phone</p><p class="font-medium text-slate-700"><%= request.requesterPhone %></p></div>
+          <div><p class="text-xs text-slate-400">Email</p><p class="font-medium text-slate-700"><%= request.requesterEmail || 'Not provided' %></p></div>
+          <div><p class="text-xs text-slate-400">Phone</p><p class="font-medium text-slate-700"><%= request.requesterPhone || 'Not provided' %></p></div>
         </div>
       </div>
 

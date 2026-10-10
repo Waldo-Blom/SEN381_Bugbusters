@@ -25,6 +25,14 @@ const mockUsers = {
     department: 'General Services',
     avatarInitials: 'PR',
   },
+  operator: {
+    id: 'u4',
+    name: 'Sam Rivera',
+    email: 'sam.rivera@civic.gov',
+    role: 'operator',
+    department: 'Customer Service',
+    avatarInitials: 'SR',
+  },
 };
 
 // ---------- Timeline generators ----------
@@ -289,6 +297,8 @@ const mockRequests = [
     priority: 'High',
     location: '142 Maple Street, District 4',
     requesterName: 'Amelia Carter',
+    createdBy: 'Amelia Carter',
+    submissionChannel: 'APP',
     requesterEmail: 'amelia.carter@email.com',
     requesterPhone: '+1 (555) 234-1872',
     submittedAt: '2026-09-20 09:14',
@@ -312,6 +322,8 @@ const mockRequests = [
     priority: 'Medium',
     location: 'Oak Avenue & 5th Street, District 2',
     requesterName: 'Amelia Carter',
+    createdBy: 'Amelia Carter',
+    submissionChannel: 'APP',
     requesterEmail: 'amelia.carter@email.com',
     requesterPhone: '+1 (555) 234-1872',
     submittedAt: '2026-09-23 16:30',
