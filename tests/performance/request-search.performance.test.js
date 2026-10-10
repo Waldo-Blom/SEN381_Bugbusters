@@ -1,3 +1,6 @@
+// Suggested test scenarios, updated by Waldo. These options may change in the
+// future; they are the suggested approach for now.
+
 describe('Request search — performance plan', () => {
   // NFR-201: exercise the staff request search against a controlled representative dataset.
   // Workload: warm up, then collect at least 100 read-request timings at normal test-environment load.

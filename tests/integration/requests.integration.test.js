@@ -1,3 +1,6 @@
+// Suggested test scenarios, updated by Waldo. These options may change in the
+// future; they are the suggested approach for now.
+
 describe('Request workflows — API and database integration plans', () => {
   // FR-201: create an eligible unassigned request and assign it through the staff endpoint.
   // Expected: the API succeeds and a database read confirms the assigned staff member is persisted.

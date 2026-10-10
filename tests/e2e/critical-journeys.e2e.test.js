@@ -1,3 +1,6 @@
+// Suggested test scenarios, updated by Waldo. These options may change in the
+// future; they are the suggested approach for now.
+
 describe('CivicConnect — end-to-end system plans', () => {
   // FR-101, FR-102: submit a valid service request through the requester UI and use its generated reference.
   // Expected: submission confirmation displays a reference and the tracking journey shows the saved status.

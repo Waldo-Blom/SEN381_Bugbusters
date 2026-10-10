@@ -1,3 +1,5 @@
+// Suggested test scenarios, updated by Waldo. These options may change in the
+// future; they are the suggested approach for now.
 describe('Request workflows — black-box functional plans', () => {
   // FR-101, EP: valid request details should create a request and return a unique reference.
   // Input: a valid category, title, description, location, and requester contact details.

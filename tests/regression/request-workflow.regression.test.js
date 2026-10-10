@@ -1,3 +1,6 @@
+// Suggested test scenarios, updated by Waldo. These options may change in the
+// future; they are the suggested approach for now.
+
 describe('Request workflow — regression plans', () => {
   // FR-202: guard the workflow rule that prevents jumping directly from Submitted to Resolved.
   // Expected: the invalid transition remains rejected and does not update the stored request.
