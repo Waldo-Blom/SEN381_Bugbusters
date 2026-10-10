@@ -7,8 +7,8 @@ class RequestWorkflowService extends EventEmitter {
     super();
   }
 
-  transitionRequest(requestId, newStatus, userId, comment = null) {
-    const request = requestsModel.findById(requestId);
+  async transitionRequest(requestId, newStatus, userId, comment = null) {
+    const request = await requestsModel.findById(requestId);
     if (!request) {
       throw new Error('Request not found');
     }
@@ -28,7 +28,7 @@ class RequestWorkflowService extends EventEmitter {
 
     // Update state in real implementation this needs to be a DB transaction
     const oldStatus = currentStatus;
-    const updatedRequest = requestsModel.updateStatus(requestId, newStatus, comment);
+    const updatedRequest = await requestsModel.updateStatus(requestId, newStatus, comment);
 
     // Fire side effects asynchronously (FR-104 email, FR-302 audit log)
     this.emit('RequestStatusChanged', {
@@ -57,6 +57,6 @@ workflowService.on('RequestStatusChanged', (data) => {
   // TODO: emailService.sendStatusUpdate(...)
 });
 
-exports.list = () => requestsModel.findAll();
-exports.getById = (id) => requestsModel.findById(id) || requestsModel.findAll()[0];
+exports.list = async () => await requestsModel.findAll();
+exports.getById = async (id) => await requestsModel.findById(id);
 exports.workflow = workflowService;
