@@ -1,14 +1,14 @@
 const reportingService = require('./reporting.service');
 const { pageContext } = require('../../shared/views/pageContext');
 
-exports.dashboard = (req, res) => {
+exports.dashboard = async (req, res) => {
   res.render('reporting/views/manager/dashboard', {
     ...pageContext('manager'),
     title: 'Management Dashboard',
     activeHref: '/manager/dashboard',
     pageTitle: 'Management Dashboard',
     pageSubtitle: 'Operational overview and metrics',
-    ...reportingService.getDashboardData(),
+    ...(await reportingService.getDashboardData()),
   });
 };
 

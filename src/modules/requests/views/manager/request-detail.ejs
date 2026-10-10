@@ -135,6 +135,19 @@
           </select>
           <button class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Reassign</button>
           <button class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Authorise contact access</button>
+          
+          <hr class="my-4 border-slate-100" />
+          
+          <!-- Close Form (FR-206) -->
+          <% if (request.status === 'Resolved') { %>
+            <form method="POST" action="/manager/requests/<%= request.id %>/close">
+              <button type="submit" class="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700">Close Request</button>
+            </form>
+          <% } else if (request.status === 'Closed') { %>
+            <div class="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-center text-sm text-slate-500">
+              This request is fully CLOSED.
+            </div>
+          <% } %>
         </div>
       </div>
     </div>
