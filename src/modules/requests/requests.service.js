@@ -37,7 +37,7 @@ class RequestWorkflowService extends EventEmitter {
       newStatus,
       userId,
       comment,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
     return updatedRequest;

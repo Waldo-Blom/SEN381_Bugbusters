@@ -3,7 +3,10 @@ const { REQUEST_STATUSES } = require('./requests.constants');
 
 const toTitleCase = (str) => {
   if (!str) return '';
-  return str.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+  return str
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 };
 
 const formatDate = (date) => {
@@ -31,7 +34,7 @@ const mapRowToRequest = (row) => ({
   attachmentCount: parseInt(row.attachment_count) || 0,
   overdue: row.overdue_flag || false,
   comments: [],
-  timeline: []
+  timeline: [],
 });
 
 exports.findAll = async () => {
@@ -100,12 +103,12 @@ exports.findById = async (id) => {
     ORDER BY rc.created_at ASC
   `;
   const commentsResult = await query(commentsSql, [id]);
-  request.comments = commentsResult.rows.map(row => ({
+  request.comments = commentsResult.rows.map((row) => ({
     id: row.comment_id,
     author: row.author_name || 'System',
     authorRole: toTitleCase(row.user_type || 'Staff'),
     text: row.content,
-    timestamp: formatDate(row.created_at)
+    timestamp: formatDate(row.created_at),
   }));
 
   // Fetch timeline
@@ -119,12 +122,12 @@ exports.findById = async (id) => {
     ORDER BY h.changed_at ASC
   `;
   const historyResult = await query(historySql, [id]);
-  request.timeline = historyResult.rows.map(row => ({
+  request.timeline = historyResult.rows.map((row) => ({
     id: row.status_history_id,
     status: toTitleCase(row.new_status),
     label: `Status changed to ${toTitleCase(row.new_status)}`,
     timestamp: formatDate(row.changed_at),
-    actor: row.actor_name || 'System'
+    actor: row.actor_name || 'System',
   }));
 
   return request;
@@ -132,18 +135,21 @@ exports.findById = async (id) => {
 
 exports.updateStatus = async (id, newStatus, comment) => {
   const dbStatus = newStatus.toUpperCase().replace(' ', '_');
-  
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // Check current status using FOR UPDATE
-    const reqRes = await client.query('SELECT status FROM service_requests WHERE request_id = $1 FOR UPDATE', [id]);
+    const reqRes = await client.query(
+      'SELECT status FROM service_requests WHERE request_id = $1 FOR UPDATE',
+      [id]
+    );
     if (reqRes.rows.length === 0) throw new Error('Request not found');
     const oldDbStatus = reqRes.rows[0].status;
-    
+
     const now = new Date();
-    
+
     // Update status
     await client.query(
       'UPDATE service_requests SET status = $1, updated_at = $2 WHERE request_id = $3',
@@ -152,7 +158,9 @@ exports.updateStatus = async (id, newStatus, comment) => {
 
     // Find a generic staff user for the comment author / history since we don't pass userId from the model yet
     let genericUserId = null;
-    const userRes = await client.query("SELECT user_id FROM users WHERE user_type IN ('STAFF', 'MANAGER', 'ADMIN') LIMIT 1");
+    const userRes = await client.query(
+      "SELECT user_id FROM users WHERE user_type IN ('STAFF', 'MANAGER', 'ADMIN') LIMIT 1"
+    );
     if (userRes.rows.length > 0) {
       genericUserId = userRes.rows[0].user_id;
     }
@@ -172,9 +180,9 @@ exports.updateStatus = async (id, newStatus, comment) => {
         [id, genericUserId, comment, now]
       );
     }
-    
+
     await client.query('COMMIT');
-    
+
     return exports.findById(id);
   } catch (error) {
     await client.query('ROLLBACK');
