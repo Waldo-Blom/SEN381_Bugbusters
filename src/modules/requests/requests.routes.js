@@ -1,9 +1,21 @@
 const router = require('express').Router();
 const c = require('./requests.controller');
 
+const requireRequester = (req, res, next) => {
+  const user = req.session?.user;
+  if (!user) {
+    return res.status(401).send('Please sign in to submit a request.');
+  }
+  if (user.role !== 'requester' || !user.email) {
+    return res.status(403).send('Only authenticated requesters can submit requests.');
+  }
+  next();
+};
+
 // requester
 router.get('/requester/submit', c.submitPage);
-router.get('/requester/my-requests', c.myRequests);
+router.post('/requester/submit', requireRequester, c.submitRequest);
+router.get('/requester/my-requests', requireRequester, c.myRequests);
 router.get('/requester/requests/:id', c.requesterDetail);
 
 // staff

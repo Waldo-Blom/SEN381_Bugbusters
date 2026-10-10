@@ -2,25 +2,68 @@ const requestsService = require('./requests.service');
 const { pageContext } = require('../../shared/views/pageContext');
 
 // ---- requester ----
-exports.submitPage = (req, res) => {
+const submissionView = async (res, options = {}) => {
+  const categories = await requestsService.listCategories();
   res.render('requests/views/requester/submit', {
     ...pageContext('requester'),
     title: 'Submit a Request',
     activeHref: '/requester/submit',
     pageTitle: 'Submit a Request',
     pageSubtitle: 'Report an issue in your community',
+    categories,
+    errors: {},
+    values: {},
+    ...options,
   });
 };
 
-exports.myRequests = (req, res) => {
-  res.render('requests/views/requester/my-requests', {
-    ...pageContext('requester'),
-    title: 'My Requests',
-    activeHref: '/requester/my-requests',
-    pageTitle: 'My Requests',
-    pageSubtitle: 'Track the status of your submissions',
-    requests: requestsService.list(),
-  });
+exports.submitPage = async (req, res, next) => {
+  try {
+    await submissionView(res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.submitRequest = async (req, res, next) => {
+  try {
+    await requestsService.submit(req.session.user.email, req.body);
+    res.redirect('/requester/my-requests');
+  } catch (error) {
+    if (error instanceof requestsService.RequestValidationError) {
+      try {
+        await submissionView(res.status(400), {
+          errors: error.errors,
+          values: req.body,
+        });
+      } catch (renderError) {
+        next(renderError);
+      }
+      return;
+    }
+    if (error instanceof requestsService.RequesterAccountNotFoundError) {
+      res.status(403).send(error.message);
+      return;
+    }
+
+    next(error);
+  }
+};
+
+exports.myRequests = async (req, res, next) => {
+  try {
+    const requests = await requestsService.listForRequester(req.session.user.email);
+    res.render('requests/views/requester/my-requests', {
+      ...pageContext('requester'),
+      title: 'My Requests',
+      activeHref: '/requester/my-requests',
+      pageTitle: 'My Requests',
+      pageSubtitle: 'Track the status of your submissions',
+      requests,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 exports.requesterDetail = (req, res) => {

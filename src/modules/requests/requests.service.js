@@ -1,6 +1,33 @@
 const requestsModel = require('./requests.model');
 const { REQUEST_STATUSES, ALLOWED_TRANSITIONS } = require('./requests.constants');
+const { validateSubmission } = require('./requests.schema');
 const EventEmitter = require('events');
+
+class RequestValidationError extends Error {
+  constructor(errors) {
+    super('Please correct the highlighted fields and try again.');
+    this.name = 'RequestValidationError';
+    this.errors = errors;
+  }
+}
+
+class RequesterAccountNotFoundError extends Error {
+  constructor() {
+    super('Your requester account was not found. Please sign in with an active requester account.');
+    this.name = 'RequesterAccountNotFoundError';
+  }
+}
+
+const generateRequestNumber = (year, sequence) => {
+  if (!Number.isInteger(year) || year < 1000 || year > 9999) {
+    throw new RangeError('The request year must be a four-digit number.');
+  }
+  if (!Number.isInteger(sequence) || sequence < 1) {
+    throw new RangeError('The request sequence must be a positive integer.');
+  }
+
+  return `CC-${year}-${String(sequence).padStart(4, '0')}`;
+};
 
 class RequestWorkflowService extends EventEmitter {
   constructor() {
@@ -37,7 +64,7 @@ class RequestWorkflowService extends EventEmitter {
       newStatus,
       userId,
       comment,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
     return updatedRequest;
@@ -59,4 +86,36 @@ workflowService.on('RequestStatusChanged', (data) => {
 
 exports.list = () => requestsModel.findAll();
 exports.getById = (id) => requestsModel.findById(id) || requestsModel.findAll()[0];
+exports.listForRequester = (requesterEmail) => requestsModel.findByRequesterEmail(requesterEmail);
+exports.listCategories = () => requestsModel.findCategories();
+exports.generateRequestNumber = generateRequestNumber;
+exports.RequestValidationError = RequestValidationError;
+exports.RequesterAccountNotFoundError = RequesterAccountNotFoundError;
+
+exports.submit = async (requesterEmail, input) => {
+  const { errors, value } = validateSubmission(input);
+  if (Object.keys(errors).length > 0) {
+    throw new RequestValidationError(errors);
+  }
+
+  const requesterId = await requestsModel.findRequesterIdByEmail(requesterEmail);
+  if (!requesterId) {
+    throw new RequesterAccountNotFoundError();
+  }
+
+  const category = await requestsModel.findActiveCategory(value.categoryId);
+  if (!category) {
+    throw new RequestValidationError({
+      categoryId: 'Please select an available category.',
+    });
+  }
+
+  const created = await requestsModel.create({ ...value, requesterId }, generateRequestNumber);
+
+  return {
+    id: created.request_id,
+    reference: created.request_number,
+    status: REQUEST_STATUSES.SUBMITTED,
+  };
+};
 exports.workflow = workflowService;

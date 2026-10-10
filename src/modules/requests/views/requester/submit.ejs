@@ -17,34 +17,46 @@
       <p class="text-sm text-slate-500">All fields marked with * are required.</p>
     </div>
 
-    <form class="px-5 py-4 space-y-5">
+    <% if (Object.keys(errors).length > 0) { %>
+      <div role="alert" class="mx-5 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <p class="font-semibold">Please correct the following:</p>
+        <ul class="mt-1 list-disc pl-5">
+          <% Object.values(errors).forEach(function (message) { %>
+            <li><%= message %></li>
+          <% }); %>
+        </ul>
+      </div>
+    <% } %>
+
+    <form action="/requester/submit" method="post" class="px-5 py-4 space-y-5">
 
       <div class="space-y-1.5">
-        <label class="block text-sm font-medium text-slate-700">Category *</label>
-        <select class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+        <label for="categoryId" class="block text-sm font-medium text-slate-700">Category *</label>
+        <select id="categoryId" name="categoryId" required
+                class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
           <option value="">Select a category...</option>
-          <option>Pothole</option><option>Streetlight</option><option>Graffiti</option>
-          <option>Waste Collection</option><option>Water Leak</option><option>Tree Trimming</option>
-          <option>Parks &amp; Recreation</option><option>Signage</option><option>Other</option>
+          <% categories.forEach(function (category) { %>
+            <option value="<%= category.id %>" <%= values.categoryId === category.id ? 'selected' : '' %>><%= category.name %></option>
+          <% }); %>
         </select>
       </div>
 
       <div class="space-y-1.5">
-        <label class="block text-sm font-medium text-slate-700">Title *</label>
-        <input type="text" placeholder="Brief summary of the issue"
+        <label for="title" class="block text-sm font-medium text-slate-700">Title *</label>
+        <input id="title" name="title" type="text" maxlength="200" required value="<%= values.title || '' %>" placeholder="Brief summary of the issue"
                class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
       </div>
 
       <div class="space-y-1.5">
-        <label class="block text-sm font-medium text-slate-700">Description *</label>
-        <textarea rows="5" placeholder="Describe the issue in detail..."
-                  class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"></textarea>
+        <label for="description" class="block text-sm font-medium text-slate-700">Description *</label>
+        <textarea id="description" name="description" rows="5" required placeholder="Describe the issue in detail..."
+                  class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"><%= values.description || '' %></textarea>
         <p class="text-xs text-slate-500">Tip: The more detail you provide, the faster we can resolve the issue.</p>
       </div>
 
       <div class="space-y-1.5">
-        <label class="block text-sm font-medium text-slate-700">Location *</label>
-        <input type="text" placeholder="e.g. 142 Maple Street, District 4"
+        <label for="location" class="block text-sm font-medium text-slate-700">Location *</label>
+        <input id="location" name="location" type="text" maxlength="255" required value="<%= values.location || '' %>" placeholder="e.g. 142 Maple Street, District 4"
                class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
       </div>
 
@@ -81,7 +93,7 @@
       </div>
 
       <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end pt-2">
-        <button type="button" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+        <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
           Submit request
         </button>
       </div>
