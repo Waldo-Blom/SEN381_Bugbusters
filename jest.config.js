@@ -9,9 +9,14 @@ module.exports = {
     {
       displayName: 'integration',
       testEnvironment: 'node',
-      roots: ['<rootDir>/tests'],
+      roots: ['<rootDir>/tests/integration'],
       testMatch: ['**/*.test.js'],
-      testPathIgnorePatterns: ['/node_modules/', '/tests/regression/', '/tests/e2e/'],
+    },
+    {
+      displayName: 'functional',
+      testEnvironment: 'node',
+      roots: ['<rootDir>/tests/functional'],
+      testMatch: ['**/*.test.js'],
     },
     {
       displayName: 'regression',
@@ -25,6 +30,11 @@ module.exports = {
       roots: ['<rootDir>/tests/e2e'],
       testMatch: ['**/*.test.js'],
     },
+    {
+      displayName: 'performance',
+      testEnvironment: 'node',
+      roots: ['<rootDir>/tests/performance'],
+      testMatch: ['**/*.test.js'],
+    },
   ],
-  collectCoverageFrom: ['src/**/*.js', '!src/**/__tests__/**', '!src/server.js'],
 };

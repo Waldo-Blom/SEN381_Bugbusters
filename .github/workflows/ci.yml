@@ -18,13 +18,8 @@ concurrency:
 permissions:
   contents: read
 
-# Credentials come from GitHub Secrets (Settings -> Secrets and variables -> Actions):
-#   NEON_DATABASE_URL   Neon connection string for the preconfigured development database
-#   CI_SESSION_SECRET   session secret used by the app during CI
-# Nothing sensitive is committed in this file.
-env:
-  DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-  SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
+# Database/session credentials are scoped only to jobs that need them.
+# Configure NEON_DATABASE_URL and CI_SESSION_SECRET as GitHub Actions secrets.
 
 jobs:
   # ------------------------------------------------------------------
@@ -73,9 +68,8 @@ jobs:
 
   # ------------------------------------------------------------------
   # AUTOMATED TESTS
-  # NOTE: --passWithNoTests lets the pipeline pass while the test folders are
-  # still empty. Remove it once every suite has real tests, otherwise a
-  # green run proves nothing.
+  # Only unfinished placeholder suites use --passWithNoTests. A green empty
+  # suite is not evidence that its behaviours are verified.
   # ------------------------------------------------------------------
   unit-tests:
     name: Unit tests
@@ -87,30 +81,60 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-node
       - name: Run unit tests
-        run: npx jest --selectProjects unit --ci --passWithNoTests
+        run: npx jest --selectProjects unit --ci
 
-  integration:
-    name: ${{ matrix.name }}
+  functional-tests:
+    name: Black-box functional tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [db-test]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Integration & API tests
-            suite: integration
-          - name: Regression suite
-            suite: regression
-    env:
-      NODE_ENV: test
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-node
-      - name: Run ${{ matrix.suite }} tests
-        run: npx jest --selectProjects ${{ matrix.suite }} --ci --runInBand --passWithNoTests
+      - name: Run black-box functional tests
+        run: npx jest --selectProjects functional --ci --runInBand
+
+  integration:
+    name: Integration & API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [db-test]
+    env:
+      NODE_ENV: test
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - name: Run integration and API tests
+        run: npx jest --selectProjects integration --ci --runInBand
+
+  regression:
+    name: Regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - name: Run regression tests
+        run: npx jest --selectProjects regression --ci --runInBand
+
+  performance-tests:
+    name: Performance test plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - name: Run performance test plan
+        run: npx jest --selectProjects performance --ci --runInBand
 
   # ------------------------------------------------------------------
   # SIMULATED STAGING + E2E
@@ -127,6 +151,8 @@ jobs:
       NODE_ENV: production
       PORT: 3000
       BASE_URL: http://localhost:3000
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -139,7 +165,7 @@ jobs:
       - name: Wait for /health to return 200
         run: curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused http://localhost:3000/health
       - name: Run E2E tests
-        run: npx jest --selectProjects e2e --ci --runInBand --passWithNoTests
+        run: npx jest --selectProjects e2e --ci --runInBand
       - name: Show server log on failure
         if: failure()
         run: cat server.log
@@ -151,6 +177,8 @@ jobs:
     name: Neon database check
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -169,7 +197,19 @@ jobs:
   # ------------------------------------------------------------------
   ci-gate:
     name: CI gate
-    needs: [lint, dependency-audit, secret-scan, unit-tests, integration, e2e, db-test]
+    needs:
+      [
+        lint,
+        dependency-audit,
+        secret-scan,
+        unit-tests,
+        functional-tests,
+        integration,
+        regression,
+        performance-tests,
+        e2e,
+        db-test,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:
