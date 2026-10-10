@@ -1,86 +1,220 @@
-name: CI — Lint & Unit Tests
+name: CI
 
+# CI runs on `testing` only. Staging and main are covered by their own
+# deployment / end-to-end workflows.
 on:
   push:
-    branches: [testing, staging, main]
+    branches: [testing]
+    paths-ignore: ["docs/**", "**/*.md", ".github/ISSUE_TEMPLATE/**"]
   pull_request:
-    branches: [testing, staging, main]
+    branches: [testing]
+    paths-ignore: ["docs/**", "**/*.md", ".github/ISSUE_TEMPLATE/**"]
+  workflow_dispatch:
 
-# Cancel in-progress runs for the same branch/PR to save resources.
+# Cancel superseded runs of the same PR / branch.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.label || github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
+env:
+  DATABASE_URL: postgresql://civicconnect_test:test_password@localhost:5432/civicconnect_test_db
+  SESSION_SECRET: ci_test_session_secret_placeholder
+
 jobs:
   # ------------------------------------------------------------------
-  # JOB 1: Static Analysis (fast feedback first)
+  # Static analysis, unit tests, health check and DB-backed suites all
+  # run in parallel. `ci-gate` below is the single required check.
   # ------------------------------------------------------------------
   lint:
-    name: "Static Analysis (ESLint + Prettier)"
+    name: Lint (ESLint + Prettier)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - run: npm run lint
+      - run: npx prettier --check .
 
-      - name: Read Node version from .nvmrc
-        run: echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_ENV
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build CSS (Tailwind)
-        run: npm run build:css
-
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Check Prettier formatting
-        run: npx prettier --check .
-
-  # ------------------------------------------------------------------
-  # JOB 2: Unit Tests (fast, no external dependencies)
-  # ------------------------------------------------------------------
   unit-tests:
-    name: "Unit Tests"
+    name: Unit tests
     runs-on: ubuntu-latest
-    needs: lint   # Fail fast: don't run tests if lint fails
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Read Node version from .nvmrc
-        run: echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_ENV
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build CSS (Tailwind)
-        run: npm run build:css
-
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
       - name: Run unit tests with coverage
-        run: npx jest --config jest.config.js --coverage --ci --coverageReporters=lcov
-
-      - name: Upload unit test coverage artifact
-        uses: actions/upload-artifact@v4
+        run: >
+          npx jest --config jest.config.js --ci --coverage
+          --coverageReporters=lcov --coverageDirectory=coverage/unit
+      - name: Upload unit coverage
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: unit-coverage
-          path: coverage/lcov.info
-          retention-days: 30
+          path: coverage/unit/lcov.info
+          retention-days: 14
+          if-no-files-found: ignore
+
+  integration:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Integration & API tests
+            suite: integration
+            coverage: true
+          - name: Regression suite
+            suite: regression
+            coverage: false
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: civicconnect_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: civicconnect_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - run: npm run db:migrate
+      - name: Run ${{ matrix.suite }} tests
+        run: >
+          npx jest --config jest.${{ matrix.suite }}.config.js --ci --runInBand
+          ${{ matrix.coverage && '--coverage --coverageReporters=lcov --coverageDirectory=coverage/integration' || '' }}
+      - name: Upload integration coverage
+        if: always() && matrix.coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-coverage
+          path: coverage/integration/lcov.info
+          retention-days: 14
+          if-no-files-found: ignore
+
+  health-check:
+    name: Application health check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: civicconnect_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: civicconnect_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: production
+      PORT: 3000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - run: npm run db:migrate
+      - name: Start server and verify /health returns 200
+        run: |
+          node src/server.js > server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 30); do
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "::error::Server exited early"
+              cat server.log
+              exit 1
+            fi
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || true)
+            if [ "$code" = "200" ]; then
+              echo "Health check passed after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "::error::Health check failed after 30s"
+          cat server.log
+          exit 1
+
+  # ------------------------------------------------------------------
+  # Coverage summary: PR comment (same-repo PRs) + job summary.
+  # Reporting only; it never fails the build.
+  # ------------------------------------------------------------------
+  coverage-report:
+    name: Coverage report
+    needs: [unit-tests, integration]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*-coverage"
+          path: coverage-artifacts
+      - name: Build coverage summary
+        run: node .github/scripts/coverage-summary.js coverage-artifacts | tee coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- ci-coverage-report -->';
+            const body = marker + '\n' + fs.readFileSync('coverage-summary.md', 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  # ------------------------------------------------------------------
+  # Single required status check for branch protection.
+  # ------------------------------------------------------------------
+  ci-gate:
+    name: CI gate
+    needs: [lint, unit-tests, integration, health-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs succeeded
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
+            echo "One or more required jobs did not succeed."
+            exit 1
+          fi

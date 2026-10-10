@@ -2,42 +2,43 @@ name: Security — Dependency Scan
 
 on:
   schedule:
-    - cron: "0 4 * * *" # run once a day at 4 AM
+    - cron: "0 4 * * *" # daily at 04:00 UTC
+  pull_request:
+    branches: [testing]
+    paths: ["package.json", "package-lock.json"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   dependency-audit:
-    name: "Dependency Vulnerability Scan"
+    name: Dependency vulnerability scan
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Read Node version from .nvmrc
-        run: echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_ENV
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          persist-credentials: false
 
-      - name: Install dependencies
-        run: npm ci
+      - uses: ./.github/actions/setup-node
+        with:
+          build-css: "false"
 
-      - name: Run npm audit (fail on high or critical)
-        run: npm audit --audit-level=high
-
+      # Full report first so it is always available, even if the gate fails.
       - name: Generate JSON audit report
         run: npm audit --json > audit-report.json || true
 
-      - name: Upload audit report as artifact
+      - name: Upload audit report
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: npm-audit-report
           path: audit-report.json
           retention-days: 30
+
+      - name: Fail on high or critical vulnerabilities
+        run: npm audit --audit-level=high
