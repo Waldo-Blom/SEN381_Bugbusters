@@ -110,10 +110,8 @@ jobs:
         include:
           - name: Integration & API tests
             suite: integration
-            coverage: true
           - name: Regression suite
             suite: regression
-            coverage: false
     env:
       NODE_ENV: test
     steps:
@@ -122,17 +120,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-node
       - name: Run ${{ matrix.suite }} tests
-        run: >
-          npx jest --selectProjects ${{ matrix.suite }} --ci --runInBand --passWithNoTests
-          ${{ matrix.coverage && '--coverage --coverageReporters=lcov --coverageDirectory=coverage/integration' || '' }}
-      - name: Upload integration coverage
-        if: always() && matrix.coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-coverage
-          path: coverage/integration/lcov.info
-          retention-days: 14
-          if-no-files-found: ignore
+        run: npx jest --selectProjects ${{ matrix.suite }} --ci --runInBand --passWithNoTests
 
   # ------------------------------------------------------------------
   # SIMULATED STAGING + E2E
