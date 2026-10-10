@@ -1,12 +1,12 @@
 require('dotenv').config();
 
-const { query, closePool } = require('../src/config/database');
+const { query, closePool } = require('../../src/config/database');
 
 async function testDatabase() {
   try {
     console.log('Testing CivicConnect Neon connection...\n');
 
-    // 1. Verify database connection
+    // Confirm the connection works and report which database and user it reached.
     const connection = await query(`
       SELECT
         current_database() AS database_name,
@@ -19,12 +19,12 @@ async function testDatabase() {
     console.log('Database:', database.database_name);
     console.log('User:', database.database_user);
 
-    // 2. Ensure we are testing development
+    // Guard against accidentally running this development check on another database.
     if (database.database_name !== 'civicconnect_dev') {
       throw new Error(`Wrong database: ${database.database_name}`);
     }
 
-    // 3. Check all tables
+    // Verify that every table expected by the application exists in the public schema.
     const tables = await query(`
       SELECT table_name
       FROM information_schema.tables
@@ -56,7 +56,7 @@ async function testDatabase() {
 
     console.log('All 11 CivicConnect tables found!');
 
-    // 4. Check mock data
+    // Report row counts as a quick check that the main request tables can be queried.
     const requests = await query(`
       SELECT COUNT(*)::int AS total
       FROM service_requests
@@ -75,6 +75,7 @@ async function testDatabase() {
     console.error('\nDatabase test failed:', error.message);
     process.exitCode = 1;
   } finally {
+    // Close the pool so this standalone script can exit cleanly.
     await closePool();
   }
 }
