@@ -14,4 +14,8 @@ router.get('/staff/requests/:id', c.staffDetail);
 router.get('/manager/requests', c.allRequests);
 router.get('/manager/requests/:id', c.managerDetail);
 
+// workflow actions
+router.post('/staff/requests/:id/resolve', c.resolveRequest);
+router.post('/manager/requests/:id/close', c.closeRequest);
+
 module.exports = router;

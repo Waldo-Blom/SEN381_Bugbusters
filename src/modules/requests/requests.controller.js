@@ -79,3 +79,26 @@ exports.managerDetail = (req, res) => {
     request: requestsService.getById(req.params.id),
   });
 };
+
+exports.resolveRequest = (req, res) => {
+  const requestId = req.params.id;
+  const { comment } = req.body;
+  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+  try {
+    requestsService.workflow.transitionRequest(requestId, 'Resolved', staffId, comment);
+    res.redirect(`/staff/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
+
+exports.closeRequest = (req, res) => {
+  const requestId = req.params.id;
+  const managerId = req.user?.id || 'manager-1'; // Mocked auth
+  try {
+    requestsService.workflow.transitionRequest(requestId, 'Closed', managerId);
+    res.redirect(`/manager/requests/${requestId}`);
+  } catch (error) {
+    res.status(400).send(error.message);
+  }
+};
