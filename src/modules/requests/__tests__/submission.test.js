@@ -1,3 +1,5 @@
+// Replace every persistence function with a Jest mock. These tests exercise
+// validation, service, controller, and routing behavior without connecting to PostgreSQL.
 jest.mock('../requests.model', () => ({
   findAll: jest.fn(),
   findById: jest.fn(),
@@ -24,9 +26,11 @@ const formData = {
   title: 'Pothole on Oak Street',
   description: 'A large pothole needs repair.',
   location: '12 Oak Street',
+  priority: 'HIGH',
 };
 
 describe('request submission validation and reference generation', () => {
+  // Check required fields and the readable errors returned for an empty submission.
   it('requires every field and returns human-readable field errors', () => {
     const result = validateSubmission({});
 
@@ -38,6 +42,7 @@ describe('request submission validation and reference generation', () => {
     });
   });
 
+  // Verify input normalization and limits that match the database columns.
   it('trims valid fields and enforces database field lengths', () => {
     const result = validateSubmission({
       ...formData,
@@ -52,6 +57,16 @@ describe('request submission validation and reference generation', () => {
     expect(result.value.description).toBe(formData.description);
   });
 
+  // The stored priority defaults to the database's MEDIUM default and accepts only enum values.
+  it('defaults priority to medium and rejects unsupported priorities', () => {
+    const defaultPriority = validateSubmission({ ...formData, priority: '' });
+    const invalidPriority = validateSubmission({ ...formData, priority: 'CRITICAL' });
+
+    expect(defaultPriority.value.priority).toBe('MEDIUM');
+    expect(invalidPriority.errors.priority).toBe('Please select a valid priority.');
+  });
+
+  // Ensure generated references retain the required year and padded sequence format.
   it('generates request numbers with a four-digit minimum sequence', () => {
     expect(requestsService.generateRequestNumber(2026, 1)).toBe('CC-2026-0001');
     expect(requestsService.generateRequestNumber(2026, 9999)).toBe('CC-2026-9999');
@@ -62,6 +77,7 @@ describe('request submission validation and reference generation', () => {
 describe('request submission routes', () => {
   let submittedRequests;
 
+  // Simulate database reads and writes in memory so route tests are deterministic.
   beforeEach(() => {
     submittedRequests = [];
     jest.clearAllMocks();
@@ -107,14 +123,20 @@ describe('request submission routes', () => {
     );
   });
 
+  // Confirm the page renders the categories and default priority supplied by the controller.
   it('populates the submit form with active categories', async () => {
     const response = await request(app).get('/requester/submit');
 
     expect(response.status).toBe(200);
     expect(response.text).toContain(`value="${category.id}"`);
     expect(response.text).toContain(category.name);
+    expect(response.text).toContain('id="priority" name="priority" value="MEDIUM"');
+    expect(response.text).toContain('data-priority="LOW"');
+    expect(response.text).toContain('data-priority="MEDIUM"');
+    expect(response.text).toContain('aria-pressed="true"');
   });
 
+  // Ensure unauthenticated requests are rejected before the create operation.
   it('requires a signed-in requester to submit', async () => {
     const response = await request(app).post('/requester/submit').send(formData);
 
@@ -122,6 +144,7 @@ describe('request submission routes', () => {
     expect(requestsModel.create).not.toHaveBeenCalled();
   });
 
+  // Exercise login, POST submission, and the follow-up list page using a fake model.
   it('persists valid submissions and displays them in the requester list', async () => {
     const browser = request.agent(app);
     await browser.post('/auth/login').type('form').send({ role: 'requester' });
@@ -136,6 +159,7 @@ describe('request submission routes', () => {
         title: formData.title,
         description: formData.description,
         location: formData.location,
+        priority: formData.priority,
       }),
       expect.any(Function)
     );
@@ -147,6 +171,7 @@ describe('request submission routes', () => {
     expect(listResponse.text).toContain(formData.title);
   });
 
+  // Invalid input should be reported to the user without attempting a model write.
   it('shows validation errors and does not persist invalid submissions', async () => {
     const browser = request.agent(app);
     await browser.post('/auth/login').type('form').send({ role: 'requester' });
@@ -161,6 +186,7 @@ describe('request submission routes', () => {
     expect(requestsModel.create).not.toHaveBeenCalled();
   });
 
+  // The service must re-check a category instead of trusting a submitted category ID.
   it('rejects a category that is not active in the database', async () => {
     const browser = request.agent(app);
     await browser.post('/auth/login').type('form').send({ role: 'requester' });
@@ -173,6 +199,7 @@ describe('request submission routes', () => {
     expect(requestsModel.create).not.toHaveBeenCalled();
   });
 
+  // A session user must map to an active requester record before insertion.
   it('shows a useful error if the signed-in requester has no active database account', async () => {
     const browser = request.agent(app);
     await browser.post('/auth/login').type('form').send({ role: 'requester' });

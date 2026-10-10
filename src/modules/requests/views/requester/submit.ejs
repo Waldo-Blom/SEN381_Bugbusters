@@ -62,23 +62,27 @@
 
       <div class="space-y-2">
         <label class="block text-sm font-medium text-slate-700">Priority (if applicable)</label>
+        <input type="hidden" id="priority" name="priority" value="<%= values.priority || 'MEDIUM' %>" />
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <button type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-center hover:border-slate-300">
-            <span class="block text-sm font-semibold text-slate-800">Low</span>
-            <span class="mt-0.5 block text-[10px] leading-tight text-slate-500">Minor inconvenience</span>
-          </button>
-          <button type="button" class="rounded-lg border-2 border-blue-500 bg-blue-50 px-3 py-2.5 text-center">
-            <span class="block text-sm font-semibold text-slate-800">Medium</span>
-            <span class="mt-0.5 block text-[10px] leading-tight text-slate-500">Should be addressed soon</span>
-          </button>
-          <button type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-center hover:border-slate-300">
-            <span class="block text-sm font-semibold text-slate-800">High</span>
-            <span class="mt-0.5 block text-[10px] leading-tight text-slate-500">Affects safety or traffic</span>
-          </button>
-          <button type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-center hover:border-slate-300">
-            <span class="block text-sm font-semibold text-slate-800">Urgent</span>
-            <span class="mt-0.5 block text-[10px] leading-tight text-slate-500">Immediate hazard</span>
-          </button>
+          <% [
+            { value: 'LOW', label: 'Low', description: 'Minor inconvenience' },
+            { value: 'MEDIUM', label: 'Medium', description: 'Should be addressed soon' },
+            { value: 'HIGH', label: 'High', description: 'Affects safety or traffic' },
+            { value: 'URGENT', label: 'Urgent', description: 'Immediate hazard' },
+          ].forEach(function (priority) { %>
+            <% const selected = (values.priority || 'MEDIUM') === priority.value; %>
+            <button
+              type="button"
+              data-priority="<%= priority.value %>"
+              aria-pressed="<%= selected %>"
+              class="<%= selected
+                ? 'rounded-lg border-2 border-blue-500 bg-blue-50 px-3 py-2.5 text-center'
+                : 'rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-center hover:border-slate-300' %>"
+            >
+                <span class="block text-sm font-semibold text-slate-800"><%= priority.label %></span>
+                <span class="mt-0.5 block text-[10px] leading-tight text-slate-500"><%= priority.description %></span>
+            </button>
+          <% }); %>
         </div>
       </div>
 
@@ -100,5 +104,24 @@
     </form>
   </div>
 </div>
+
+<script>
+  const priorityInput = document.getElementById('priority');
+  const priorityButtons = document.querySelectorAll('[data-priority]');
+
+  priorityButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      priorityInput.value = button.dataset.priority;
+
+      priorityButtons.forEach((option) => {
+        const selected = option === button;
+        option.setAttribute('aria-pressed', String(selected));
+        option.className = selected
+          ? 'rounded-lg border-2 border-blue-500 bg-blue-50 px-3 py-2.5 text-center'
+          : 'rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-center hover:border-slate-300';
+      });
+    });
+  });
+</script>
 
 <%- include('partials/app-layout-foot') %>

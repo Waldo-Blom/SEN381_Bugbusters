@@ -1,4 +1,5 @@
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ALLOWED_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 exports.validateSubmission = (input = {}) => {
   const errors = {};
@@ -8,6 +9,7 @@ exports.validateSubmission = (input = {}) => {
   const title = value('title');
   const description = value('description');
   const location = value('location');
+  const priority = value('priority').toUpperCase() || 'MEDIUM';
 
   if (!categoryId) {
     errors.categoryId = 'Please select a category.';
@@ -31,8 +33,12 @@ exports.validateSubmission = (input = {}) => {
     errors.location = 'The location must be 255 characters or fewer.';
   }
 
+  if (!ALLOWED_PRIORITIES.includes(priority)) {
+    errors.priority = 'Please select a valid priority.';
+  }
+
   return {
     errors,
-    value: { categoryId, title, description, location },
+    value: { categoryId, title, description, location, priority },
   };
 };

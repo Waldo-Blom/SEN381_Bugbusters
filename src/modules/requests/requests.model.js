@@ -107,8 +107,8 @@ exports.create = async (request, generateRequestNumber) => {
 
     const result = await client.query(
       `INSERT INTO service_requests
-         (request_number, requester_id, category_id, title, description, location, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'SUBMITTED')
+         (request_number, requester_id, category_id, title, description, location, priority, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'SUBMITTED')
        RETURNING request_id, request_number, category_id, title, description, location,
                  status, priority, created_at`,
       [
@@ -118,6 +118,7 @@ exports.create = async (request, generateRequestNumber) => {
         request.title,
         request.description,
         request.location,
+        request.priority,
       ]
     );
 
