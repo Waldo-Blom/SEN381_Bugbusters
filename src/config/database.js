@@ -1,29 +1,51 @@
-// Followed: https://www.theodinproject.com/lessons/nodejs-using-postgresql
-const { Pool } = require('pg');
 
+const { Pool } = require('pg');
+require('dotenv').config();
+
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is not defined in your environment');
+}
+
+// Shared PostgreSQL connection pool
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
+  connectionString: process.env.DATABASE_URL,
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
+// Handle unexpected errors on idle connections
+pool.on('error', (err) => {
+  console.error('Unexpected PostgreSQL pool error:', err.message);
+});
+
+// Execute parameterised SQL queries
 const query = (text, params) => pool.query(text, params);
 
-// Verify the database is reachable. Called once from server.js at startup.
+// Verify the database is reachable.
+// Called once from server.js at startup.
 const testConnection = async () => {
   const client = await pool.connect();
+
   try {
-    await client.query('SELECT 1');
-    console.log('PostgreSQL connected');
+    const result = await client.query(`
+      SELECT current_database() AS database_name
+    `);
+
+    console.log(
+      `PostgreSQL connected to: ${result.rows[0].database_name}`
+    );
   } finally {
     client.release();
   }
 };
 
-// Shutdown - loses all pool connections.
-
+// Gracefully close database connections
 const closePool = () => pool.end();
 
-module.exports = { query, testConnection, closePool, pool };
+module.exports = {
+  query,
+  testConnection,
+  closePool,
+  pool
+};
