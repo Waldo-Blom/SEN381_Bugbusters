@@ -2,6 +2,7 @@ const requestsModel = require('./requests.model');
 const { REQUEST_STATUSES, ALLOWED_TRANSITIONS } = require('./requests.constants');
 const { validateSubmission, validateExternalRequester, isUuid } = require('./requests.schema');
 const eventBus = require('../../shared/events/eventBus');
+const { RequestAccessError, requireStaffAccess } = require('./requests.access');
 
 class RequestValidationError extends Error {
   constructor(errors) {
@@ -86,8 +87,18 @@ const createServiceRequest = async ({ input, actorType, actorUserId }) => {
 };
 
 class RequestWorkflowService {
-  async transitionRequest(requestId, newStatus, userId, comment = null) {
-    const request = await requestsModel.findById(requestId);
+  async transitionRequest(requestId, newStatus, userId, comment = null, staffOnly = false) {
+    let staffContext;
+    if (staffOnly) {
+      if (!isUuid(requestId) || !isUuid(userId)) {
+        throw new RequestAccessError('Invalid request or staff identifier.', 400);
+      }
+      staffContext = await requestsModel.findAccessContext(requestId, userId);
+      requireStaffAccess(staffContext, userId, true);
+    }
+    const request = staffOnly
+      ? { status: staffContext.status }
+      : await requestsModel.findById(requestId);
     if (!request) {
       throw new Error('Request not found');
     }
@@ -107,7 +118,9 @@ class RequestWorkflowService {
 
     // Update state in real implementation this needs to be a DB transaction
     const oldStatus = currentStatus;
-    const updatedRequest = await requestsModel.updateStatus(requestId, newStatus, comment, userId);
+    const updatedRequest = staffOnly
+      ? await requestsModel.updateStatus(requestId, newStatus, comment, userId, true)
+      : await requestsModel.updateStatus(requestId, newStatus, comment, userId);
 
     // Fire side effects asynchronously (FR-104 email, FR-302 audit log)
     eventBus.emit('RequestStatusChanged', {
@@ -126,6 +139,24 @@ class RequestWorkflowService {
 const workflowService = new RequestWorkflowService();
 
 exports.list = async () => await requestsModel.findAll();
+exports.listForStaff = async (staffId) => {
+  if (!isUuid(staffId)) throw new RequestAccessError('Invalid staff identifier.', 403);
+  return requestsModel.findForStaff(staffId);
+};
+// Workflow reuses this policy while holding its own transaction lock.
+exports.checkStaffAccess = async (id, staffId, client) => {
+  if (!isUuid(id) || !isUuid(staffId)) {
+    throw new RequestAccessError('Invalid request or staff identifier.', 400);
+  }
+  const context = await requestsModel.findAccessContext(id, staffId, client);
+  requireStaffAccess(context, staffId);
+  return context;
+};
+exports.getForStaff = async (id, staffId) => {
+  if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
+  if (!isUuid(staffId)) throw new RequestAccessError('Invalid staff identifier.', 403);
+  return requestsModel.findById(id, undefined, staffId);
+};
 exports.listForManager = async (managerId, input = {}) => {
   if (!managerId) return null;
   const filters = {};

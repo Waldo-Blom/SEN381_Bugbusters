@@ -1,8 +1,10 @@
 jest.mock('../requests.service', () => ({
+  getForStaff: jest.fn(),
   workflow: {
     transitionRequest: jest.fn(),
   },
 }));
+jest.mock('../../workflow/workflow.service', () => ({ assignToSelf: jest.fn() }));
 
 const express = require('express');
 const request = require('supertest');
@@ -36,14 +38,14 @@ describe('Requests controller workflow routes', () => {
       'request-1',
       'Resolved',
       'staff-1',
-      'The issue has been fixed.'
+      'The issue has been fixed.',
+      true
     );
     expect(response.status).toBe(302);
     expect(response.headers.location).toBe('/staff/requests/request-1');
   });
 
   it.each([
-    ['assign', 'Assigned'],
     ['start-progress', 'In Progress'],
     ['reject', 'Rejected'],
   ])('POST %s passes the staff identity and redirects after success', async (action, status) => {
@@ -55,7 +57,8 @@ describe('Requests controller workflow routes', () => {
       'request-1',
       status,
       'staff-1',
-      null
+      null,
+      true
     );
   });
 
@@ -68,5 +71,16 @@ describe('Requests controller workflow routes', () => {
 
     expect(response.status).toBe(400);
     expect(response.text).toBe('A resolution comment is required to resolve a request.');
+  });
+
+  it('delegates self-assignment to the existing workflow assignment service', async () => {
+    requestsService.getForStaff.mockResolvedValue({ canAssign: true });
+    const response = await request(app).post('/staff/requests/request-1/assign');
+    expect(response.status).toBe(302);
+    expect(require('../../workflow/workflow.service').assignToSelf).toHaveBeenCalledWith(
+      'request-1',
+      'staff-1'
+    );
+    expect(requestsService.workflow.transitionRequest).not.toHaveBeenCalled();
   });
 });

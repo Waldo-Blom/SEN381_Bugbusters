@@ -1,6 +1,7 @@
 const { requestsService } = require('../requests');
 const { pageContext } = require('../../shared/views/pageContext');
 const workflowService = require('./workflow.service');
+const { getAuthenticatedUserId } = require('../auth/auth.middleware');
 
 exports.dashboard = async (req, res) => {
   res.render('workflow/views/staff/dashboard', {
@@ -9,7 +10,7 @@ exports.dashboard = async (req, res) => {
     activeHref: '/staff/dashboard',
     pageTitle: 'Staff Dashboard',
     pageSubtitle: 'Requests assigned to your department',
-    requests: await requestsService.list(),
+    requests: await requestsService.listForStaff(getAuthenticatedUserId(req)),
   });
 };
 
