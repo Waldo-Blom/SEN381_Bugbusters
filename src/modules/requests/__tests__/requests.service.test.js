@@ -113,4 +113,18 @@ describe('RequestWorkflowService', () => {
       null
     );
   });
+
+  it.each([
+    ['Submitted', 'Rejected'],
+    ['Assigned', 'In Progress'],
+    ['In Progress', 'Resolved'],
+    ['Resolved', 'Closed'],
+    ['Resolved', 'In Progress'],
+  ])('allows the existing workflow transition %s to %s', async (from, to) => {
+    requestsModel.findById.mockResolvedValue({ id: 'request-1', status: from });
+    requestsModel.updateStatus.mockResolvedValue({ id: 'request-1', status: to });
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    await requestsService.workflow.transitionRequest('request-1', to, 'staff-1', 'Work recorded');
+    expect(requestsModel.updateStatus).toHaveBeenCalledWith('request-1', to, 'Work recorded');
+  });
 });

@@ -22,10 +22,10 @@ describeDatabase('Reporting aggregates against PostgreSQL', () => {
       CREATE TEMP TABLE departments (department_id text, manager_id text, is_active boolean);
       CREATE TEMP TABLE request_categories (category_id text, department_id text, target_resolution_time interval);
       CREATE TEMP TABLE service_requests (
-        request_id text, category_id text, status text, created_at timestamp,
+        request_id text, category_id text, status request_status, created_at timestamp,
         assigned_at timestamp, resolved_at timestamp, expected_completion_at timestamp);
       CREATE TEMP TABLE request_assignment_history (request_id text, assigned_to_staff_id text, assigned_at timestamp);
-      CREATE TEMP TABLE request_status_history (request_id text, new_status text, changed_at timestamp);
+      CREATE TEMP TABLE request_status_history (request_id text, new_status request_status, changed_at timestamp);
       INSERT INTO users VALUES ('manager', 'MANAGER', true), ('other', 'MANAGER', true);
       INSERT INTO departments VALUES ('department', 'manager', true), ('foreign', 'other', true);
       INSERT INTO request_categories VALUES ('category', 'department', interval '1 day'), ('foreign', 'foreign', NULL);
@@ -88,7 +88,7 @@ describeDatabase('Reporting aggregates against PostgreSQL', () => {
   it('updates counts, SLA and completion times when an overdue request resolves, closes and reopens', async () => {
     await client.query(`ALTER TABLE service_requests ADD COLUMN updated_at timestamp,
       ADD COLUMN closed_at timestamp, ADD COLUMN overdue_flag boolean;
-      ALTER TABLE request_status_history ADD COLUMN old_status text, ADD COLUMN changed_by text;
+      ALTER TABLE request_status_history ADD COLUMN old_status request_status, ADD COLUMN changed_by text;
       CREATE TEMP TABLE request_comments (request_id text, commented_by text, content text, created_at timestamp);
       INSERT INTO users VALUES ('staff', 'STAFF', true)`);
     // Keep model writes inside the fixture transaction so all changes roll back.
@@ -125,6 +125,17 @@ describeDatabase('Reporting aggregates against PostgreSQL', () => {
         "SELECT resolved_at, closed_at FROM service_requests WHERE request_id = 'open'"
       );
       expect(cleared.rows[0]).toEqual({ resolved_at: null, closed_at: null });
+      // Exercise the remaining staff writes against real enum columns too.
+      await requestsModel.updateStatus('boundary', 'In Progress');
+      await requestsModel.updateStatus('foreign', 'Assigned');
+      await requestsModel.updateStatus('foreign', 'Rejected');
+      const staffStates = await client.query(
+        "SELECT request_id, status FROM service_requests WHERE request_id IN ('boundary', 'foreign') ORDER BY request_id"
+      );
+      expect(staffStates.rows).toEqual([
+        { request_id: 'boundary', status: 'IN_PROGRESS' },
+        { request_id: 'foreign', status: 'REJECTED' },
+      ]);
     } finally {
       detail.mockRestore();
     }

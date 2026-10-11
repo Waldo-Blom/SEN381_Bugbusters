@@ -295,14 +295,14 @@ exports.updateStatus = async (id, newStatus, comment) => {
     // a JS Date into timestamp-without-time-zone columns stored local wall time.
     await client.query(
       `UPDATE service_requests
-       SET status = $1, updated_at = LOCALTIMESTAMP,
+       SET status = $1::request_status, updated_at = LOCALTIMESTAMP,
            resolved_at = CASE
-             WHEN $1 = 'RESOLVED' THEN LOCALTIMESTAMP
-             WHEN $1 = 'IN_PROGRESS' THEN NULL
+             WHEN $1::request_status = 'RESOLVED' THEN LOCALTIMESTAMP
+             WHEN $1::request_status = 'IN_PROGRESS' THEN NULL
              ELSE resolved_at END,
-           closed_at = CASE WHEN $1 = 'CLOSED' THEN LOCALTIMESTAMP ELSE NULL END,
+           closed_at = CASE WHEN $1::request_status = 'CLOSED' THEN LOCALTIMESTAMP ELSE NULL END,
            overdue_flag = CASE
-             WHEN $1 IN ('RESOLVED', 'CLOSED', 'REJECTED') THEN false
+             WHEN $1::request_status IN ('RESOLVED', 'CLOSED', 'REJECTED') THEN false
              ELSE overdue_flag END
        WHERE request_id = $2`,
       [dbStatus, id]
