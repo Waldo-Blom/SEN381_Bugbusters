@@ -42,6 +42,23 @@ describe('Requests controller workflow routes', () => {
     expect(response.headers.location).toBe('/staff/requests/request-1');
   });
 
+  it.each([
+    ['assign', 'Assigned'],
+    ['start-progress', 'In Progress'],
+    ['reject', 'Rejected'],
+  ])('POST %s passes the staff identity and redirects after success', async (action, status) => {
+    requestsService.workflow.transitionRequest.mockResolvedValue(true);
+    const response = await request(app).post(`/staff/requests/request-1/${action}`).send({});
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe('/staff/requests/request-1');
+    expect(requestsService.workflow.transitionRequest).toHaveBeenCalledWith(
+      'request-1',
+      status,
+      'staff-1',
+      null
+    );
+  });
+
   it('returns a bad request when the workflow rejects a transition', async () => {
     requestsService.workflow.transitionRequest.mockRejectedValue(
       new Error('A resolution comment is required to resolve a request.')
