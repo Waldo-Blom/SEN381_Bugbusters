@@ -325,7 +325,7 @@ describe('Requester authentication', () => {
       terms: 'on',
     });
     expect((await agent.get('/protected')).status).toBe(200);
-    expect((await agent.get('/auth/logout')).status).toBe(302);
+    expect((await agent.post('/auth/logout')).status).toBe(302);
     expect((await agent.get('/protected')).status).toBe(401);
   });
 
