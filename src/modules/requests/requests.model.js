@@ -296,16 +296,21 @@ exports.updateStatus = async (id, newStatus, comment, userId = null) => {
       throw new Error(`Request is already ${toTitleCase(oldDbStatus)}`);
     }
 
-    // Concurrency / idempotency guard: reject duplicate transition if already at target status
-    if (oldDbStatus === dbStatus) {
-      throw new Error(`Request is already ${toTitleCase(oldDbStatus)}`);
-    }
-
     // Use the database clock for every timestamp in this transaction. Passing
     // a JS Date into timestamp-without-time-zone columns stored local wall time.
     await client.query(
-      'UPDATE service_requests SET status = $1, updated_at = $2 WHERE request_id = $3',
-      [dbStatus, now, id]
+      `UPDATE service_requests
+       SET status = $1::request_status, updated_at = LOCALTIMESTAMP,
+           resolved_at = CASE
+             WHEN $1::request_status = 'RESOLVED' THEN LOCALTIMESTAMP
+             WHEN $1::request_status = 'IN_PROGRESS' THEN NULL
+             ELSE resolved_at END,
+           closed_at = CASE WHEN $1::request_status = 'CLOSED' THEN LOCALTIMESTAMP ELSE NULL END,
+           overdue_flag = CASE
+             WHEN $1::request_status IN ('RESOLVED', 'CLOSED', 'REJECTED') THEN false
+             ELSE overdue_flag END
+       WHERE request_id = $2`,
+      [dbStatus, id]
     );
 
     // Use authenticated userId or fallback to staff user lookup
@@ -322,16 +327,16 @@ exports.updateStatus = async (id, newStatus, comment, userId = null) => {
     // Insert into status history if it changed
     if (oldDbStatus !== dbStatus && actorUserId) {
       await client.query(
-        'INSERT INTO request_status_history (request_id, old_status, new_status, changed_by, changed_at) VALUES ($1, $2, $3, $4, $5)',
-        [id, oldDbStatus, dbStatus, actorUserId, now]
+        'INSERT INTO request_status_history (request_id, old_status, new_status, changed_by, changed_at) VALUES ($1, $2, $3, $4, LOCALTIMESTAMP)',
+        [id, oldDbStatus, dbStatus, actorUserId]
       );
     }
 
     // If there's a comment
     if (comment && actorUserId) {
       await client.query(
-        'INSERT INTO request_comments (request_id, commented_by, content, created_at) VALUES ($1, $2, $3, $4)',
-        [id, actorUserId, comment, now]
+        'INSERT INTO request_comments (request_id, commented_by, content, created_at) VALUES ($1, $2, $3, LOCALTIMESTAMP)',
+        [id, actorUserId, comment]
       );
     }
 
