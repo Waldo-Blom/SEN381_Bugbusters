@@ -63,3 +63,12 @@ exports.getDashboardData = async (managerId) => {
   };
 };
 exports.getAuditLog = () => reportingModel.getAuditLog();
+
+exports.getContactAccessInbox = async (managerId) => {
+  if (!managerId) return null;
+  const department = await reportingModel.findManagedDepartment(managerId);
+  if (!department) return null;
+  // Batch 2 supplies the UI. Batch 3 will populate this list from the access
+  // request table and connect the review actions through the Requests service.
+  return { department, contactAccessRequests: [], contactAccessRequestsEnabled: false };
+};

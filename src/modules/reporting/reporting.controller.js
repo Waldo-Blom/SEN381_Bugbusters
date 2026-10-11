@@ -27,3 +27,18 @@ exports.reporting = (req, res) => {
     auditLog: reportingService.getAuditLog(),
   });
 };
+
+exports.contactAccessRequests = async (req, res) => {
+  const data = await reportingService.getContactAccessInbox(getAuthenticatedUserId(req));
+  if (!data) {
+    return res.status(403).send('You do not manage an active department.');
+  }
+  res.render('reporting/views/manager/contact-access-requests', {
+    ...pageContext('manager', req),
+    title: 'Contact Access Requests',
+    activeHref: '/manager/contact-access-requests',
+    pageTitle: 'Contact Access Requests',
+    pageSubtitle: 'Review staff requests for requester contact information',
+    ...data,
+  });
+};
