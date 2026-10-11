@@ -72,7 +72,7 @@ exports.findCategories = async () => {
     `SELECT category_id AS id, name
     FROM request_categories
     WHERE is_active = true
-    ORDER BY display_order, name`
+    ORDER BY name`
   );
   return result.rows;
 };

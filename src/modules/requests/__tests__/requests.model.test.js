@@ -326,13 +326,14 @@ describe('Requests model', () => {
     expect(client.query).toHaveBeenCalledWith('COMMIT');
   });
 
-  it('lists active request categories in display order', async () => {
+  it('lists active request categories by name', async () => {
     const categories = [{ id: 'category-1', name: 'Roads' }];
     db.query.mockResolvedValue({ rows: categories });
 
     await expect(requestsModel.findCategories()).resolves.toEqual(categories);
     expect(db.query).toHaveBeenCalledWith(expect.stringContaining('FROM request_categories'));
     expect(db.query.mock.calls[0][0]).toContain('WHERE is_active = true');
-    expect(db.query.mock.calls[0][0]).toContain('ORDER BY display_order, name');
+    expect(db.query.mock.calls[0][0]).toContain('ORDER BY name');
+    expect(db.query.mock.calls[0][0]).not.toContain('display_order');
   });
 });
