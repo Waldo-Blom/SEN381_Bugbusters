@@ -96,7 +96,6 @@
           <div><p class="text-xs text-slate-400">Department</p><p class="font-medium text-slate-700"><%= request.department %></p></div>
           <div><p class="text-xs text-slate-400">Location</p><p class="font-medium text-slate-700"><%= request.location %></p></div>
           <div><p class="text-xs text-slate-400">Submitted</p><p class="font-medium text-slate-700"><%= request.submittedAt %></p></div>
-          <div><p class="text-xs text-slate-400">Submission channel</p><p class="font-medium text-slate-700"><%= (request.submissionChannel || 'APP').replaceAll('_', ' ') %></p></div>
           <div><p class="text-xs text-slate-400">Created by</p><p class="font-medium text-slate-700"><%= request.createdBy || request.requesterName %></p></div>
           <div><p class="text-xs text-slate-400">Last updated</p><p class="font-medium text-slate-700"><%= request.updatedAt %></p></div>
           <% if (request.assignedTo) { %>

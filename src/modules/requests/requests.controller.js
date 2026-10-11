@@ -1,4 +1,5 @@
 const requestsService = require('./requests.service');
+const { REQUEST_STATUSES } = require('./requests.constants');
 const { pageContext } = require('../../shared/views/pageContext');
 
 // ---- requester ----
@@ -44,7 +45,7 @@ exports.operatorSubmitPage = async (req, res, next) => {
 
 exports.operatorLoggedRequests = async (req, res, next) => {
   try {
-    const requests = await requestsService.listCreatedByOperator(req.session.user.email);
+    const requests = await requestsService.listCreatedByOperator();
     res.render('requests/views/operator/logged-requests', {
       ...pageContext('operator'),
       title: 'Logged Requests',
@@ -60,7 +61,7 @@ exports.operatorLoggedRequests = async (req, res, next) => {
 
 exports.submitRequest = async (req, res, next) => {
   try {
-    await requestsService.submit(req.session.user.email, req.body);
+    await requestsService.submit(req.body);
     res.redirect('/requester/my-requests');
   } catch (error) {
     if (error instanceof requestsService.RequestValidationError) {
@@ -74,7 +75,7 @@ exports.submitRequest = async (req, res, next) => {
       }
       return;
     }
-    if (error instanceof requestsService.RequesterAccountNotFoundError) {
+    if (error instanceof requestsService.SubmissionUserNotFoundError) {
       res.status(403).send(error.message);
       return;
     }
@@ -87,9 +88,7 @@ exports.operatorSubmitRequest = async (req, res, next) => {
   try {
     const created = await requestsService.createServiceRequest({
       input: req.body,
-      actorEmail: req.session.user.email,
       actorType: 'OPERATOR',
-      submissionChannel: req.body.submissionChannel,
     });
     res.redirect(`/operator/submit?submitted=${encodeURIComponent(created.reference)}`);
   } catch (error) {
@@ -104,7 +103,7 @@ exports.operatorSubmitRequest = async (req, res, next) => {
       }
       return;
     }
-    if (error instanceof requestsService.RequesterAccountNotFoundError) {
+    if (error instanceof requestsService.SubmissionUserNotFoundError) {
       res.status(403).send(error.message);
       return;
     }
@@ -114,7 +113,7 @@ exports.operatorSubmitRequest = async (req, res, next) => {
 
 exports.myRequests = async (req, res, next) => {
   try {
-    const requests = await requestsService.listForRequester(req.session.user.email);
+    const requests = await requestsService.listForRequester();
     res.render('requests/views/requester/my-requests', {
       ...pageContext('requester'),
       title: 'My Requests',
@@ -197,25 +196,31 @@ exports.managerDetail = async (req, res, next) => {
   }
 };
 
-exports.resolveRequest = (req, res) => {
-  const requestId = req.params.id;
-  const { comment } = req.body;
-  const staffId = req.user?.id || 'staff-1'; // Mocked auth
+const transitionRequest = async (req, res, status, redirectPath) => {
   try {
-    requestsService.workflow.transitionRequest(requestId, 'Resolved', staffId, comment);
-    res.redirect(`/staff/requests/${requestId}`);
+    await requestsService.workflow.transitionRequest(
+      req.params.id,
+      status,
+      req.session.user.id,
+      req.body.comment || null
+    );
+    res.redirect(redirectPath(req.params.id));
   } catch (error) {
     res.status(400).send(error.message);
   }
 };
 
-exports.closeRequest = (req, res) => {
-  const requestId = req.params.id;
-  const managerId = req.user?.id || 'manager-1'; // Mocked auth
-  try {
-    requestsService.workflow.transitionRequest(requestId, 'Closed', managerId);
-    res.redirect(`/manager/requests/${requestId}`);
-  } catch (error) {
-    res.status(400).send(error.message);
-  }
-};
+exports.assignRequest = (req, res) =>
+  transitionRequest(req, res, REQUEST_STATUSES.ASSIGNED, (id) => `/staff/requests/${id}`);
+
+exports.startProgress = (req, res) =>
+  transitionRequest(req, res, REQUEST_STATUSES.IN_PROGRESS, (id) => `/staff/requests/${id}`);
+
+exports.resolveRequest = (req, res) =>
+  transitionRequest(req, res, REQUEST_STATUSES.RESOLVED, (id) => `/staff/requests/${id}`);
+
+exports.rejectRequest = (req, res) =>
+  transitionRequest(req, res, REQUEST_STATUSES.REJECTED, (id) => `/staff/requests/${id}`);
+
+exports.closeRequest = (req, res) =>
+  transitionRequest(req, res, REQUEST_STATUSES.CLOSED, (id) => `/manager/requests/${id}`);

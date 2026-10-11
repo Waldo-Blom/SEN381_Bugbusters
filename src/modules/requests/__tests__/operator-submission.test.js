@@ -4,11 +4,10 @@ jest.mock('../requests.model', () => ({
   updateStatus: jest.fn(),
   findCategories: jest.fn(),
   findActiveCategory: jest.fn(),
-  findActiveUserIdByEmail: jest.fn(),
+  findGenericActiveUserId: jest.fn(),
   create: jest.fn(),
-  findByRequesterEmail: jest.fn(),
-  findDetailsById: jest.fn(),
-  findByCreatorEmail: jest.fn(),
+  findByRequesterId: jest.fn(),
+  findByCreatorId: jest.fn(),
 }));
 
 const request = require('supertest');
@@ -16,11 +15,30 @@ const app = require('../../../app');
 const requestsModel = require('../requests.model');
 const requestsService = require('../requests.service');
 const { validateExternalRequester } = require('../requests.schema');
-const { mockRequests } = require('../../../../db/mock/mockData');
 
 const category = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Roads',
+};
+const managerRequest = {
+  id: 'r1',
+  reference: 'CC-2026-0481',
+  title: 'Large pothole on Maple Street',
+  description: 'A pothole needs repair.',
+  category: 'Pothole',
+  department: 'Public Works',
+  status: 'Resolved',
+  priority: 'High',
+  location: '142 Maple Street',
+  requesterName: 'Amelia Carter',
+  requesterEmail: 'amelia.carter@email.com',
+  requesterPhone: '555-0100',
+  createdBy: 'Amelia Carter',
+  submittedAt: '2026-09-20 09:14',
+  updatedAt: '2026-09-22 14:20',
+  assignedTo: 'Marcus Doyle',
+  comments: [],
+  timeline: [],
 };
 const operatorForm = {
   categoryId: category.id,
@@ -33,7 +51,6 @@ const operatorForm = {
   externalPhone: '555-0100',
   externalEmail: '',
   preferredContactMethod: 'PHONE',
-  submissionChannel: 'PHONE',
 };
 
 describe('external requester validation', () => {
@@ -65,10 +82,10 @@ describe('external requester validation', () => {
 describe('operator-assisted request submission', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    requestsModel.findById.mockImplementation((id) => mockRequests.find((item) => item.id === id));
+    requestsModel.findById.mockImplementation((id) => (id === 'r1' ? managerRequest : null));
     requestsModel.findCategories.mockResolvedValue([category]);
     requestsModel.findActiveCategory.mockResolvedValue(category);
-    requestsModel.findActiveUserIdByEmail.mockResolvedValue('33333333-3333-4333-8333-333333333333');
+    requestsModel.findGenericActiveUserId.mockResolvedValue('33333333-3333-4333-8333-333333333333');
     requestsModel.create.mockResolvedValue({
       request_id: '22222222-2222-4222-8222-222222222222',
       request_number: 'CC-2026-0001',
@@ -76,18 +93,13 @@ describe('operator-assisted request submission', () => {
     });
   });
 
-  it('uses the shared creation service with one external requester, creator, and channel', async () => {
+  it('uses the shared creation service with one external requester and creator', async () => {
     await requestsService.createServiceRequest({
       input: operatorForm,
-      actorEmail: 'sam.rivera@civic.gov',
       actorType: 'OPERATOR',
-      submissionChannel: operatorForm.submissionChannel,
     });
 
-    expect(requestsModel.findActiveUserIdByEmail).toHaveBeenCalledWith(
-      'sam.rivera@civic.gov',
-      'OPERATOR'
-    );
+    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['STAFF', 'ADMIN']);
     expect(requestsModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
         requesterId: null,
@@ -99,7 +111,6 @@ describe('operator-assisted request submission', () => {
           preferredContactMethod: 'PHONE',
         }),
         createdBy: '33333333-3333-4333-8333-333333333333',
-        submissionChannel: 'PHONE',
       }),
       expect.any(Function)
     );
@@ -114,6 +125,7 @@ describe('operator-assisted request submission', () => {
     expect(operatorPage.text).toContain('action="/operator/submit"');
     expect(operatorPage.text).toContain('name="externalFirstName"');
     expect(operatorPage.text).toContain('name="preferredContactMethod"');
+    expect(operatorPage.text).not.toContain('name="submissionChannel"');
 
     const requesterPage = await request(app).get('/requester/submit');
     expect(requesterPage.status).toBe(200);
@@ -130,10 +142,11 @@ describe('operator-assisted request submission', () => {
     expect(response.status).toBe(302);
     expect(response.headers.location).toBe('/operator/submit?submitted=CC-2026-0001');
     expect(requestsModel.create).toHaveBeenCalledTimes(1);
+    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['STAFF', 'ADMIN']);
   });
 
   it('shows only the signed-in operator’s logged requests', async () => {
-    requestsModel.findByCreatorEmail.mockResolvedValue([
+    requestsModel.findByCreatorId.mockResolvedValue([
       {
         id: '44444444-4444-4444-8444-444444444444',
         reference: 'CC-2026-0002',
@@ -142,7 +155,6 @@ describe('operator-assisted request submission', () => {
         title: 'Streetlight reported by phone',
         category: 'Streetlight',
         location: '12 Oak Street',
-        submissionChannel: 'PHONE',
         status: 'Submitted',
         submittedAt: '2026-10-10 10:00',
       },
@@ -156,8 +168,10 @@ describe('operator-assisted request submission', () => {
     expect(response.text).toContain('CC-2026-0002');
     expect(response.text).toContain('Taylor Morgan');
     expect(response.text).toContain('Streetlight reported by phone');
-    expect(response.text).toContain('PHONE');
-    expect(requestsModel.findByCreatorEmail).toHaveBeenCalledWith('sam.rivera@civic.gov');
+    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['STAFF', 'ADMIN']);
+    expect(requestsModel.findByCreatorId).toHaveBeenCalledWith(
+      '33333333-3333-4333-8333-333333333333'
+    );
   });
 
   it('does not allow requesters to access operator logged requests', async () => {
@@ -167,7 +181,7 @@ describe('operator-assisted request submission', () => {
     const response = await requester.get('/operator/requests');
 
     expect(response.status).toBe(403);
-    expect(requestsModel.findByCreatorEmail).not.toHaveBeenCalled();
+    expect(requestsModel.findByCreatorId).not.toHaveBeenCalled();
   });
 
   it('rejects operator submissions with no email or phone before persistence', async () => {
@@ -198,19 +212,19 @@ describe('operator-assisted request submission', () => {
     expect(staffResponse.status).toBe(403);
   });
 
-  it('shows the creator and submission channel in the manager request detail', async () => {
+  it('shows the creator in the manager request detail', async () => {
     const manager = request.agent(app);
     await manager.post('/auth/login').type('form').send({ role: 'management' });
 
     const response = await manager.get('/manager/requests/r1');
     expect(response.status).toBe(200);
-    expect(response.text).toContain('Submission channel');
+    expect(response.text).not.toContain('Submission channel');
     expect(response.text).toContain('Created by');
     expect(response.text).toContain('Amelia Carter');
   });
 
   it('renders creator and external requester details returned for a persisted request', async () => {
-    requestsModel.findDetailsById.mockResolvedValue({
+    requestsModel.findById.mockResolvedValue({
       id: '44444444-4444-4444-8444-444444444444',
       reference: 'CC-2026-0002',
       title: 'Pothole reported by phone',
@@ -224,7 +238,6 @@ describe('operator-assisted request submission', () => {
       requesterEmail: null,
       requesterPhone: '555-0100',
       createdBy: 'Sam Rivera',
-      submissionChannel: 'PHONE',
       submittedAt: '2026-10-10 10:00',
       updatedAt: '2026-10-10 10:00',
       comments: [],
@@ -236,7 +249,7 @@ describe('operator-assisted request submission', () => {
     const response = await manager.get('/manager/requests/44444444-4444-4444-8444-444444444444');
 
     expect(response.status).toBe(200);
-    expect(response.text).toContain('PHONE');
+    expect(response.text).not.toContain('Submission channel');
     expect(response.text).toContain('Sam Rivera');
     expect(response.text).toContain('Taylor Morgan');
     expect(response.text).toContain('Not provided');

@@ -5,7 +5,6 @@
         <th class="px-4 py-3 font-semibold">Reference</th>
         <th class="px-4 py-3 font-semibold">Requester</th>
         <th class="px-4 py-3 font-semibold">Request</th>
-        <th class="px-4 py-3 font-semibold">Channel</th>
         <th class="px-4 py-3 font-semibold">Status</th>
         <th class="px-4 py-3 font-semibold">Submitted</th>
       </tr>
@@ -13,7 +12,7 @@
     <tbody class="divide-y divide-slate-100">
       <% if (requests.length === 0) { %>
         <tr>
-          <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">
+          <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-500">
             You have not logged any requests yet.
           </td>
         </tr>
@@ -31,7 +30,6 @@
               <span class="block font-medium text-slate-800"><%= request.title %></span>
               <span class="mt-0.5 block text-xs text-slate-500"><%= request.category %> · <%= request.location %></span>
             </td>
-            <td class="whitespace-nowrap px-4 py-3 text-slate-600"><%= (request.submissionChannel || '').replaceAll('_', ' ') %></td>
             <td class="whitespace-nowrap px-4 py-3">
               <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"><%= request.status %></span>
             </td>

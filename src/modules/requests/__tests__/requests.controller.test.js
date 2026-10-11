@@ -12,6 +12,12 @@ const requestsRoutes = require('../requests.routes');
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use((req, res, next) => {
+  req.session = {
+    user: { id: 'staff-1', email: 'staff@example.com', role: 'staff' },
+  };
+  next();
+});
 app.use('/', requestsRoutes);
 
 describe('Requests controller workflow routes', () => {

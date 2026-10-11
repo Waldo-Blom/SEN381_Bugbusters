@@ -64,8 +64,8 @@ exports.validateExternalRequester = (input = {}) => {
     errors.externalLastName = 'The last name must be 100 characters or fewer.';
   }
 
-  if (phone.length > 30) {
-    errors.externalPhone = 'The phone number must be 30 characters or fewer.';
+  if (phone.length > 15) {
+    errors.externalPhone = 'The phone number must be 15 characters or fewer.';
   }
   if (email && (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
     errors.externalEmail = 'Please enter a valid email address (255 characters or fewer).';

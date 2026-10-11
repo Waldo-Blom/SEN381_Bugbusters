@@ -6,9 +6,9 @@ jest.mock('../requests.model', () => ({
   updateStatus: jest.fn(),
   findCategories: jest.fn(),
   findActiveCategory: jest.fn(),
-  findActiveUserIdByEmail: jest.fn(),
+  findGenericActiveUserId: jest.fn(),
   create: jest.fn(),
-  findByRequesterEmail: jest.fn(),
+  findByRequesterId: jest.fn(),
 }));
 
 const request = require('supertest');
@@ -82,7 +82,7 @@ describe('request submission routes', () => {
     submittedRequests = [];
     jest.clearAllMocks();
     requestsModel.findCategories.mockResolvedValue([category]);
-    requestsModel.findActiveUserIdByEmail.mockResolvedValue('33333333-3333-4333-8333-333333333333');
+    requestsModel.findGenericActiveUserId.mockResolvedValue('33333333-3333-4333-8333-333333333333');
     requestsModel.findActiveCategory.mockImplementation(async (id) =>
       id === category.id ? category : null
     );
@@ -102,6 +102,7 @@ describe('request submission routes', () => {
 
       submittedRequests.push({
         id: row.request_id,
+        requesterId: input.requesterId,
         reference: row.request_number,
         category: row.category_name,
         title: row.title,
@@ -116,10 +117,8 @@ describe('request submission routes', () => {
       });
       return row;
     });
-    requestsModel.findByRequesterEmail.mockImplementation(async (email) =>
-      submittedRequests
-        .filter((item) => item.requesterEmail === email)
-        .map(({ requesterEmail: _requesterEmail, ...item }) => item)
+    requestsModel.findByRequesterId.mockImplementation(async (userId) =>
+      submittedRequests.filter((item) => item.requesterId === userId)
     );
   });
 
@@ -158,7 +157,6 @@ describe('request submission routes', () => {
         requesterId: '33333333-3333-4333-8333-333333333333',
         externalRequester: null,
         createdBy: '33333333-3333-4333-8333-333333333333',
-        submissionChannel: 'APP',
         categoryId: category.id,
         title: formData.title,
         description: formData.description,
@@ -167,10 +165,7 @@ describe('request submission routes', () => {
       }),
       expect.any(Function)
     );
-    expect(requestsModel.findActiveUserIdByEmail).toHaveBeenCalledWith(
-      'amelia.carter@email.com',
-      'REQUESTER'
-    );
+    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['REQUESTER']);
 
     const listResponse = await browser.get('/requester/my-requests');
     expect(listResponse.status).toBe(200);
@@ -210,12 +205,25 @@ describe('request submission routes', () => {
   it('shows a useful error if the signed-in requester has no active database account', async () => {
     const browser = request.agent(app);
     await browser.post('/auth/login').type('form').send({ role: 'requester' });
-    requestsModel.findActiveUserIdByEmail.mockResolvedValue(null);
+    requestsModel.findGenericActiveUserId.mockResolvedValue(null);
 
     const response = await browser.post('/requester/submit').type('form').send(formData);
 
     expect(response.status).toBe(403);
-    expect(response.text).toContain('active requester account');
+    expect(response.text).toContain('active database user');
     expect(requestsModel.create).not.toHaveBeenCalled();
+  });
+
+  it('uses a database requester rather than the demo login email when submitting', async () => {
+    const browser = request.agent(app);
+    await browser.post('/auth/login').type('form').send({ role: 'requester' });
+
+    await browser.post('/requester/submit').type('form').send(formData);
+
+    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['REQUESTER']);
+    expect(requestsModel.findGenericActiveUserId).not.toHaveBeenCalledWith(
+      'amelia.carter@email.com',
+      'REQUESTER'
+    );
   });
 });
