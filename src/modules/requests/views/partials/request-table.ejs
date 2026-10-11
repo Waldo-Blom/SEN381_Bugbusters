@@ -1,13 +1,15 @@
 <%
-  const isAvailable = r => r.status === 'Submitted' || r.status === 'Assigned';
-  const isMine      = r => r.status === 'In Progress';
+  const currentUserId = (typeof user !== 'undefined' && user?.id) ? user.id : null;
+  const isAvailable = r => r.status === 'Submitted' || (r.status === 'Assigned' && !r.assignedStaffId);
+  const isMine      = r => currentUserId ? r.assignedStaffId === currentUserId : r.status === 'In Progress';
   const isResolved  = r => r.status === 'Resolved';
+  const isOverdue   = r => r.overdue === true;
 
   const tabs = [
     { key: 'all',       label: 'All',            count: requests.length },
     { key: 'available', label: 'Available',      count: requests.filter(isAvailable).length },
     { key: 'mine',      label: 'Assigned to me', count: requests.filter(isMine).length },
-    { key: 'overdue',   label: 'Overdue',        count: requests.filter(r => r.overdue).length },
+    { key: 'overdue',   label: 'Overdue',        count: requests.filter(isOverdue).length },
     { key: 'resolved',  label: 'Resolved',       count: requests.filter(isResolved).length }
   ];
 %>
@@ -42,7 +44,7 @@
              const groups = [];
              if (isAvailable(r)) groups.push('available');
              if (isMine(r))      groups.push('mine');
-             if (r.overdue)      groups.push('overdue');
+             if (isOverdue(r))   groups.push('overdue');
              if (isResolved(r))  groups.push('resolved');
         %>
           <tr data-groups="<%= groups.join(' ') %>" class="hover:bg-slate-50">
@@ -74,6 +76,8 @@
     var buttons = document.querySelectorAll('.tab-btn');
     var rows = document.querySelectorAll('tbody tr[data-groups]');
     var empty = document.getElementById('empty-state');
+    var tabInput = document.querySelector('input[name="tab"]');
+    var initialTab = (tabInput && tabInput.value) || 'all';
 
     function show(key) {
       var visible = 0;
@@ -86,11 +90,14 @@
         b.setAttribute('aria-selected', b.dataset.tab === key);
       });
       empty.classList.toggle('hidden', visible > 0);
+      if (tabInput) {
+        tabInput.value = key;
+      }
     }
 
     buttons.forEach(function (b) {
       b.addEventListener('click', function () { show(b.dataset.tab); });
     });
-    show('all');
+    show(initialTab);
   })();
 </script>

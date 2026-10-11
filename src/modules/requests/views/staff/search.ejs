@@ -4,7 +4,7 @@
 
 <div class="space-y-5">
 
-  <%- include('requests/views/partials/request-filters') %>
+  <%- include('requests/views/partials/request-filters', { filters, categories }) %>
 
   <%- include('requests/views/partials/request-table', { requests }) %>
 

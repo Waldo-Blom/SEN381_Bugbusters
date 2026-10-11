@@ -167,27 +167,62 @@ exports.requesterDetail = async (req, res, next) => {
 
 // ---- staff ----
 exports.staffSearch = async (req, res) => {
+  const staffUserId = getAuthenticatedUserId(req);
+  const usersService = require('../users/users.service');
+  const staffDept = await usersService.getStaffDepartment(staffUserId);
+  const departmentId = staffDept?.departmentId || null;
+
+  const filters = {
+    q: req.query.q || '',
+    status: req.query.status || 'All',
+    category: req.query.category || 'All',
+    priority: req.query.priority || 'All',
+    sort: req.query.sort || 'date',
+    tab: req.query.tab || 'all',
+  };
+
+  const requests = await requestsService.searchStaffRequests({
+    staffUserId,
+    departmentId,
+    ...filters,
+  });
+
+  const categories = await requestsService.listCategoriesByDepartment(departmentId);
+
   res.render('requests/views/staff/search', {
     ...pageContext('staff', req),
     title: 'Search & Filter',
     activeHref: '/staff/search',
     pageTitle: 'Search & Filter',
-    pageSubtitle: 'Find requests across all categories',
-    requests: await requestsService.list(),
+    pageSubtitle: staffDept
+      ? `Showing requests for ${staffDept.departmentName} Department`
+      : 'Find requests across all categories',
+    requests,
+    filters,
+    categories,
+    departmentName: staffDept?.departmentName || '',
   });
 };
 
 exports.staffDetail = async (req, res, next) => {
   try {
+    const staffUserId = getAuthenticatedUserId(req);
+    const request = await requestsService.getForStaff(req.params.id, staffUserId);
+    if (!request) {
+      return res.status(404).render('errors/404', { title: 'Request Details' });
+    }
     res.render('requests/views/staff/request-detail', {
       ...pageContext('staff', req),
       title: 'Request Details',
       activeHref: '/staff/dashboard',
       pageTitle: 'Request Details',
       pageSubtitle: 'Manage and resolve this request',
-      request: await requestsService.getById(req.params.id),
+      request,
     });
   } catch (error) {
+    if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
+      return res.status(403).send(error.message);
+    }
     next(error);
   }
 };
@@ -229,6 +264,9 @@ const transitionRequest = async (req, res, status, redirectPath) => {
     );
     res.redirect(redirectPath(req.params.id));
   } catch (error) {
+    if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
+      return res.status(403).send(error.message);
+    }
     res.status(400).send(error.message);
   }
 };

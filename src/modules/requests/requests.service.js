@@ -147,10 +147,19 @@ exports.submit = async (input, requesterId) =>
     actorType: 'REQUESTER',
     actorUserId: requesterId,
   });
+class StaffDepartmentAccessError extends Error {
+  constructor(message = 'You do not have permission to access requests for this department.') {
+    super(message);
+    this.name = 'StaffDepartmentAccessError';
+    this.statusCode = 403;
+  }
+}
+
 exports.createServiceRequest = createServiceRequest;
 exports.generateRequestNumber = generateRequestNumber;
 exports.RequestValidationError = RequestValidationError;
 exports.SubmissionUserNotFoundError = SubmissionUserNotFoundError;
+exports.StaffDepartmentAccessError = StaffDepartmentAccessError;
 exports.getById = async (id) => await requestsModel.findById(id);
 exports.getForRequester = async (id, requesterId) => {
   if (!requesterId) {
@@ -158,4 +167,15 @@ exports.getForRequester = async (id, requesterId) => {
   }
   return requestsModel.findById(id, requesterId);
 };
+exports.getForStaff = async (id, staffUserId) => {
+  const usersService = require('../users/users.service');
+  const access = await usersService.verifyStaffRequestAccess(staffUserId, id);
+  if (!access.allowed) {
+    throw new StaffDepartmentAccessError(access.reason);
+  }
+  return requestsModel.findById(id);
+};
+exports.searchStaffRequests = async (params) => requestsModel.searchStaffRequests(params);
+exports.listCategoriesByDepartment = async (departmentId) =>
+  requestsModel.findCategoriesByDepartment(departmentId);
 exports.workflow = workflowService;

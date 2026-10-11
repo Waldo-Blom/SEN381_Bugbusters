@@ -17,7 +17,9 @@ const requestsSelect = `
   SELECT
     r.request_id, r.request_number, r.title, r.description, r.status, r.priority, r.location,
     r.created_at, r.updated_at, r.overdue_flag,
+    r.category_id,
     c.name as category_name,
+    c.department_id,
     d.name as department_name,
     u.first_name || ' ' || u.last_name as requester_name,
     u.email as requester_email,
@@ -25,6 +27,7 @@ const requestsSelect = `
     ext.first_name || ' ' || ext.last_name as ext_requester_name,
     ext.email as ext_requester_email,
     ext.phone as ext_requester_phone,
+    r.assigned_staff_id,
     staff.first_name || ' ' || staff.last_name as assigned_to_name,
     creator.first_name || ' ' || creator.last_name as created_by_name,
     (SELECT COUNT(*) FROM request_attachments WHERE request_id = r.request_id) as attachment_count
@@ -42,7 +45,9 @@ const mapRowToRequest = (row) => ({
   reference: row.request_number,
   title: row.title,
   description: row.description,
+  categoryId: row.category_id || null,
   category: row.category_name,
+  departmentId: row.department_id || null,
   department: row.department_name,
   status: toTitleCase(row.status),
   priority: toTitleCase(row.priority),
@@ -52,6 +57,7 @@ const mapRowToRequest = (row) => ({
   requesterPhone: row.requester_phone || row.ext_requester_phone || '',
   submittedAt: formatDate(row.created_at),
   updatedAt: formatDate(row.updated_at),
+  assignedStaffId: row.assigned_staff_id || null,
   assignedTo: row.assigned_to_name || 'Unassigned',
   createdBy: row.created_by_name || '',
   hasAttachment: parseInt(row.attachment_count) > 0,
@@ -211,7 +217,9 @@ exports.findById = async (id, requesterId) => {
     SELECT 
       r.request_id, r.request_number, r.title, r.description, r.status, r.priority, r.location, 
       r.created_at, r.updated_at, r.overdue_flag,
+      r.category_id,
       c.name as category_name,
+      c.department_id,
       d.name as department_name,
       u.first_name || ' ' || u.last_name as requester_name,
       u.email as requester_email,
@@ -219,6 +227,7 @@ exports.findById = async (id, requesterId) => {
       ext.first_name || ' ' || ext.last_name as ext_requester_name,
       ext.email as ext_requester_email,
       ext.phone as ext_requester_phone,
+      r.assigned_staff_id,
       staff.first_name || ' ' || staff.last_name as assigned_to_name,
       (SELECT COUNT(*) FROM request_attachments WHERE request_id = r.request_id) as attachment_count
     FROM service_requests r
@@ -349,4 +358,122 @@ exports.updateStatus = async (id, newStatus, comment, userId = null) => {
   } finally {
     client.release();
   }
+};
+
+/**
+ * Searches, filters, and sorts requests scoped by staff department (FR-203 & FR-207).
+ *
+ * @param {object} params
+ * @param {string} [params.staffUserId] - UUID of the staff user
+ * @param {string} [params.departmentId] - UUID of the department (optional override)
+ * @param {string} [params.q] - Search query (title, reference, description, location)
+ * @param {string} [params.status] - Status filter (All, Submitted, Assigned, In Progress, Resolved, Closed, Rejected)
+ * @param {string} [params.category] - Category ID or name filter
+ * @param {string} [params.priority] - Priority filter (All, Low, Medium, High, Urgent)
+ * @param {string} [params.sort] - Sort criteria (date, date_asc, priority, status)
+ * @param {string} [params.tab] - Tab filter (all, available, mine, overdue, resolved)
+ * @returns {Promise<Array>} Array of mapped request objects
+ */
+exports.searchStaffRequests = async ({
+  staffUserId,
+  departmentId = null,
+  q = '',
+  status = 'All',
+  category = 'All',
+  priority = 'All',
+  sort = 'date',
+  tab = 'all',
+} = {}) => {
+  const conditions = [];
+  const params = [];
+
+  // Department scoping (FR-207):
+  if (departmentId) {
+    params.push(departmentId);
+    conditions.push(`c.department_id = $${params.length}`);
+  } else if (staffUserId) {
+    params.push(staffUserId);
+    conditions.push(
+      `c.department_id IN (SELECT sa.department_id FROM staff_assignments sa WHERE sa.staff_id = $${params.length} AND sa.is_active = true)`
+    );
+  }
+
+  // Text search on title, request_number, description, location (FR-203)
+  if (q && q.trim()) {
+    params.push(`%${q.trim()}%`);
+    const p = params.length;
+    conditions.push(
+      `(r.title ILIKE $${p} OR r.request_number ILIKE $${p} OR r.description ILIKE $${p} OR r.location ILIKE $${p})`
+    );
+  }
+
+  // Status filter (FR-203)
+  if (status && status !== 'All') {
+    const dbStatus = status.toUpperCase().replace(' ', '_');
+    params.push(dbStatus);
+    conditions.push(`r.status::text = $${params.length}`);
+  }
+
+  // Category filter (FR-203)
+  if (category && category !== 'All') {
+    params.push(category);
+    const p = params.length;
+    conditions.push(`(c.category_id::text = $${p} OR c.name ILIKE $${p})`);
+  }
+
+  // Priority filter (FR-203)
+  if (priority && priority !== 'All') {
+    const dbPriority = priority.toUpperCase();
+    params.push(dbPriority);
+    conditions.push(`r.priority::text = $${params.length}`);
+  }
+
+  // Tab filtering (FR-203)
+  if (tab === 'available') {
+    conditions.push(
+      `(r.status = 'SUBMITTED' OR (r.status = 'ASSIGNED' AND r.assigned_staff_id IS NULL))`
+    );
+  } else if (tab === 'mine' && staffUserId) {
+    params.push(staffUserId);
+    conditions.push(`r.assigned_staff_id = $${params.length}`);
+  } else if (tab === 'overdue') {
+    conditions.push(`r.overdue_flag = true`);
+  } else if (tab === 'resolved') {
+    conditions.push(`r.status = 'RESOLVED'`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // Sort ordering (FR-203)
+  let orderBy = 'r.created_at DESC';
+  if (sort === 'date_asc') {
+    orderBy = 'r.created_at ASC';
+  } else if (sort === 'priority') {
+    orderBy = `CASE r.priority::text
+      WHEN 'URGENT' THEN 1
+      WHEN 'HIGH' THEN 2
+      WHEN 'MEDIUM' THEN 3
+      WHEN 'LOW' THEN 4
+      ELSE 5 END ASC, r.created_at DESC`;
+  } else if (sort === 'status') {
+    orderBy = 'r.status::text ASC, r.created_at DESC';
+  }
+
+  const sql = `${requestsSelect} ${whereClause} ORDER BY ${orderBy}`;
+  const result = await query(sql, params);
+  return result.rows.map(mapRowToRequest);
+};
+
+/**
+ * Lists active categories belonging to a specific department.
+ * @param {string} departmentId
+ * @returns {Promise<Array>}
+ */
+exports.findCategoriesByDepartment = async (departmentId) => {
+  if (!departmentId) return exports.findCategories();
+  const result = await query(
+    'SELECT category_id AS id, name, description FROM request_categories WHERE department_id = $1 AND is_active = true ORDER BY name ASC',
+    [departmentId]
+  );
+  return result.rows;
 };
