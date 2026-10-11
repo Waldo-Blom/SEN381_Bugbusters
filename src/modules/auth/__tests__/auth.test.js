@@ -11,7 +11,14 @@ const request = require('supertest');
 const { query } = require('../../../config/database');
 const authService = require('../auth.service');
 const authRoutes = require('../auth.routes');
-const { requireAuth, requireRole, requireDepartment } = require('../auth.middleware');
+const {
+  getAuthenticatedUser,
+  getAuthenticatedUserId,
+  getAuthenticatedUserRole,
+  requireAuth,
+  requireRole,
+  requireDepartment,
+} = require('../auth.middleware');
 const workflowRoutes = require('../../workflow/workflow.routes');
 const { pageContext } = require('../../../shared/views/pageContext');
 
@@ -65,6 +72,18 @@ describe('Requester authentication', () => {
         process.env[key] = previousDemoEnv[key];
       }
     });
+  });
+
+  it('provides shared helpers for authenticated session identity', () => {
+    const user = { id: 'requester-1', role: 'requester' };
+    const req = { session: { user } };
+
+    expect(getAuthenticatedUser(req)).toBe(user);
+    expect(getAuthenticatedUserId(req)).toBe('requester-1');
+    expect(getAuthenticatedUserRole(req)).toBe('requester');
+    expect(getAuthenticatedUser({})).toBeNull();
+    expect(getAuthenticatedUserId({ session: { user: { role: 'requester' } } })).toBeNull();
+    expect(getAuthenticatedUserRole({})).toBeNull();
   });
 
   it('hashes the password before creating a requester account', async () => {
@@ -200,7 +219,7 @@ describe('Requester authentication', () => {
     const html = await ejs.renderFile(
       path.join(__dirname, '../../../shared/views/partials/app-layout-head.ejs'),
       {
-        ...pageContext('requester', sessionUser),
+        ...pageContext('requester', { session: { user: sessionUser } }),
         title: 'My Requests',
         pageTitle: 'My Requests',
         pageSubtitle: 'Track requests',
@@ -224,6 +243,34 @@ describe('Requester authentication', () => {
     expect(response.status).toBe(401);
     expect(response.text).toContain('Email or password is incorrect.');
     expect(response.text).not.toContain('at Object.');
+  });
+
+  it('rejects an incorrect password for an existing account without creating a session', async () => {
+    const passwordHash = await bcrypt.hash('IncorrectPass1123', 4);
+    query.mockResolvedValueOnce({
+      rows: [
+        {
+          user_id: 'requester-1',
+          email: 'amelia@example.com',
+          first_name: 'Amelia',
+          last_name: 'Carter',
+          password_hash: passwordHash,
+          user_type: 'REQUESTER',
+          department_id: null,
+        },
+      ],
+    });
+    const agent = request.agent(app);
+
+    const response = await agent.post('/auth/login').send({
+      email: 'amelia@example.com',
+      password: 'IncorrectPass1',
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.text).toContain('Email or password is incorrect.');
+    expect(query).toHaveBeenCalledTimes(1);
+    expect((await agent.get('/protected')).status).toBe(401);
   });
 
   it('stores a staff role and department in the authenticated session', async () => {

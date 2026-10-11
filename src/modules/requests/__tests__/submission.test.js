@@ -6,7 +6,6 @@ jest.mock('../requests.model', () => ({
   updateStatus: jest.fn(),
   findCategories: jest.fn(),
   findActiveCategory: jest.fn(),
-  findGenericActiveUserId: jest.fn(),
   create: jest.fn(),
   findByRequesterId: jest.fn(),
 }));
@@ -105,7 +104,6 @@ describe('request submission routes', () => {
       departmentId: null,
     }));
     requestsModel.findCategories.mockResolvedValue([category]);
-    requestsModel.findGenericActiveUserId.mockResolvedValue('33333333-3333-4333-8333-333333333333');
     requestsModel.findActiveCategory.mockImplementation(async (id) =>
       id === category.id ? category : null
     );
@@ -147,7 +145,12 @@ describe('request submission routes', () => {
 
   // Confirm the page renders the categories and default priority supplied by the controller.
   it('populates the submit form with active categories', async () => {
-    const response = await request(app).get('/requester/submit');
+    const browser = request.agent(app);
+    await browser
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
+    const response = await browser.get('/requester/submit');
 
     expect(response.status).toBe(200);
     expect(response.text).toContain(`value="${category.id}"`);
@@ -180,9 +183,9 @@ describe('request submission routes', () => {
     expect(response.headers.location).toBe('/requester/my-requests');
     expect(requestsModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        requesterId: '33333333-3333-4333-8333-333333333333',
+        requesterId: 'demo-requester',
         externalRequester: null,
-        createdBy: '33333333-3333-4333-8333-333333333333',
+        createdBy: 'demo-requester',
         categoryId: category.id,
         title: formData.title,
         description: formData.description,
@@ -191,7 +194,6 @@ describe('request submission routes', () => {
       }),
       expect.any(Function)
     );
-    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['REQUESTER']);
 
     const listResponse = await browser.get('/requester/my-requests');
     expect(listResponse.status).toBe(200);
@@ -236,23 +238,27 @@ describe('request submission routes', () => {
     expect(requestsModel.create).not.toHaveBeenCalled();
   });
 
-  // A session user must map to an active requester record before insertion.
-  it('shows a useful error if the signed-in requester has no active database account', async () => {
+  // Request creation must use a database identity from the authenticated session.
+  it('rejects a requester session without a database user ID', async () => {
+    authService.authenticate.mockResolvedValueOnce({
+      id: null,
+      name: 'Demo Requester',
+      email: 'requester@demo.invalid',
+      role: 'requester',
+      departmentId: null,
+    });
     const browser = request.agent(app);
     await browser
       .post('/auth/login')
       .type('form')
       .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
-    requestsModel.findGenericActiveUserId.mockResolvedValue(null);
-
     const response = await browser.post('/requester/submit').type('form').send(formData);
 
-    expect(response.status).toBe(403);
-    expect(response.text).toContain('active database user');
+    expect(response.status).toBe(401);
     expect(requestsModel.create).not.toHaveBeenCalled();
   });
 
-  it('uses a database requester rather than the demo login email when submitting', async () => {
+  it('uses the authenticated database requester ID rather than a generic account', async () => {
     const browser = request.agent(app);
     await browser
       .post('/auth/login')
@@ -261,10 +267,50 @@ describe('request submission routes', () => {
 
     await browser.post('/requester/submit').type('form').send(formData);
 
-    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['REQUESTER']);
-    expect(requestsModel.findGenericActiveUserId).not.toHaveBeenCalledWith(
-      'amelia.carter@email.com',
-      'REQUESTER'
+    expect(requestsModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requesterId: 'demo-requester',
+        createdBy: 'demo-requester',
+      }),
+      expect.any(Function)
     );
+  });
+
+  it('filters each requester list using that requesters own session ID', async () => {
+    const firstRequester = request.agent(app);
+    await firstRequester
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'first@demo.invalid', password: 'SecurePass1' });
+    const secondRequester = request.agent(app);
+    await secondRequester
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'second@demo.invalid', password: 'SecurePass1' });
+
+    await firstRequester.get('/requester/my-requests');
+    await secondRequester.get('/requester/my-requests');
+
+    expect(requestsModel.findByRequesterId).toHaveBeenNthCalledWith(1, 'demo-first');
+    expect(requestsModel.findByRequesterId).toHaveBeenNthCalledWith(2, 'demo-second');
+  });
+
+  it('does not show another requesters detail to the current requester', async () => {
+    const browser = request.agent(app);
+    await browser
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
+
+    const response = await browser.get('/requester/requests/another-users-request');
+
+    expect(response.status).toBe(404);
+    expect(requestsModel.findById).toHaveBeenCalledWith('another-users-request', 'demo-requester');
+  });
+
+  it('requires requester authentication to open request pages', async () => {
+    expect((await request(app).get('/requester/my-requests')).status).toBe(401);
+    expect((await request(app).get('/requester/requests/request-1')).status).toBe(401);
+    expect((await request(app).get('/requester/submit')).status).toBe(401);
   });
 });

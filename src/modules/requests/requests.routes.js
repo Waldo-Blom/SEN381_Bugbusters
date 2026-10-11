@@ -12,10 +12,10 @@ const requireStaff = requireRole('staff', 'Only staff can access this page.');
 const requireManager = requireRole('management', 'Only managers can access this page.');
 
 // requester
-router.get('/requester/submit', c.submitPage);
+router.get('/requester/submit', requireRequester, c.submitPage);
 router.post('/requester/submit', requireRequester, c.submitRequest);
 router.get('/requester/my-requests', requireRequester, c.myRequests);
-router.get('/requester/requests/:id', c.requesterDetail);
+router.get('/requester/requests/:id', requireRequester, c.requesterDetail);
 
 // operators are limited to creating requests on behalf of external requesters
 router.get('/operator/submit', requireOperator, c.operatorSubmitPage);

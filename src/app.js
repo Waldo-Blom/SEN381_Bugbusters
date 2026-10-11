@@ -6,6 +6,7 @@ const path = require('path');
 const registerModules = require('./modules');
 const { query } = require('./config/database');
 const sessionConfig = require('./config/session');
+const { getAuthenticatedUser } = require('./modules/auth/auth.middleware');
 
 const app = express();
 
@@ -24,7 +25,7 @@ app.use(session(sessionConfig));
 
 // Expose the authenticated user saved in that session to every EJS view.
 app.use((req, res, next) => {
-  res.locals.user = req.session?.user || null;
+  res.locals.user = getAuthenticatedUser(req);
   next();
 });
 

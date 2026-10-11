@@ -1,4 +1,5 @@
 const { requesterNav, staffNav, managementNav, operatorNav } = require('./nav');
+const { getAuthenticatedUser } = require('../../modules/auth/auth.middleware');
 
 const ROLES = {
   requester: { navItems: requesterNav, roleLabel: 'Citizen Portal' },
@@ -9,7 +10,7 @@ const ROLES = {
 
 const EMPTY_USER = { name: '', email: '', avatarInitials: '' };
 
-exports.pageContext = (role, sessionUser) => ({
+exports.pageContext = (role, req) => ({
   ...ROLES[role],
-  user: sessionUser || EMPTY_USER,
+  user: getAuthenticatedUser(req) || EMPTY_USER,
 });

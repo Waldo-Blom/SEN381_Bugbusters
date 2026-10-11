@@ -4,7 +4,6 @@ jest.mock('../requests.model', () => ({
   updateStatus: jest.fn(),
   findCategories: jest.fn(),
   findActiveCategory: jest.fn(),
-  findGenericActiveUserId: jest.fn(),
   findExternalRequesterById: jest.fn(),
   searchExternalRequesters: jest.fn(),
   create: jest.fn(),
@@ -103,7 +102,6 @@ describe('operator-assisted request submission', () => {
     requestsModel.findById.mockImplementation((id) => (id === 'r1' ? managerRequest : null));
     requestsModel.findCategories.mockResolvedValue([category]);
     requestsModel.findActiveCategory.mockResolvedValue(category);
-    requestsModel.findGenericActiveUserId.mockResolvedValue('33333333-3333-4333-8333-333333333333');
     requestsModel.searchExternalRequesters.mockResolvedValue([]);
     requestsModel.create.mockResolvedValue({
       request_id: '22222222-2222-4222-8222-222222222222',
@@ -116,9 +114,9 @@ describe('operator-assisted request submission', () => {
     await requestsService.createServiceRequest({
       input: operatorForm,
       actorType: 'OPERATOR',
+      actorUserId: 'operator-1',
     });
 
-    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['STAFF', 'ADMIN']);
     expect(requestsModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
         requesterId: null,
@@ -129,7 +127,7 @@ describe('operator-assisted request submission', () => {
           email: null,
           preferredContactMethod: 'PHONE',
         }),
-        createdBy: '33333333-3333-4333-8333-333333333333',
+        createdBy: 'operator-1',
       }),
       expect.any(Function)
     );
@@ -152,6 +150,7 @@ describe('operator-assisted request submission', () => {
         externalRequesterId,
       },
       actorType: 'OPERATOR',
+      actorUserId: 'operator-1',
     });
 
     expect(requestsModel.findExternalRequesterById).toHaveBeenCalledWith(externalRequesterId);
@@ -210,7 +209,12 @@ describe('operator-assisted request submission', () => {
     expect(requestsModel.findCategories).toHaveBeenCalledTimes(1);
     expect(operatorPage.text).not.toContain('name="submissionChannel"');
 
-    const requesterPage = await request(app).get('/requester/submit');
+    const requester = request.agent(app);
+    await requester
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
+    const requesterPage = await requester.get('/requester/submit');
     expect(requesterPage.status).toBe(200);
     expect(requesterPage.text).toContain('action="/requester/submit"');
     expect(requesterPage.text).toContain(`value="${category.id}"`);
@@ -231,7 +235,10 @@ describe('operator-assisted request submission', () => {
     expect(response.status).toBe(302);
     expect(response.headers.location).toBe('/operator/submit?submitted=CC-2026-0001');
     expect(requestsModel.create).toHaveBeenCalledTimes(1);
-    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['STAFF', 'ADMIN']);
+    expect(requestsModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({ createdBy: 'demo-operator' }),
+      expect.any(Function)
+    );
   });
 
   it('shows only the signed-in operator’s logged requests', async () => {
@@ -260,10 +267,7 @@ describe('operator-assisted request submission', () => {
     expect(response.text).toContain('CC-2026-0002');
     expect(response.text).toContain('Taylor Morgan');
     expect(response.text).toContain('Streetlight reported by phone');
-    expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['STAFF', 'ADMIN']);
-    expect(requestsModel.findByCreatorId).toHaveBeenCalledWith(
-      '33333333-3333-4333-8333-333333333333'
-    );
+    expect(requestsModel.findByCreatorId).toHaveBeenCalledWith('demo-operator');
   });
 
   it('searches community members only for authenticated operators', async () => {

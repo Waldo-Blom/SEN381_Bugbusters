@@ -125,40 +125,6 @@ exports.findExternalRequesterById = async (id) => {
   return result.rows[0] || null;
 };
 
-exports.findGenericActiveUserId = async (userTypes) => {
-  const findUser = () =>
-    query(
-      `SELECT user_id
-      FROM users
-      WHERE user_type = ANY($1::user_type[]) AND is_active = true
-      ORDER BY CASE WHEN user_type = $2 THEN 0 ELSE 1 END, created_at, user_id
-      LIMIT 1`,
-      [userTypes, userTypes[0]]
-    );
-  const result = await findUser();
-  if (result.rows[0]) {
-    return result.rows[0].user_id;
-  }
-
-  // TODO: Remove these placeholder accounts when database-backed authentication is implemented.
-  const userType = userTypes[0];
-  const label = userType === 'REQUESTER' ? 'Requester' : 'Staff';
-  const email = `demo-${userType.toLowerCase()}@civicconnect.local`;
-  const created = await query(
-    `INSERT INTO users (email, password_hash, first_name, last_name, user_type)
-    VALUES ($1, $2, 'Demo', $3, $4)
-    ON CONFLICT (email) DO NOTHING
-    RETURNING user_id`,
-    [email, 'AUTH_NOT_IMPLEMENTED', label, userType]
-  );
-  if (created.rows[0]) {
-    return created.rows[0].user_id;
-  }
-
-  const retry = await findUser();
-  return retry.rows[0]?.user_id || null;
-};
-
 exports.create = async (input, generateRequestNumber) => {
   const client = await pool.connect();
   try {
@@ -239,7 +205,8 @@ exports.findByCreatorId = async (userId) => {
   return result.rows.map(mapRowToRequest);
 };
 
-exports.findById = async (id) => {
+exports.findById = async (id, requesterId) => {
+  const requesterFilter = requesterId ? 'AND r.requester_id = $2' : '';
   const sql = `
     SELECT 
       r.request_id, r.request_number, r.title, r.description, r.status, r.priority, r.location, 
@@ -260,9 +227,10 @@ exports.findById = async (id) => {
     LEFT JOIN users u ON r.requester_id = u.user_id
     LEFT JOIN external_requesters ext ON r.external_requester_id = ext.external_requester_id
     LEFT JOIN users staff ON r.assigned_staff_id = staff.user_id
-    WHERE r.request_id = $1
+    WHERE r.request_id = $1 ${requesterFilter}
   `;
-  const result = await query(sql, [id]);
+  const params = requesterId ? [id, requesterId] : [id];
+  const result = await query(sql, params);
   if (result.rows.length === 0) return null;
   const request = mapRowToRequest(result.rows[0]);
 

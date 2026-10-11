@@ -4,7 +4,7 @@ const { pageContext } = require('../../shared/views/pageContext');
 // manager: staff accounts
 exports.staffList = (req, res) => {
   res.render('users/views/manager/users', {
-    ...pageContext('manager', req.session?.user),
+    ...pageContext('manager', req),
     title: 'User Management',
     activeHref: '/manager/users',
     pageTitle: 'User Management',
@@ -16,7 +16,7 @@ exports.staffList = (req, res) => {
 // requester: own profile settings
 exports.settings = (req, res) => {
   res.render('users/views/requester/settings', {
-    ...pageContext('requester', req.session?.user),
+    ...pageContext('requester', req),
     title: 'Settings',
     activeHref: '/requester/settings',
     pageTitle: 'Settings',
