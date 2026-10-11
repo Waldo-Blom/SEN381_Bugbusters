@@ -84,8 +84,10 @@ describe('Management dashboard department access', () => {
           category: 'Water',
           status: 'IN_PROGRESS',
           priority: 'HIGH',
-          overdue_flag: false,
-          updated_at: '2026-10-11T08:00:00Z',
+          event_type: 'status',
+          event_status: 'IN_PROGRESS',
+          timestamp: '2026-10-11 08:00',
+          actor: 'Test Staff',
         },
       ],
     });
@@ -94,6 +96,9 @@ describe('Management dashboard department access', () => {
     expect(response.text).toContain('Utilities');
     expect(response.text).toContain('Water leak');
     expect(response.text).toContain('In Progress');
+    expect(response.text).toContain('Status changed to In Progress');
+    expect(response.text).toContain('Test Staff');
+    expect(response.text).toContain('/manager/requests/request-1');
     expect(response.text).toContain('Not available');
     expect(response.text).not.toContain('15% faster');
     expect(query.mock.calls[2][1]).toEqual([departmentId, managerId]);

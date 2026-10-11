@@ -1,6 +1,6 @@
 jest.mock('../reporting.model', () => ({
   findManagedDepartment: jest.fn(),
-  findDashboardRequests: jest.fn(),
+  findRecentActivity: jest.fn(),
   findDashboardStats: jest.fn(),
 }));
 
@@ -11,7 +11,7 @@ describe('Dashboard statistics presentation', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     model.findManagedDepartment.mockResolvedValue({ id: 'department', name: 'Utilities' });
-    model.findDashboardRequests.mockResolvedValue([]);
+    model.findRecentActivity.mockResolvedValue([]);
   });
 
   it('converts PostgreSQL counts and calculates percentages with closed requests included', async () => {

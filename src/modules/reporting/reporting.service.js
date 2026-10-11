@@ -6,12 +6,27 @@ const displayEnum = (value) =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 
+const activityLabel = (row) => {
+  switch (row.event_type) {
+    case 'submission':
+      return 'Request submitted';
+    case 'status':
+      return `Status changed to ${displayEnum(row.event_status)}`;
+    case 'assignment':
+      return row.assignee ? `Assigned to ${row.assignee}` : 'Assignment removed';
+    case 'comment':
+      return `${displayEnum(row.comment_type || 'NOTE')} comment added`;
+    default:
+      return 'Request activity';
+  }
+};
+
 exports.getDashboardData = async (managerId) => {
   const department = await reportingModel.findManagedDepartment(managerId);
   if (!department) return null;
 
   const [rows, stats] = await Promise.all([
-    reportingModel.findDashboardRequests(managerId, department.id),
+    reportingModel.findRecentActivity(managerId, department.id),
     reportingModel.findDashboardStats(managerId, department.id),
   ]);
   const open = Number(stats.open);
@@ -34,17 +49,16 @@ exports.getDashboardData = async (managerId) => {
       slaCompliance: slaTotal ? ((Number(stats.sla_met) / slaTotal) * 100).toFixed(1) : null,
       slaTotal,
     },
-    requests: rows.map((row) => ({
+    recentActivity: rows.map((row) => ({
       id: row.id,
       reference: row.reference,
       title: row.title,
       category: row.category,
       status: displayEnum(row.status),
       priority: displayEnum(row.priority),
-      overdue: row.overdue_flag === true,
-      updatedAt: row.updated_at
-        ? new Date(row.updated_at).toISOString().slice(0, 16).replace('T', ' ')
-        : '',
+      label: activityLabel(row),
+      actor: row.actor || 'Unknown user',
+      timestamp: row.timestamp,
     })),
   };
 };

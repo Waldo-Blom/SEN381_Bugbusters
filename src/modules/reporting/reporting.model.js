@@ -15,19 +15,50 @@ exports.findManagedDepartment = async (managerId) => {
   return result.rows[0] || null;
 };
 
-// Dashboard projection deliberately excludes requester contact information.
-exports.findDashboardRequests = async (managerId, departmentId) => {
+// A bounded event feed, scoped before joining history. No contact details or
+// comment bodies are returned to the dashboard.
+exports.findRecentActivity = async (managerId, departmentId) => {
   const result = await query(
-    `SELECT r.request_id AS id, r.request_number AS reference, r.title,
-            r.status, r.priority, r.overdue_flag, r.updated_at,
-            c.name AS category
-     FROM service_requests r
-     JOIN request_categories c ON c.category_id = r.category_id
-     JOIN departments d ON d.department_id = c.department_id
-     JOIN users u ON u.user_id = d.manager_id
-     WHERE d.department_id = $1 AND d.manager_id = $2
-       AND d.is_active = true AND u.is_active = true AND u.user_type = 'MANAGER'
-     ORDER BY r.created_at DESC, r.request_id`,
+    `WITH scoped AS (
+       SELECT r.request_id, r.request_number, r.title, r.status, r.priority,
+              r.created_at, r.created_by, c.name AS category
+       FROM service_requests r
+       JOIN request_categories c ON c.category_id = r.category_id
+       JOIN departments d ON d.department_id = c.department_id
+       JOIN users u ON u.user_id = d.manager_id
+       WHERE d.department_id = $1 AND d.manager_id = $2
+         AND d.is_active = true AND u.is_active = true AND u.user_type = 'MANAGER'
+     ), events AS (
+       SELECT request_id, request_id::text AS event_id, 'submission' AS event_type,
+              created_at AS occurred_at, created_by AS actor_id,
+              NULL::text AS event_status, NULL::text AS comment_type,
+              NULL::uuid AS assignee_id
+       FROM scoped
+       UNION ALL
+       SELECT h.request_id, h.status_history_id::text, 'status', h.changed_at,
+              h.changed_by, h.new_status::text, NULL::text, NULL::uuid
+       FROM request_status_history h JOIN scoped s USING (request_id)
+       UNION ALL
+       SELECT a.request_id, a.assignment_history_id::text, 'assignment', a.assigned_at,
+              a.assigned_by_id, NULL::text, NULL::text, a.assigned_to_staff_id
+       FROM request_assignment_history a JOIN scoped s USING (request_id)
+       UNION ALL
+       SELECT c.request_id, c.comment_id::text, 'comment', c.created_at,
+              c.commented_by, NULL::text, c.comment_type::text, NULL::uuid
+       FROM request_comments c JOIN scoped s USING (request_id)
+       WHERE c.is_deleted IS NOT TRUE
+     )
+     SELECT s.request_id AS id, s.request_number AS reference, s.title,
+            s.category, s.status, s.priority, e.event_id, e.event_type,
+            e.event_status, e.comment_type,
+            to_char(e.occurred_at, 'YYYY-MM-DD HH24:MI') AS timestamp,
+            NULLIF(concat_ws(' ', actor.first_name, actor.last_name), '') AS actor,
+            NULLIF(concat_ws(' ', staff.first_name, staff.last_name), '') AS assignee
+     FROM events e JOIN scoped s USING (request_id)
+     LEFT JOIN users actor ON actor.user_id = e.actor_id
+     LEFT JOIN users staff ON staff.user_id = e.assignee_id
+     ORDER BY e.occurred_at DESC, e.event_type, e.event_id
+     LIMIT 10`,
     [departmentId, managerId]
   );
   return result.rows;
