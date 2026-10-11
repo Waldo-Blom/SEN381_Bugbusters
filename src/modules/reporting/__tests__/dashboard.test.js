@@ -33,7 +33,23 @@ const manager = {
 };
 
 describe('Management dashboard department access', () => {
-  beforeEach(() => query.mockReset());
+  beforeEach(() => {
+    query.mockReset();
+    query.mockResolvedValue({
+      rows: [
+        {
+          open: '1',
+          overdue: '0',
+          resolved: '0',
+          closed: '0',
+          eligible_total: '1',
+          avg_response_hours: null,
+          sla_total: '0',
+          sla_met: '0',
+        },
+      ],
+    });
+  });
 
   it('rejects signed-out users without querying the database', async () => {
     expect((await request(createApp(null)).get('/manager/dashboard')).status).toBe(401);
@@ -78,6 +94,9 @@ describe('Management dashboard department access', () => {
     expect(response.text).toContain('Utilities');
     expect(response.text).toContain('Water leak');
     expect(response.text).toContain('In Progress');
+    expect(response.text).toContain('Not available');
+    expect(response.text).not.toContain('15% faster');
+    expect(query.mock.calls[2][1]).toEqual([departmentId, managerId]);
     expect(response.text).not.toContain('stale-session-department');
     expect(query).toHaveBeenNthCalledWith(1, expect.stringContaining("u.user_type = 'MANAGER'"), [
       managerId,
