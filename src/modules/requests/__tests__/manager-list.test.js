@@ -71,7 +71,7 @@ describe('Manager department request list', () => {
     expect(response.text).toContain('&lt;script&gt;Leak&lt;/script&gt;');
     expect(response.text).not.toContain('>stale<');
     const [sql, params] = query.mock.calls[0];
-    expect(params).toEqual([manager.id]);
+    expect(params).toEqual([manager.id, '', '', '']);
     expect(sql).toContain('c.department_id = d.department_id');
     expect(sql).toContain('d.manager_id = $1');
     expect(sql).toContain("manager.user_type = 'MANAGER'");
@@ -99,4 +99,55 @@ describe('Manager department request list', () => {
     expect(response.status).toBe(500);
     expect(response.text).not.toContain('private database details');
   });
+
+  it('renders database options, preserves combined filters and parameterises search', async () => {
+    query.mockResolvedValue({
+      rows: [
+        {
+          department_id: 'own',
+          department_name: 'Water',
+          request_id: null,
+          statuses: ['SUBMITTED', 'REJECTED'],
+          categories: [{ id: 'category', name: 'Historic leaks' }],
+        },
+      ],
+    });
+    const response = await request(appFor(manager))
+      .get('/manager/requests')
+      .query({ status: 'REJECTED', category: 'category', q: '50%_pipe' });
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('value="REJECTED" selected');
+    expect(response.text).toContain('value="category" selected');
+    expect(response.text).toContain('Historic leaks');
+    expect(response.text).toContain('No requests match your filters.');
+    expect(query.mock.calls[0][1]).toEqual([manager.id, 'REJECTED', 'category', '%50\\%\\_pipe%']);
+  });
+
+  it.each([{ status: 'INVALID' }, { category: 'foreign' }])(
+    'rejects invalid or foreign-department filter selections',
+    async (filters) => {
+      query.mockResolvedValue({
+        rows: [
+          {
+            department_id: 'own',
+            department_name: 'Water',
+            request_id: null,
+            statuses: ['SUBMITTED'],
+            categories: [{ id: 'own', name: 'Leaks' }],
+          },
+        ],
+      });
+      expect((await request(appFor(manager)).get('/manager/requests').query(filters)).status).toBe(
+        400
+      );
+    }
+  );
+
+  it.each([{ status: ['SUBMITTED', 'CLOSED'] }, { q: 'x'.repeat(201) }])(
+    'rejects malformed filters before querying',
+    async (filters) => {
+      await expect(service.listForManager(manager.id, filters)).rejects.toThrow('Please correct');
+      expect(query).not.toHaveBeenCalled();
+    }
+  );
 });

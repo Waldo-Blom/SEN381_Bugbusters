@@ -29,6 +29,9 @@ describeDatabase('Manager request list PostgreSQL scoping', () => {
         ('registered', 'own', 'CC-1', 'Leak', 'SUBMITTED', 'HIGH', '2026-01-01', 'citizen', NULL),
         ('external', 'own', 'CC-2', 'Pipe', 'IN_PROGRESS', 'MEDIUM', '2026-01-02', NULL, 'external'),
         ('foreign', 'foreign', 'CC-3', 'Road', 'CLOSED', 'LOW', '2026-01-03', 'citizen', NULL);
+      ALTER TABLE request_categories ADD COLUMN is_active boolean DEFAULT true;
+      INSERT INTO request_categories VALUES ('unused', 'own', 'Unused inactive', false);
+      UPDATE request_categories SET is_active = false WHERE category_id = 'own';
     `);
     db.query.mockImplementation((sql, params) => client.query(sql, params));
   }, 30000);
@@ -52,7 +55,31 @@ describeDatabase('Manager request list PostgreSQL scoping', () => {
   it('returns an empty list for a department with no categories or requests', async () => {
     expect(await model.findForManager('empty')).toEqual({
       department: { id: 'empty', name: 'Empty department' },
+      statuses: expect.any(Array),
+      categories: [],
       requests: [],
     });
+  });
+
+  it('loads enum statuses and departmental categories including historical categories', async () => {
+    const data = await model.findForManager('manager');
+    expect(data.statuses).toContainEqual({ value: 'REJECTED', label: 'Rejected' });
+    expect(data.categories).toEqual([{ id: 'own', name: 'Leaks' }]);
+  });
+
+  it('combines status, category and search filters without losing the department', async () => {
+    const data = await model.findForManager('manager', {
+      status: 'IN_PROGRESS',
+      category: 'own',
+      q: 'CC-2',
+    });
+    expect(data.requests.map((r) => r.id)).toEqual(['external']);
+    expect((await model.findForManager('manager', { status: 'CLOSED' })).requests).toEqual([]);
+    expect((await model.findForManager('manager', { category: 'foreign' })).requests).toEqual([]);
+    expect((await model.findForManager('manager', { q: '%' })).requests).toEqual([]);
+    expect((await model.findForManager('manager', { q: "' OR 1=1 --" })).requests).toEqual([]);
+    expect(
+      (await model.findForManager('manager', { q: 'pipe' })).requests.map((r) => r.id)
+    ).toEqual(['external']);
   });
 });

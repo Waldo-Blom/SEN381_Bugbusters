@@ -126,9 +126,27 @@ class RequestWorkflowService {
 const workflowService = new RequestWorkflowService();
 
 exports.list = async () => await requestsModel.findAll();
-exports.listForManager = async (managerId) => {
+exports.listForManager = async (managerId, input = {}) => {
   if (!managerId) return null;
-  return requestsModel.findForManager(managerId);
+  const filters = {};
+  for (const field of ['status', 'category', 'q']) {
+    if (input[field] !== undefined && typeof input[field] !== 'string') {
+      throw new RequestValidationError({ [field]: 'Please provide a single filter value.' });
+    }
+    filters[field] = (input[field] || '').trim();
+    if (filters[field].length > (field === 'q' ? 200 : 50)) {
+      throw new RequestValidationError({ [field]: 'The filter value is too long.' });
+    }
+  }
+  const data = await requestsModel.findForManager(managerId, filters);
+  if (!data) return null;
+  if (filters.status && !data.statuses.some((option) => option.value === filters.status)) {
+    throw new RequestValidationError({ status: 'Please select a valid status.' });
+  }
+  if (filters.category && !data.categories.some((option) => option.id === filters.category)) {
+    throw new RequestValidationError({ category: 'Please select a category in your department.' });
+  }
+  return { ...data, filters };
 };
 exports.listCategories = async () => await requestsModel.findCategories();
 exports.listForRequester = async (requesterId) => {

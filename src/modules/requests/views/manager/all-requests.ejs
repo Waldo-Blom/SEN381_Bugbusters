@@ -10,7 +10,7 @@
 <div class="space-y-5">
 
   <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
-    <div class="px-5 py-4 space-y-4">
+    <form method="GET" action="/manager/requests" class="px-5 py-4 space-y-4">
 
       <!-- Department banner (read-only context) -->
       <div class="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2.5">
@@ -18,16 +18,30 @@
         <span class="text-sm font-medium text-slate-800"><%= department.name %></span>
       </div>
 
-      <input type="text" placeholder="Search requests..."
+      <input type="search" name="q" value="<%= filters.q %>" maxlength="200" aria-label="Search requests by reference or title" placeholder="Search requests..."
              class="w-full sm:max-w-md rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
 
       <div class="grid gap-3 sm:grid-cols-2">
         <div class="space-y-1.5"><label class="text-sm font-medium text-slate-700">Status</label>
-          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"><option>All</option><option>Submitted</option><option>Assigned</option><option>In Progress</option><option>Resolved</option><option>Closed</option></select></div>
+          <select name="status" aria-label="Status" onchange="this.form.requestSubmit()" class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
+            <option value="">All</option>
+            <% statuses.forEach(function (option) { %>
+              <option value="<%= option.value %>" <%= filters.status === option.value ? 'selected' : '' %>><%= option.label %></option>
+            <% }); %>
+          </select></div>
         <div class="space-y-1.5"><label class="text-sm font-medium text-slate-700">Category</label>
-          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"><option>All</option><option>Pothole</option><option>Streetlight</option><option>Water Leak</option></select></div>
+          <select name="category" aria-label="Category" onchange="this.form.requestSubmit()" class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
+            <option value="">All</option>
+            <% categories.forEach(function (option) { %>
+              <option value="<%= option.id %>" <%= filters.category === option.id ? 'selected' : '' %>><%= option.name %></option>
+            <% }); %>
+          </select></div>
       </div>
-    </div>
+      <div class="flex items-center gap-3">
+        <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Apply filters</button>
+        <a href="/manager/requests" class="text-sm font-medium text-slate-600 hover:text-slate-900">Clear filters</a>
+      </div>
+    </form>
   </div>
 
   <p class="text-sm text-slate-600">
@@ -53,7 +67,7 @@
         <% if (myRequests.length === 0) { %>
           <tr>
             <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">
-              No requests for your department yet.
+              <%= filters.status || filters.category || filters.q ? 'No requests match your filters.' : 'No requests for your department yet.' %>
             </td>
           </tr>
         <% } else { %>
