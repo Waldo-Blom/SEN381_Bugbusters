@@ -25,7 +25,7 @@ const emailService = require('../email.service');
 const notificationsListener = require('../notifications.listener');
 const requestsModel = require('../../requests/requests.model');
 const requestsService = require('../../requests/requests.service');
-const { getEmailTransportOptions } = require('../../../config/env');
+const { getEmailProvider, getEmailTransportOptions } = require('../../../config/env');
 const realNodemailer = jest.requireActual('nodemailer');
 
 const sendMail = jest.fn();
@@ -51,6 +51,7 @@ describe('request status email notifications', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NODE_ENV = 'test';
+    delete process.env.EMAIL_PROVIDER;
     process.env.EMAIL_HOST = 'smtp.ethereal.email';
     process.env.EMAIL_PORT = '587';
     process.env.EMAIL_USER = 'ethereal-user';
@@ -64,11 +65,12 @@ describe('request status email notifications', () => {
   });
 
   afterEach(() => {
+    delete process.env.EMAIL_PROVIDER;
     delete process.env.EMAIL_FROM;
     jest.restoreAllMocks();
   });
 
-  it('uses Ethereal in development and Gmail in production with environment credentials', () => {
+  it('uses SMTP in development and Gmail in production with environment credentials', () => {
     expect(getEmailTransportOptions()).toEqual({
       host: 'smtp.ethereal.email',
       port: 587,
@@ -77,6 +79,17 @@ describe('request status email notifications', () => {
     });
 
     process.env.NODE_ENV = 'production';
+    expect(getEmailTransportOptions()).toEqual({
+      service: 'gmail',
+      auth: { user: 'ethereal-user', pass: 'ethereal-pass' },
+    });
+  });
+
+  it('allows Gmail to be selected without changing NODE_ENV', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.EMAIL_PROVIDER = 'gmail';
+
+    expect(getEmailProvider()).toBe('gmail');
     expect(getEmailTransportOptions()).toEqual({
       service: 'gmail',
       auth: { user: 'ethereal-user', pass: 'ethereal-pass' },
@@ -118,7 +131,11 @@ describe('request status email notifications', () => {
         const text = [
           `Good day ${emailDetails.requesterName},`,
           '',
-          `This email is with regards to ${emailDetails.requestName} with request id of ${emailDetails.requestId}. The status of the request has changed from status ${emailDetails.previousStatus} to ${emailDetails.newStatus}. Staff member '${emailDetails.staffName}' had this to say:`,
+          `This email is with regards to "${emailDetails.requestName}" with request id of "${emailDetails.requestId}".`,
+          '',
+          `The status of the request has changed from status ${emailDetails.previousStatus} to ${emailDetails.newStatus}.`,
+          '',
+          `Staff member '${emailDetails.staffName}' had this to say:`,
           '',
           emailDetails.staffComment,
           '',
@@ -164,7 +181,7 @@ describe('request status email notifications', () => {
         to: 'ava@example.com',
         subject: 'Update for request CC-2026-0001: Assigned',
         text: expect.stringContaining(
-          'This email is with regards to Pothole on Main Street with request id of request-1.'
+          'This email is with regards to "Pothole on Main Street" with request id of "CC-2026-0001".'
         ),
         html: expect.stringContaining('Ava Citizen'),
       })
@@ -180,6 +197,8 @@ describe('request status email notifications', () => {
     expect(sendMail.mock.calls[0][0].html).toContain('Submitted');
     expect(sendMail.mock.calls[0][0].html).toContain('Assigned');
     expect(sendMail.mock.calls[0][0].html).toContain('Pothole on Main Street');
+    expect(sendMail.mock.calls[0][0].html).toContain('CC-2026-0001');
+    expect(sendMail.mock.calls[0][0].html).not.toContain('request-1');
     expect(sendMail.mock.calls[0][0].html).toContain('Sam Staff');
     expect(sendMail.mock.calls[0][0].html).toContain('&lt;script&gt;');
     expect(nodemailer.getTestMessageUrl).toHaveBeenCalledWith({ messageId: 'message-1' });

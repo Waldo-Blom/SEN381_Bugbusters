@@ -1,7 +1,11 @@
 const ejs = require('ejs');
 const nodemailer = require('nodemailer');
 const path = require('path');
-const { getEmailFromAddress, getEmailTransportOptions } = require('../../config/env');
+const {
+  getEmailFromAddress,
+  getEmailProvider,
+  getEmailTransportOptions,
+} = require('../../config/env');
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = [250, 500];
@@ -32,7 +36,7 @@ const sendStatusChange = async (details) => {
   const html = await ejs.renderFile(path.join(__dirname, 'templates', 'status-change.ejs'), {
     requesterName: details.requesterName,
     requestName: details.requestName,
-    requestId: details.requestId,
+    requestId: details.requestReference,
     previousStatus: details.previousStatus,
     newStatus: details.newStatus,
     staffComment,
@@ -42,7 +46,9 @@ const sendStatusChange = async (details) => {
   const text = [
     `Good day ${details.requesterName},`,
     '',
-    `This email is with regards to ${details.requestName} with request id of ${details.requestId}. The status of the request has changed from status ${details.previousStatus} to ${details.newStatus}.`,
+    `This email is with regards to "${details.requestName}" with request id of "${details.requestReference}".`,
+    '',
+    `The status of the request has changed from status ${details.previousStatus} to ${details.newStatus}.`,
     ...(staffComment
       ? [
           `Staff member '${details.staffName || 'CivicConnect staff'}' had this to say:`,
@@ -66,7 +72,7 @@ const sendStatusChange = async (details) => {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
       const info = await getTransport().sendMail(mail);
-      if (process.env.NODE_ENV !== 'production') {
+      if (getEmailProvider() === 'smtp' && process.env.NODE_ENV !== 'production') {
         try {
           const previewUrl = nodemailer.getTestMessageUrl(info);
           if (previewUrl) {

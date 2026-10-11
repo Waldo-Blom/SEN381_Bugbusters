@@ -9,7 +9,9 @@
     <main>
       <p>Good day <%= requesterName %>,</p>
       <p>
-        This email is with regards to <%= requestName %> with request id of <%= requestId %>.
+        This email is with regards to "<%= requestName %>" with request id of "<%= requestId %>".
+      </p>
+      <p>
         The status of the request has changed from status <%= previousStatus %> to <%= newStatus %>.
       </p>
       <% if (staffComment) { %>

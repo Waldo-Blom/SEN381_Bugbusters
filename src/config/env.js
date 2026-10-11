@@ -1,12 +1,13 @@
 const getEmailTransportOptions = () => {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
+  const provider = getEmailProvider();
 
   if (!user || !pass) {
     throw new Error('EMAIL_USER and EMAIL_PASS must be configured to send email.');
   }
 
-  if (process.env.NODE_ENV === 'production') {
+  if (provider === 'gmail') {
     return {
       service: 'gmail',
       auth: { user, pass },
@@ -26,9 +27,21 @@ const getEmailTransportOptions = () => {
   };
 };
 
+const getEmailProvider = () => {
+  const provider =
+    process.env.EMAIL_PROVIDER || (process.env.NODE_ENV === 'production' ? 'gmail' : 'smtp');
+
+  if (!['gmail', 'smtp'].includes(provider)) {
+    throw new Error('EMAIL_PROVIDER must be either "gmail" or "smtp".');
+  }
+
+  return provider;
+};
+
 const getEmailFromAddress = () => process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
 module.exports = {
+  getEmailProvider,
   getEmailTransportOptions,
   getEmailFromAddress,
 };
