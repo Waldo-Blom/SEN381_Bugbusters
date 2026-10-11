@@ -276,7 +276,7 @@ exports.findById = async (id, requesterId) => {
   return request;
 };
 
-exports.updateStatus = async (id, newStatus, comment) => {
+exports.updateStatus = async (id, newStatus, comment, userId = null) => {
   const dbStatus = newStatus.toUpperCase().replace(' ', '_');
 
   const client = await pool.connect();
@@ -291,36 +291,52 @@ exports.updateStatus = async (id, newStatus, comment) => {
     if (reqRes.rows.length === 0) throw new Error('Request not found');
     const oldDbStatus = reqRes.rows[0].status;
 
-    const now = new Date();
+    // Concurrency / idempotency guard: reject duplicate transition if already at target status
+    if (oldDbStatus === dbStatus) {
+      throw new Error(`Request is already ${toTitleCase(oldDbStatus)}`);
+    }
 
-    // Update status
+    // Use the database clock for every timestamp in this transaction. Passing
+    // a JS Date into timestamp-without-time-zone columns stored local wall time.
     await client.query(
-      'UPDATE service_requests SET status = $1, updated_at = $2 WHERE request_id = $3',
-      [dbStatus, now, id]
+      `UPDATE service_requests
+       SET status = $1::request_status, updated_at = LOCALTIMESTAMP,
+           resolved_at = CASE
+             WHEN $1::request_status = 'RESOLVED' THEN LOCALTIMESTAMP
+             WHEN $1::request_status = 'IN_PROGRESS' THEN NULL
+             ELSE resolved_at END,
+           closed_at = CASE WHEN $1::request_status = 'CLOSED' THEN LOCALTIMESTAMP ELSE NULL END,
+           overdue_flag = CASE
+             WHEN $1::request_status IN ('RESOLVED', 'CLOSED', 'REJECTED') THEN false
+             ELSE overdue_flag END
+       WHERE request_id = $2`,
+      [dbStatus, id]
     );
 
-    // Find a generic staff user for the comment author / history since we don't pass userId from the model yet
-    let genericUserId = null;
-    const userRes = await client.query(
-      "SELECT user_id FROM users WHERE user_type IN ('STAFF', 'MANAGER', 'ADMIN') LIMIT 1"
-    );
-    if (userRes.rows.length > 0) {
-      genericUserId = userRes.rows[0].user_id;
+    // Use authenticated userId or fallback to staff user lookup
+    let actorUserId = userId;
+    if (!actorUserId) {
+      const userRes = await client.query(
+        "SELECT user_id FROM users WHERE user_type IN ('STAFF', 'MANAGER', 'ADMIN') LIMIT 1"
+      );
+      if (userRes.rows.length > 0) {
+        actorUserId = userRes.rows[0].user_id;
+      }
     }
 
     // Insert into status history if it changed
-    if (oldDbStatus !== dbStatus && genericUserId) {
+    if (oldDbStatus !== dbStatus && actorUserId) {
       await client.query(
-        'INSERT INTO request_status_history (request_id, old_status, new_status, changed_by, changed_at) VALUES ($1, $2, $3, $4, $5)',
-        [id, oldDbStatus, dbStatus, genericUserId, now]
+        'INSERT INTO request_status_history (request_id, old_status, new_status, changed_by, changed_at) VALUES ($1, $2, $3, $4, LOCALTIMESTAMP)',
+        [id, oldDbStatus, dbStatus, actorUserId]
       );
     }
 
     // If there's a comment
-    if (comment && genericUserId) {
+    if (comment && actorUserId) {
       await client.query(
-        'INSERT INTO request_comments (request_id, commented_by, content, created_at) VALUES ($1, $2, $3, $4)',
-        [id, genericUserId, comment, now]
+        'INSERT INTO request_comments (request_id, commented_by, content, created_at) VALUES ($1, $2, $3, LOCALTIMESTAMP)',
+        [id, actorUserId, comment]
       );
     }
 
