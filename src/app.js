@@ -5,6 +5,7 @@ const path = require('path');
 
 const registerModules = require('./modules');
 const { query } = require('./config/database');
+const sessionConfig = require('./config/session');
 
 const app = express();
 
@@ -18,17 +19,11 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-  })
-);
+app.use(session(sessionConfig));
 
 // Make the logged-in user available to every EJS view as `user`
 app.use((req, res, next) => {
-  res.locals.user = req.session.user || null;
+  res.locals.user = req.session?.user || null;
   next();
 });
 

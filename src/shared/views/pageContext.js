@@ -1,13 +1,15 @@
-// Per-role view context (user, nav, label) that every controller used to build itself.
-// Temporary: reads mock users. Replace with the logged-in user from the session.
-const { mockUsers } = require('../../../db/mock/mockData');
 const { requesterNav, staffNav, managementNav, operatorNav } = require('./nav');
 
 const ROLES = {
-  requester: { user: mockUsers.requester, navItems: requesterNav, roleLabel: 'Citizen Portal' },
-  staff: { user: mockUsers.staff, navItems: staffNav, roleLabel: 'Staff Console' },
-  manager: { user: mockUsers.management, navItems: managementNav, roleLabel: 'Management Console' },
-  operator: { user: mockUsers.operator, navItems: operatorNav, roleLabel: 'Operator Console' },
+  requester: { navItems: requesterNav, roleLabel: 'Citizen Portal' },
+  staff: { navItems: staffNav, roleLabel: 'Staff Console' },
+  manager: { navItems: managementNav, roleLabel: 'Management Console' },
+  operator: { navItems: operatorNav, roleLabel: 'Operator Console' },
 };
 
-exports.pageContext = (role) => ({ ...ROLES[role] });
+const EMPTY_USER = { name: '', email: '', avatarInitials: '' };
+
+exports.pageContext = (role, sessionUser) => ({
+  ...ROLES[role],
+  user: sessionUser || EMPTY_USER,
+});

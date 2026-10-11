@@ -3,12 +3,12 @@ const { REQUEST_STATUSES } = require('./requests.constants');
 const { pageContext } = require('../../shared/views/pageContext');
 
 // ---- requester ----
-const submissionView = async (res, role, options = {}) => {
+const submissionView = async (req, res, role, options = {}) => {
   const isOperator = role === 'operator';
   const submitPath = isOperator ? '/operator/submit' : '/requester/submit';
   const categories = await requestsService.listCategories();
   res.render('requests/views/requester/submit', {
-    ...pageContext(role),
+    ...pageContext(role, req.session?.user),
     title: isOperator ? 'Log a Request' : 'Submit a Request',
     activeHref: submitPath,
     pageTitle: isOperator ? 'Log a Request' : 'Submit a Request',
@@ -27,7 +27,7 @@ const submissionView = async (res, role, options = {}) => {
 
 exports.submitPage = async (req, res, next) => {
   try {
-    await submissionView(res, 'requester');
+    await submissionView(req, res, 'requester');
   } catch (error) {
     next(error);
   }
@@ -35,7 +35,7 @@ exports.submitPage = async (req, res, next) => {
 
 exports.operatorSubmitPage = async (req, res, next) => {
   try {
-    await submissionView(res, 'operator', {
+    await submissionView(req, res, 'operator', {
       successReference: req.query.submitted || null,
     });
   } catch (error) {
@@ -47,7 +47,7 @@ exports.operatorLoggedRequests = async (req, res, next) => {
   try {
     const requests = await requestsService.listCreatedByOperator();
     res.render('requests/views/operator/logged-requests', {
-      ...pageContext('operator'),
+      ...pageContext('operator', req.session?.user),
       title: 'Logged Requests',
       activeHref: '/operator/requests',
       pageTitle: 'Logged Requests',
@@ -80,7 +80,7 @@ exports.submitRequest = async (req, res, next) => {
   } catch (error) {
     if (error instanceof requestsService.RequestValidationError) {
       try {
-        await submissionView(res.status(400), 'requester', {
+        await submissionView(req, res.status(400), 'requester', {
           errors: error.errors,
           values: req.body,
         });
@@ -108,7 +108,7 @@ exports.operatorSubmitRequest = async (req, res, next) => {
   } catch (error) {
     if (error instanceof requestsService.RequestValidationError) {
       try {
-        await submissionView(res.status(400), 'operator', {
+        await submissionView(req, res.status(400), 'operator', {
           errors: error.errors,
           values: req.body,
         });
@@ -129,7 +129,7 @@ exports.myRequests = async (req, res, next) => {
   try {
     const requests = await requestsService.listForRequester();
     res.render('requests/views/requester/my-requests', {
-      ...pageContext('requester'),
+      ...pageContext('requester', req.session?.user),
       title: 'My Requests',
       activeHref: '/requester/my-requests',
       pageTitle: 'My Requests',
@@ -144,7 +144,7 @@ exports.myRequests = async (req, res, next) => {
 exports.requesterDetail = async (req, res, next) => {
   try {
     res.render('requests/views/requester/request-detail', {
-      ...pageContext('requester'),
+      ...pageContext('requester', req.session?.user),
       title: 'Request Details',
       activeHref: '/requester/my-requests',
       pageTitle: 'Request Details',
@@ -159,7 +159,7 @@ exports.requesterDetail = async (req, res, next) => {
 // ---- staff ----
 exports.staffSearch = async (req, res) => {
   res.render('requests/views/staff/search', {
-    ...pageContext('staff'),
+    ...pageContext('staff', req.session?.user),
     title: 'Search & Filter',
     activeHref: '/staff/search',
     pageTitle: 'Search & Filter',
@@ -171,7 +171,7 @@ exports.staffSearch = async (req, res) => {
 exports.staffDetail = async (req, res, next) => {
   try {
     res.render('requests/views/staff/request-detail', {
-      ...pageContext('staff'),
+      ...pageContext('staff', req.session?.user),
       title: 'Request Details',
       activeHref: '/staff/dashboard',
       pageTitle: 'Request Details',
@@ -186,7 +186,7 @@ exports.staffDetail = async (req, res, next) => {
 // ---- manager ----
 exports.allRequests = async (req, res) => {
   res.render('requests/views/manager/all-requests', {
-    ...pageContext('manager'),
+    ...pageContext('manager', req.session?.user),
     title: 'All Requests',
     activeHref: '/manager/requests',
     pageTitle: 'All Requests',
@@ -198,7 +198,7 @@ exports.allRequests = async (req, res) => {
 exports.managerDetail = async (req, res, next) => {
   try {
     res.render('requests/views/manager/request-detail', {
-      ...pageContext('manager'),
+      ...pageContext('manager', req.session?.user),
       title: 'Request Details',
       activeHref: '/manager/requests',
       pageTitle: 'Request Details',

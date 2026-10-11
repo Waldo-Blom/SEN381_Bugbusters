@@ -12,10 +12,16 @@ jest.mock('../requests.model', () => ({
   findByCreatorId: jest.fn(),
 }));
 
+jest.mock('../../auth/auth.service', () => ({
+  createRequester: jest.fn(),
+  authenticate: jest.fn(),
+}));
+
 const request = require('supertest');
 const app = require('../../../app');
 const requestsModel = require('../requests.model');
 const requestsService = require('../requests.service');
+const authService = require('../../auth/auth.service');
 const { validateExternalRequester } = require('../requests.schema');
 
 const category = {
@@ -84,6 +90,16 @@ describe('external requester validation', () => {
 describe('operator-assisted request submission', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    authService.authenticate.mockImplementation(async (email) => {
+      const role = email.split('@')[0];
+      return {
+        id: `demo-${role}`,
+        name: `Demo ${role}`,
+        email,
+        role,
+        departmentId: null,
+      };
+    });
     requestsModel.findById.mockImplementation((id) => (id === 'r1' ? managerRequest : null));
     requestsModel.findCategories.mockResolvedValue([category]);
     requestsModel.findActiveCategory.mockResolvedValue(category);
@@ -179,7 +195,10 @@ describe('operator-assisted request submission', () => {
 
   it('renders the existing submission page with external requester fields for operators only', async () => {
     const operator = request.agent(app);
-    await operator.post('/auth/login').type('form').send({ role: 'operator' });
+    await operator
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'operator@demo.invalid', password: 'SecurePass1' });
 
     const operatorPage = await operator.get('/operator/submit');
     expect(operatorPage.status).toBe(200);
@@ -202,7 +221,10 @@ describe('operator-assisted request submission', () => {
 
   it('creates a request from the operator route and redirects with its reference', async () => {
     const operator = request.agent(app);
-    await operator.post('/auth/login').type('form').send({ role: 'operator' });
+    await operator
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'operator@demo.invalid', password: 'SecurePass1' });
 
     const response = await operator.post('/operator/submit').type('form').send(operatorForm);
 
@@ -227,7 +249,10 @@ describe('operator-assisted request submission', () => {
       },
     ]);
     const operator = request.agent(app);
-    await operator.post('/auth/login').type('form').send({ role: 'operator' });
+    await operator
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'operator@demo.invalid', password: 'SecurePass1' });
 
     const response = await operator.get('/operator/requests');
 
@@ -252,7 +277,10 @@ describe('operator-assisted request submission', () => {
     };
     requestsModel.searchExternalRequesters.mockResolvedValue([matchingMember]);
     const operator = request.agent(app);
-    await operator.post('/auth/login').type('form').send({ role: 'operator' });
+    await operator
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'operator@demo.invalid', password: 'SecurePass1' });
 
     const response = await operator.get('/operator/community-members/search?q=Taylor');
 
@@ -264,13 +292,19 @@ describe('operator-assisted request submission', () => {
     );
 
     const requester = request.agent(app);
-    await requester.post('/auth/login').type('form').send({ role: 'requester' });
+    await requester
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
     expect((await requester.get('/operator/community-members/search?q=Taylor')).status).toBe(403);
   });
 
   it('does not allow requesters to access operator logged requests', async () => {
     const requester = request.agent(app);
-    await requester.post('/auth/login').type('form').send({ role: 'requester' });
+    await requester
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
 
     const response = await requester.get('/operator/requests');
 
@@ -280,7 +314,10 @@ describe('operator-assisted request submission', () => {
 
   it('rejects operator submissions with no email or phone before persistence', async () => {
     const operator = request.agent(app);
-    await operator.post('/auth/login').type('form').send({ role: 'operator' });
+    await operator
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'operator@demo.invalid', password: 'SecurePass1' });
 
     const response = await operator
       .post('/operator/submit')
@@ -301,14 +338,20 @@ describe('operator-assisted request submission', () => {
     expect(unauthenticatedResponse.status).toBe(401);
 
     const operator = request.agent(app);
-    await operator.post('/auth/login').type('form').send({ role: 'operator' });
+    await operator
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'operator@demo.invalid', password: 'SecurePass1' });
     const staffResponse = await operator.get('/staff/dashboard');
     expect(staffResponse.status).toBe(403);
   });
 
   it('shows the creator in the manager request detail', async () => {
     const manager = request.agent(app);
-    await manager.post('/auth/login').type('form').send({ role: 'management' });
+    await manager
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'management@demo.invalid', password: 'SecurePass1' });
 
     const response = await manager.get('/manager/requests/r1');
     expect(response.status).toBe(200);
@@ -338,7 +381,10 @@ describe('operator-assisted request submission', () => {
       timeline: [],
     });
     const manager = request.agent(app);
-    await manager.post('/auth/login').type('form').send({ role: 'management' });
+    await manager
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'management@demo.invalid', password: 'SecurePass1' });
 
     const response = await manager.get('/manager/requests/44444444-4444-4444-8444-444444444444');
 

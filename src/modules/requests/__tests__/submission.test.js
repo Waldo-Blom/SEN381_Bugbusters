@@ -11,10 +11,16 @@ jest.mock('../requests.model', () => ({
   findByRequesterId: jest.fn(),
 }));
 
+jest.mock('../../auth/auth.service', () => ({
+  createRequester: jest.fn(),
+  authenticate: jest.fn(),
+}));
+
 const request = require('supertest');
 const app = require('../../../app');
 const requestsModel = require('../requests.model');
 const requestsService = require('../requests.service');
+const authService = require('../../auth/auth.service');
 const { validateSubmission } = require('../requests.schema');
 
 const category = {
@@ -91,6 +97,13 @@ describe('request submission routes', () => {
   beforeEach(() => {
     submittedRequests = [];
     jest.clearAllMocks();
+    authService.authenticate.mockImplementation(async (email) => ({
+      id: `demo-${email.split('@')[0]}`,
+      name: 'Demo Requester',
+      email,
+      role: 'requester',
+      departmentId: null,
+    }));
     requestsModel.findCategories.mockResolvedValue([category]);
     requestsModel.findGenericActiveUserId.mockResolvedValue('33333333-3333-4333-8333-333333333333');
     requestsModel.findActiveCategory.mockImplementation(async (id) =>
@@ -156,7 +169,10 @@ describe('request submission routes', () => {
   // Exercise login, POST submission, and the follow-up list page using a fake model.
   it('persists valid submissions and displays them in the requester list', async () => {
     const browser = request.agent(app);
-    await browser.post('/auth/login').type('form').send({ role: 'requester' });
+    await browser
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
 
     const response = await browser.post('/requester/submit').type('form').send(formData);
 
@@ -179,6 +195,9 @@ describe('request submission routes', () => {
 
     const listResponse = await browser.get('/requester/my-requests');
     expect(listResponse.status).toBe(200);
+    expect(listResponse.text).toContain('Demo Requester');
+    expect(listResponse.text).toContain('requester@demo.invalid');
+    expect(listResponse.text).not.toContain('Amelia Carter');
     expect(listResponse.text).toContain('CC-2026-0001');
     expect(listResponse.text).toContain(formData.title);
   });
@@ -186,7 +205,10 @@ describe('request submission routes', () => {
   // Invalid input should be reported to the user without attempting a model write.
   it('shows validation errors and does not persist invalid submissions', async () => {
     const browser = request.agent(app);
-    await browser.post('/auth/login').type('form').send({ role: 'requester' });
+    await browser
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
 
     const response = await browser
       .post('/requester/submit')
@@ -201,7 +223,10 @@ describe('request submission routes', () => {
   // The service must re-check a category instead of trusting a submitted category ID.
   it('rejects a category that is not active in the database', async () => {
     const browser = request.agent(app);
-    await browser.post('/auth/login').type('form').send({ role: 'requester' });
+    await browser
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
     requestsModel.findActiveCategory.mockResolvedValue(null);
 
     const response = await browser.post('/requester/submit').type('form').send(formData);
@@ -214,7 +239,10 @@ describe('request submission routes', () => {
   // A session user must map to an active requester record before insertion.
   it('shows a useful error if the signed-in requester has no active database account', async () => {
     const browser = request.agent(app);
-    await browser.post('/auth/login').type('form').send({ role: 'requester' });
+    await browser
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
     requestsModel.findGenericActiveUserId.mockResolvedValue(null);
 
     const response = await browser.post('/requester/submit').type('form').send(formData);
@@ -226,7 +254,10 @@ describe('request submission routes', () => {
 
   it('uses a database requester rather than the demo login email when submitting', async () => {
     const browser = request.agent(app);
-    await browser.post('/auth/login').type('form').send({ role: 'requester' });
+    await browser
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
 
     await browser.post('/requester/submit').type('form').send(formData);
 
