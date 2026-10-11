@@ -1,0 +1,20 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="space-y-5">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <p class="text-sm text-slate-600">
+      You have logged <span class="font-semibold text-slate-900"><%= requests.length %></span>
+      request<%= requests.length === 1 ? '' : 's' %>.
+    </p>
+    <a href="/operator/submit"
+       class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+      + Log a Request
+    </a>
+  </div>
+
+  <%- include('../partials/operator-logged-request-table', { requests }) %>
+</div>
+
+<%- include('partials/app-layout-foot') %>

@@ -1,5 +1,4 @@
 const { query, pool } = require('../../config/database');
-const { REQUEST_STATUSES } = require('./requests.constants');
 
 const toTitleCase = (str) => {
   if (!str) return '';
@@ -13,6 +12,30 @@ const formatDate = (date) => {
   if (!date) return '';
   return new Date(date).toISOString().slice(0, 16).replace('T', ' ');
 };
+
+const requestsSelect = `
+  SELECT
+    r.request_id, r.request_number, r.title, r.description, r.status, r.priority, r.location,
+    r.created_at, r.updated_at, r.overdue_flag,
+    c.name as category_name,
+    d.name as department_name,
+    u.first_name || ' ' || u.last_name as requester_name,
+    u.email as requester_email,
+    u.phone as requester_phone,
+    ext.first_name || ' ' || ext.last_name as ext_requester_name,
+    ext.email as ext_requester_email,
+    ext.phone as ext_requester_phone,
+    staff.first_name || ' ' || staff.last_name as assigned_to_name,
+    creator.first_name || ' ' || creator.last_name as created_by_name,
+    (SELECT COUNT(*) FROM request_attachments WHERE request_id = r.request_id) as attachment_count
+  FROM service_requests r
+  LEFT JOIN request_categories c ON r.category_id = c.category_id
+  LEFT JOIN departments d ON c.department_id = d.department_id
+  LEFT JOIN users u ON r.requester_id = u.user_id
+  LEFT JOIN external_requesters ext ON r.external_requester_id = ext.external_requester_id
+  LEFT JOIN users staff ON r.assigned_staff_id = staff.user_id
+  LEFT JOIN users creator ON r.created_by = creator.user_id
+`;
 
 const mapRowToRequest = (row) => ({
   id: row.request_id,
@@ -30,6 +53,7 @@ const mapRowToRequest = (row) => ({
   submittedAt: formatDate(row.created_at),
   updatedAt: formatDate(row.updated_at),
   assignedTo: row.assigned_to_name || 'Unassigned',
+  createdBy: row.created_by_name || '',
   hasAttachment: parseInt(row.attachment_count) > 0,
   attachmentCount: parseInt(row.attachment_count) || 0,
   overdue: row.overdue_flag || false,
@@ -38,29 +62,180 @@ const mapRowToRequest = (row) => ({
 });
 
 exports.findAll = async () => {
-  const sql = `
-    SELECT 
-      r.request_id, r.request_number, r.title, r.description, r.status, r.priority, r.location, 
-      r.created_at, r.updated_at, r.overdue_flag,
-      c.name as category_name,
-      d.name as department_name,
-      u.first_name || ' ' || u.last_name as requester_name,
-      u.email as requester_email,
-      u.phone as requester_phone,
-      ext.first_name || ' ' || ext.last_name as ext_requester_name,
-      ext.email as ext_requester_email,
-      ext.phone as ext_requester_phone,
-      staff.first_name || ' ' || staff.last_name as assigned_to_name,
-      (SELECT COUNT(*) FROM request_attachments WHERE request_id = r.request_id) as attachment_count
-    FROM service_requests r
-    LEFT JOIN request_categories c ON r.category_id = c.category_id
-    LEFT JOIN departments d ON c.department_id = d.department_id
-    LEFT JOIN users u ON r.requester_id = u.user_id
-    LEFT JOIN external_requesters ext ON r.external_requester_id = ext.external_requester_id
-    LEFT JOIN users staff ON r.assigned_staff_id = staff.user_id
-    ORDER BY r.created_at DESC
-  `;
+  const sql = `${requestsSelect} ORDER BY r.created_at DESC`;
   const result = await query(sql);
+  return result.rows.map(mapRowToRequest);
+};
+
+exports.findCategories = async () => {
+  const result = await query(
+    `SELECT category_id AS id, name
+    FROM request_categories
+    WHERE is_active = true
+    ORDER BY name`
+  );
+  return result.rows;
+};
+
+exports.findActiveCategory = async (id) => {
+  const result = await query(
+    `SELECT category_id AS id, name
+    FROM request_categories
+    WHERE category_id = $1 AND is_active = true`,
+    [id]
+  );
+  return result.rows[0] || null;
+};
+
+exports.searchExternalRequesters = async (searchTerm) => {
+  const result = await query(
+    `SELECT
+      external_requester_id AS id,
+      first_name AS "firstName",
+      last_name AS "lastName",
+      phone,
+      email,
+      preferred_contact_method AS "preferredContactMethod"
+    FROM external_requesters
+    WHERE first_name ILIKE $1
+      OR last_name ILIKE $1
+      OR concat_ws(' ', first_name, last_name) ILIKE $1
+      OR email ILIKE $1
+      OR phone ILIKE $1
+    ORDER BY last_name, first_name
+    LIMIT 10`,
+    [`%${searchTerm}%`]
+  );
+  return result.rows;
+};
+
+exports.findExternalRequesterById = async (id) => {
+  const result = await query(
+    `SELECT
+      external_requester_id AS id,
+      first_name AS "firstName",
+      last_name AS "lastName",
+      phone,
+      email,
+      preferred_contact_method AS "preferredContactMethod"
+    FROM external_requesters
+    WHERE external_requester_id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+};
+
+exports.findGenericActiveUserId = async (userTypes) => {
+  const findUser = () =>
+    query(
+      `SELECT user_id
+      FROM users
+      WHERE user_type = ANY($1::user_type[]) AND is_active = true
+      ORDER BY CASE WHEN user_type = $2 THEN 0 ELSE 1 END, created_at, user_id
+      LIMIT 1`,
+      [userTypes, userTypes[0]]
+    );
+  const result = await findUser();
+  if (result.rows[0]) {
+    return result.rows[0].user_id;
+  }
+
+  // TODO: Remove these placeholder accounts when database-backed authentication is implemented.
+  const userType = userTypes[0];
+  const label = userType === 'REQUESTER' ? 'Requester' : 'Staff';
+  const email = `demo-${userType.toLowerCase()}@civicconnect.local`;
+  const created = await query(
+    `INSERT INTO users (email, password_hash, first_name, last_name, user_type)
+    VALUES ($1, $2, 'Demo', $3, $4)
+    ON CONFLICT (email) DO NOTHING
+    RETURNING user_id`,
+    [email, 'AUTH_NOT_IMPLEMENTED', label, userType]
+  );
+  if (created.rows[0]) {
+    return created.rows[0].user_id;
+  }
+
+  const retry = await findUser();
+  return retry.rows[0]?.user_id || null;
+};
+
+exports.create = async (input, generateRequestNumber) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const year = new Date().getFullYear();
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+      `service-request-number:${year}`,
+    ]);
+    const sequenceResult = await client.query(
+      `SELECT COALESCE(MAX(SPLIT_PART(request_number, '-', 3)::integer), 0) AS last_sequence
+      FROM service_requests
+      WHERE request_number LIKE $1`,
+      [`CC-${year}-%`]
+    );
+    const requestNumber = generateRequestNumber(
+      year,
+      Number(sequenceResult.rows[0].last_sequence) + 1
+    );
+
+    let externalRequesterId = input.externalRequesterId || null;
+    if (input.externalRequester && !externalRequesterId) {
+      const externalResult = await client.query(
+        `INSERT INTO external_requesters
+          (first_name, last_name, phone, email, preferred_contact_method)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING external_requester_id`,
+        [
+          input.externalRequester.firstName,
+          input.externalRequester.lastName,
+          input.externalRequester.phone,
+          input.externalRequester.email,
+          input.externalRequester.preferredContactMethod,
+        ]
+      );
+      externalRequesterId = externalResult.rows[0].external_requester_id;
+    }
+
+    const requestResult = await client.query(
+      `INSERT INTO service_requests
+        (request_number, requester_id, external_requester_id, created_by,
+         category_id, title, description, location, priority)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING request_id, request_number, status, created_at`,
+      [
+        requestNumber,
+        input.requesterId,
+        externalRequesterId,
+        input.createdBy,
+        input.categoryId,
+        input.title,
+        input.description,
+        input.location,
+        input.priority,
+      ]
+    );
+
+    await client.query('COMMIT');
+    return requestResult.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+exports.findByRequesterId = async (userId) => {
+  const sql = `${requestsSelect} WHERE r.requester_id = $1 ORDER BY r.created_at DESC`;
+  const result = await query(sql, [userId]);
+  return result.rows.map(mapRowToRequest);
+};
+
+exports.findByCreatorId = async (userId) => {
+  const sql = `${requestsSelect}
+    WHERE r.created_by = $1
+    ORDER BY r.created_at DESC`;
+  const result = await query(sql, [userId]);
   return result.rows.map(mapRowToRequest);
 };
 

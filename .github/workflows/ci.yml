@@ -75,6 +75,10 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
     steps:
       - uses: actions/checkout@v4
         with:

@@ -16,4 +16,9 @@ const managementNav = [
   { href: '/manager/users', label: 'User Management' },
 ];
 
-module.exports = { requesterNav, staffNav, managementNav };
+const operatorNav = [
+  { href: '/operator/submit', label: 'Log a Request' },
+  { href: '/operator/requests', label: 'Logged Requests' },
+];
+
+module.exports = { requesterNav, staffNav, managementNav, operatorNav };

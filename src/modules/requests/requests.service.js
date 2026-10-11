@@ -1,6 +1,96 @@
 const requestsModel = require('./requests.model');
 const { REQUEST_STATUSES, ALLOWED_TRANSITIONS } = require('./requests.constants');
+const { validateSubmission, validateExternalRequester, isUuid } = require('./requests.schema');
 const EventEmitter = require('events');
+
+class RequestValidationError extends Error {
+  constructor(errors) {
+    super('Please correct the request details.');
+    this.name = 'RequestValidationError';
+    this.errors = errors;
+  }
+}
+
+class SubmissionUserNotFoundError extends Error {
+  constructor() {
+    super('No active database user is available for this action.');
+    this.name = 'SubmissionUserNotFoundError';
+  }
+}
+
+const generateRequestNumber = (year, sequence) => `CC-${year}-${String(sequence).padStart(4, '0')}`;
+
+const getGenericActorId = async (actorType) => {
+  // TODO: Replace generic database users with the authenticated session user's database ID.
+  const actorUserTypes = actorType === 'REQUESTER' ? ['REQUESTER'] : ['STAFF', 'ADMIN'];
+  const actorId = await requestsModel.findGenericActiveUserId(actorUserTypes);
+  if (!actorId) {
+    throw new SubmissionUserNotFoundError();
+  }
+  return actorId;
+};
+
+const createServiceRequest = async ({ input, actorType }) => {
+  const submission = validateSubmission(input);
+  const errors = { ...submission.errors };
+  let externalRequester = null;
+
+  if (actorType === 'OPERATOR') {
+    const externalRequesterId =
+      typeof input.externalRequesterId === 'string' ? input.externalRequesterId.trim() : '';
+    if (externalRequesterId) {
+      if (!isUuid(externalRequesterId)) {
+        throw new RequestValidationError({
+          externalRequesterId: 'Please select a valid community member.',
+        });
+      }
+      externalRequester = await requestsModel.findExternalRequesterById(externalRequesterId);
+      if (!externalRequester) {
+        throw new RequestValidationError({
+          externalRequesterId: 'Please select an existing community member or enter new details.',
+        });
+      }
+    } else {
+      const external = validateExternalRequester(input);
+      Object.assign(errors, external.errors);
+      externalRequester = external.value;
+    }
+  } else if (actorType !== 'REQUESTER') {
+    throw new Error(`Unsupported request creator type: ${actorType}`);
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw new RequestValidationError(errors);
+  }
+
+  const category = await requestsModel.findActiveCategory(submission.value.categoryId);
+  if (!category) {
+    throw new RequestValidationError({
+      categoryId: 'Please select an available category.',
+    });
+  }
+
+  const actorId = await getGenericActorId(actorType);
+
+  const created = await requestsModel.create(
+    {
+      ...submission.value,
+      requesterId: actorType === 'REQUESTER' ? actorId : null,
+      externalRequesterId:
+        actorType === 'OPERATOR' && input.externalRequesterId
+          ? input.externalRequesterId.trim()
+          : null,
+      externalRequester: actorType === 'OPERATOR' ? externalRequester : null,
+      createdBy: actorId,
+    },
+    generateRequestNumber
+  );
+
+  return {
+    ...created,
+    reference: created.reference || created.request_number,
+  };
+};
 
 class RequestWorkflowService extends EventEmitter {
   constructor() {
@@ -58,5 +148,21 @@ workflowService.on('RequestStatusChanged', (data) => {
 });
 
 exports.list = async () => await requestsModel.findAll();
+exports.listCategories = async () => await requestsModel.findCategories();
+exports.listForRequester = async () =>
+  requestsModel.findByRequesterId(await getGenericActorId('REQUESTER'));
+exports.listCreatedByOperator = async () =>
+  requestsModel.findByCreatorId(await getGenericActorId('OPERATOR'));
+exports.searchExternalRequesters = async (searchTerm) =>
+  requestsModel.searchExternalRequesters(searchTerm);
+exports.submit = async (input) =>
+  createServiceRequest({
+    input,
+    actorType: 'REQUESTER',
+  });
+exports.createServiceRequest = createServiceRequest;
+exports.generateRequestNumber = generateRequestNumber;
+exports.RequestValidationError = RequestValidationError;
+exports.SubmissionUserNotFoundError = SubmissionUserNotFoundError;
 exports.getById = async (id) => await requestsModel.findById(id);
 exports.workflow = workflowService;
