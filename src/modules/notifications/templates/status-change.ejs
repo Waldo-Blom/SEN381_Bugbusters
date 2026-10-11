@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Request status update</title>
+  </head>
+  <body>
+    <main>
+      <p>Good day <%= requesterName %>,</p>
+      <p>
+        This email is with regards to <%= requestName %> with request id of <%= requestId %>.
+        The status of the request has changed from status <%= previousStatus %> to <%= newStatus %>.
+      </p>
+      <% if (staffComment) { %>
+        <p>Staff member '<%= staffName %>' had this to say:</p>
+        <p><%= staffComment %></p>
+      <% } %>
+      <p>Kind regards,</p>
+      <p>CivicConnect, <%= department %> department</p>
+    </main>
+  </body>
+</html>

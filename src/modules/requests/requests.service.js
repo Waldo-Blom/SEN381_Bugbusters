@@ -1,7 +1,7 @@
 const requestsModel = require('./requests.model');
 const { REQUEST_STATUSES, ALLOWED_TRANSITIONS } = require('./requests.constants');
 const { validateSubmission, validateExternalRequester, isUuid } = require('./requests.schema');
-const EventEmitter = require('events');
+const eventBus = require('../../shared/events/eventBus');
 
 class RequestValidationError extends Error {
   constructor(errors) {
@@ -85,11 +85,7 @@ const createServiceRequest = async ({ input, actorType, actorUserId }) => {
   };
 };
 
-class RequestWorkflowService extends EventEmitter {
-  constructor() {
-    super();
-  }
-
+class RequestWorkflowService {
   async transitionRequest(requestId, newStatus, userId, comment = null) {
     const request = await requestsModel.findById(requestId);
     if (!request) {
@@ -114,7 +110,7 @@ class RequestWorkflowService extends EventEmitter {
     const updatedRequest = await requestsModel.updateStatus(requestId, newStatus, comment);
 
     // Fire side effects asynchronously (FR-104 email, FR-302 audit log)
-    this.emit('RequestStatusChanged', {
+    eventBus.emit('RequestStatusChanged', {
       requestId,
       oldStatus,
       newStatus,
@@ -128,17 +124,6 @@ class RequestWorkflowService extends EventEmitter {
 }
 
 const workflowService = new RequestWorkflowService();
-
-// Mock listeners for secondary side-effects (Decoupled per ADR-005)
-workflowService.on('RequestStatusChanged', (data) => {
-  console.log('[AuditLogService] Status changed:', data);
-  // TODO: Insert into request_status_history
-});
-
-workflowService.on('RequestStatusChanged', (data) => {
-  console.log('[NotificationService] Dispatching email for request:', data.requestId);
-  // TODO: emailService.sendStatusUpdate(...)
-});
 
 exports.list = async () => await requestsModel.findAll();
 exports.listCategories = async () => await requestsModel.findCategories();
