@@ -46,10 +46,20 @@
                 <td class="px-5 py-4 text-xs text-slate-500"><%= entry.requestedAt %></td>
                 <td class="px-5 py-4 text-slate-600"><%= entry.status %></td>
                 <td class="px-5 py-4">
-                  <div class="flex items-center gap-2">
-                    <button type="button" disabled title="Review actions will be available soon." class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Approve</button>
-                    <button type="button" disabled title="Review actions will be available soon." class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Reject</button>
-                  </div>
+                  <% if (entry.canReview) { %>
+                    <div class="flex items-center gap-2">
+                      <form method="POST" action="/manager/contact-access-requests/<%= entry.id %>/approve" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+                        <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
+                        <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Approve</button>
+                      </form>
+                      <form method="POST" action="/manager/contact-access-requests/<%= entry.id %>/reject" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+                        <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
+                        <button type="submit" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Reject</button>
+                      </form>
+                    </div>
+                  <% } else { %>
+                    <span class="text-xs text-slate-500"><%= entry.status === 'Pending' ? 'Staff assignment changed' : 'Reviewed' %></span>
+                  <% } %>
                 </td>
               </tr>
             <% }); %>

@@ -81,22 +81,25 @@ it('denies a manager who does not own an active department', async () => {
   expect(response.text).not.toContain('Incoming Contact Access Requests');
 });
 
-it('uses the existing department lookup and renders an honest setup state', async () => {
+it('uses the existing department lookup and loads the department inbox', async () => {
   query.mockResolvedValueOnce({ rows: [department] });
+  query.mockResolvedValueOnce({ rows: [] });
   const response = await request(createApp(manager)).get(
     `${inboxPath}?departmentId=foreign-department`
   );
   expect(response.status).toBe(200);
   expect(response.text).toContain(department.name);
   expect(response.text).toContain('Incoming Contact Access Requests');
-  expect(response.text).toContain('will appear here when contact access requests are enabled');
+  expect(response.text).toContain('No contact access requests to review.');
   expect(response.text).not.toMatch(/foreign-department|stale-department/);
-  expect(query).toHaveBeenCalledTimes(1);
+  expect(query).toHaveBeenCalledTimes(2);
   expect(query).toHaveBeenCalledWith(expect.stringContaining('d.manager_id = $1'), [managerId]);
   const sql = query.mock.calls[0][0];
   expect(sql).toContain("u.user_type = 'MANAGER'");
   expect(sql).toContain('u.is_active = true');
   expect(sql).toContain('d.is_active = true');
+  expect(query.mock.calls[1][1]).toEqual([managerId, department.id]);
+  expect(query.mock.calls[1][0]).toContain('d.department_id = a.department_id');
 });
 
 it('does not look up a department without an authenticated ID', async () => {
@@ -111,14 +114,17 @@ it('handles database failures without exposing their details', async () => {
   expect(response.text).not.toContain('private database failure');
 });
 
-it('renders incoming entries safely and keeps review buttons disabled', async () => {
+it('renders incoming entries safely and connects review forms', async () => {
   const html = await ejs.renderFile(
     path.join(__dirname, '../views/manager/contact-access-requests.ejs'),
     {
       ...viewContext,
-      contactAccessRequestsEnabled: false,
+      contactAccessRequestsEnabled: true,
+      contactAccessCsrfToken: 'test-csrf-token',
       contactAccessRequests: [
         {
+          id: '44444444-4444-4444-8444-444444444444',
+          canReview: true,
           requestId: '33333333-3333-4333-8333-333333333333',
           reference: 'CC-TEST-1',
           title: 'Broken pipe',
@@ -136,16 +142,21 @@ it('renders incoming entries safely and keeps review buttons disabled', async ()
   expect(html).toContain('/manager/requests/33333333-3333-4333-8333-333333333333');
   expect(html).not.toContain('<script>alert(1)</script>');
   expect(html).toContain('&lt;script&gt;');
-  expect(html).toMatch(/<button type="button" disabled[^>]*>Approve<\/button>/);
-  expect(html).toMatch(/<button type="button" disabled[^>]*>Reject<\/button>/);
+  expect(html).toMatch(/<button type="submit"[^>]*>Approve<\/button>/);
+  expect(html).toMatch(/<button type="submit"[^>]*>Reject<\/button>/);
+  expect(html).toContain(
+    '/manager/contact-access-requests/44444444-4444-4444-8444-444444444444/approve'
+  );
+  expect(html).toContain('test-csrf-token');
 });
 
-it('keeps direct grant and revoke buttons disabled without changing other manager controls', async () => {
+it.each([false, true])('connects direct contact controls with approval=%s', async (approved) => {
   const html = await ejs.renderFile(
     path.resolve(__dirname, '../../requests/views/manager/request-detail.ejs'),
     {
       ...viewContext,
       request: {
+        contactInformationApproved: approved,
         id: '33333333-3333-4333-8333-333333333333',
         reference: 'CC-TEST-1',
         title: 'Broken pipe',
@@ -168,8 +179,8 @@ it('keeps direct grant and revoke buttons disabled without changing other manage
     },
     { views: viewRoots }
   );
-  expect(html).toMatch(/<button type="button" disabled[^>]*>Authorise contact access<\/button>/);
-  expect(html).toMatch(/<button type="button" disabled[^>]*>Revoke contact access<\/button>/);
+  expect(html).toContain(approved ? 'Revoke contact access' : 'Authorise contact access');
+  expect(html).toContain(`/contact-access/${approved ? 'revoke' : 'authorise'}`);
   expect(html).toContain('Reassign');
   expect(html).toContain('Close Request');
 });

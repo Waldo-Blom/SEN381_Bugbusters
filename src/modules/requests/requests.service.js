@@ -139,6 +139,13 @@ class RequestWorkflowService {
 const workflowService = new RequestWorkflowService();
 
 exports.list = async () => await requestsModel.findAll();
+exports.contactAccess = require('./requests.contact-access.service');
+exports.getForManager = async (id, managerId) => {
+  await exports.contactAccess.getForManager(id, managerId);
+  const request = await requestsModel.findById(id, undefined, undefined, managerId);
+  if (!request) throw new RequestAccessError('Request not found.', 404);
+  return request;
+};
 exports.listForStaff = async (staffId) => {
   if (!isUuid(staffId)) throw new RequestAccessError('Invalid staff identifier.', 403);
   return requestsModel.findForStaff(staffId);

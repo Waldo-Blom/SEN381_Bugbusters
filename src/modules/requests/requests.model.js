@@ -55,6 +55,13 @@ const requestsSelect = (contactCondition) => `
     r.created_at, r.updated_at, r.overdue_flag,
     r.assigned_staff_id, r.contact_information_approved,
     ${contactCondition && contactCondition !== 'false' ? `${staffMembership} AS staff_allowed,` : ''}
+    ${
+      contactCondition && contactCondition !== 'false'
+        ? `(SELECT a.status FROM request_contact_access_requests a
+      WHERE a.request_id = r.request_id AND a.requested_by = $2 AND a.department_id = c.department_id
+      ORDER BY a.requested_at DESC, a.contact_access_request_id DESC LIMIT 1) AS contact_access_status,`
+        : ''
+    }
     c.name as category_name,
     d.name as department_name,
     ${contactProjection(contactCondition)},
@@ -92,6 +99,7 @@ const mapRowToRequest = (row) => ({
   overdue: row.overdue_flag || false,
   comments: [],
   timeline: [],
+  contactInformationApproved: row.contact_information_approved === true,
 });
 
 exports.findAll = async () => {
@@ -304,14 +312,18 @@ exports.findByCreatorId = async (userId) => {
   return result.rows.map(mapRowToRequest);
 };
 
-exports.findById = async (id, requesterId, staffId) => {
+exports.findById = async (id, requesterId, staffId, managerId) => {
   const requesterFilter = requesterId ? 'AND r.requester_id = $2' : '';
   const contactCondition = staffId
     ? 'r.contact_information_approved = true AND r.assigned_staff_id = $2'
     : null;
   let sql = `${requestsSelect(contactCondition)} WHERE r.request_id = $1 ${requesterFilter}`;
   if (staffId) sql += ` AND ${staffMembership}`;
-  const params = requesterId ? [id, requesterId] : staffId ? [id, staffId] : [id];
+  if (managerId)
+    sql += ` AND d.manager_id = $2 AND d.is_active = true AND EXISTS (
+    SELECT 1 FROM users manager WHERE manager.user_id = $2 AND manager.user_type = 'MANAGER' AND manager.is_active = true)`;
+  const actorId = requesterId || staffId || managerId;
+  const params = actorId ? [id, actorId] : [id];
   const result = await query(sql, params);
   if (result.rows.length === 0) {
     if (staffId) requireStaffAccess(await exports.findAccessContext(id, staffId), staffId);
@@ -325,6 +337,7 @@ exports.findById = async (id, requesterId, staffId) => {
       row.contact_information_approved === true && row.assigned_staff_id === staffId;
     request.canManageStatus = row.assigned_staff_id === staffId;
     request.canAssign = !row.assigned_staff_id && request.status === 'Submitted';
+    request.contactAccessStatus = row.contact_access_status || null;
     if (!request.canViewContact) {
       request.requesterName = 'Restricted';
       request.requesterEmail = '';

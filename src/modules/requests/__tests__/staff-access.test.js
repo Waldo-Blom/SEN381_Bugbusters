@@ -166,7 +166,7 @@ it.each([
       expect(html).not.toMatch(/Private Citizen|private@example.com|0123456789/);
     }
     if (assigned && !approved) {
-      expect(html).toMatch(/<button type="button" disabled[^>]*>Request contact access<\/button>/);
+      expect(html).toMatch(/<button type="submit"[^>]*>Request contact access<\/button>/);
     } else {
       expect(html).not.toContain('Request contact access');
     }

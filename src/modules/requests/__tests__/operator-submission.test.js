@@ -15,6 +15,7 @@ jest.mock('../../auth/auth.service', () => ({
   createRequester: jest.fn(),
   authenticate: jest.fn(),
 }));
+jest.mock('../requests.contact-access.model', () => ({ findContext: jest.fn() }));
 
 const request = require('supertest');
 const app = require('../../../app');
@@ -28,7 +29,7 @@ const category = {
   name: 'Roads',
 };
 const managerRequest = {
-  id: 'r1',
+  id: '55555555-5555-4555-8555-555555555555',
   reference: 'CC-2026-0481',
   title: 'Large pothole on Maple Street',
   description: 'A pothole needs repair.',
@@ -92,14 +93,19 @@ describe('operator-assisted request submission', () => {
     authService.authenticate.mockImplementation(async (email) => {
       const role = email.split('@')[0];
       return {
-        id: `demo-${role}`,
+        id: role === 'management' ? '66666666-6666-4666-8666-666666666666' : `demo-${role}`,
         name: `Demo ${role}`,
         email,
         role,
         departmentId: null,
       };
     });
-    requestsModel.findById.mockImplementation((id) => (id === 'r1' ? managerRequest : null));
+    requestsModel.findById.mockImplementation((id) =>
+      id === managerRequest.id ? managerRequest : null
+    );
+    require('../requests.contact-access.model').findContext.mockResolvedValue({
+      manager_allowed: true,
+    });
     requestsModel.findCategories.mockResolvedValue([category]);
     requestsModel.findActiveCategory.mockResolvedValue(category);
     requestsModel.searchExternalRequesters.mockResolvedValue([]);
@@ -357,7 +363,7 @@ describe('operator-assisted request submission', () => {
       .type('form')
       .send({ email: 'management@demo.invalid', password: 'SecurePass1' });
 
-    const response = await manager.get('/manager/requests/r1');
+    const response = await manager.get(`/manager/requests/${managerRequest.id}`);
     expect(response.status).toBe(200);
     expect(response.text).not.toContain('Submission channel');
     expect(response.text).toContain('Created by');

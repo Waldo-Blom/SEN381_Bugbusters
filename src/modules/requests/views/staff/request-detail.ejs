@@ -123,10 +123,13 @@
           <div><p class="text-xs text-slate-400">Phone</p><p class="font-medium text-slate-700"><%= request.requesterPhone || 'Not provided' %></p></div>
           <% } else { %>
           <div class="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
-            <span class="text-xs text-amber-700">Requester contact information requires management approval.</span>
+            <span class="text-xs text-amber-700"><%= request.contactAccessStatus === 'REJECTED' ? 'Your request for contact access was denied by management.' : request.contactAccessStatus === 'PENDING' ? 'Your contact access request is awaiting management approval.' : request.contactAccessStatus === 'CANCELLED' ? 'Contact access is no longer authorised.' : 'Requester contact information requires management approval.' %></span>
           </div>
-          <% if (request.canManageStatus) { %>
-          <button type="button" disabled title="Contact access requests will be available soon." class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Request contact access</button>
+          <% if (request.canManageStatus && !['PENDING', 'REJECTED'].includes(request.contactAccessStatus)) { %>
+          <form method="POST" action="/staff/requests/<%= request.id %>/contact-access" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+            <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
+            <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Request contact access</button>
+          </form>
           <% } %>
           <% } %>
         </div>

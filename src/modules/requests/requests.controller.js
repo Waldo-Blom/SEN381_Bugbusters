@@ -2,6 +2,7 @@ const requestsService = require('./requests.service');
 const { REQUEST_STATUSES } = require('./requests.constants');
 const { pageContext } = require('../../shared/views/pageContext');
 const { getAuthenticatedUserId, getAuthenticatedUserRole } = require('../auth/auth.middleware');
+const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
 
 // ---- requester ----
 const submissionView = async (req, res, role, options = {}) => {
@@ -179,6 +180,7 @@ exports.staffSearch = async (req, res) => {
 
 exports.staffDetail = async (req, res, next) => {
   try {
+    res.set('Cache-Control', 'no-store');
     res.render('requests/views/staff/request-detail', {
       ...pageContext('staff', req),
       title: 'Request Details',
@@ -186,6 +188,7 @@ exports.staffDetail = async (req, res, next) => {
       pageTitle: 'Request Details',
       pageSubtitle: 'Manage and resolve this request',
       request: await requestsService.getForStaff(req.params.id, getAuthenticatedUserId(req)),
+      contactAccessCsrfToken: getCsrfToken(req),
     });
   } catch (error) {
     if (error.statusCode) return res.status(error.statusCode).send(error.message);
@@ -217,18 +220,97 @@ exports.allRequests = async (req, res) => {
 
 exports.managerDetail = async (req, res, next) => {
   try {
+    res.set('Cache-Control', 'no-store');
     res.render('requests/views/manager/request-detail', {
       ...pageContext('manager', req),
       title: 'Request Details',
       activeHref: '/manager/requests',
       pageTitle: 'Request Details',
       pageSubtitle: 'Manager view with assignment controls',
-      request: await requestsService.getById(req.params.id),
+      request: await requestsService.getForManager(req.params.id, getAuthenticatedUserId(req)),
+      contactAccessCsrfToken: getCsrfToken(req),
     });
   } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
     next(error);
   }
 };
+
+const contactAction = async (req, res, next, operation, destination) => {
+  try {
+    await operation();
+    res.redirect(destination);
+  } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    next(error);
+  }
+};
+
+exports.requestContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.requestAccess(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        req.body?.reason
+      ),
+    `/staff/requests/${req.params.id}`
+  );
+exports.approveContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.reviewAccess(
+        req.params.accessId,
+        getAuthenticatedUserId(req),
+        true
+      ),
+    '/manager/contact-access-requests'
+  );
+exports.rejectContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.reviewAccess(
+        req.params.accessId,
+        getAuthenticatedUserId(req),
+        false
+      ),
+    '/manager/contact-access-requests'
+  );
+exports.authoriseContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.changeApproval(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        true
+      ),
+    `/manager/requests/${req.params.id}`
+  );
+exports.revokeContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.changeApproval(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        false
+      ),
+    `/manager/requests/${req.params.id}`
+  );
 
 const transitionRequest = async (req, res, status, redirectPath) => {
   try {
