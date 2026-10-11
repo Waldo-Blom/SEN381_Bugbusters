@@ -126,6 +126,10 @@ class RequestWorkflowService {
 const workflowService = new RequestWorkflowService();
 
 exports.list = async () => await requestsModel.findAll();
+exports.listForManager = async (managerId) => {
+  if (!managerId) return null;
+  return requestsModel.findForManager(managerId);
+};
 exports.listCategories = async () => await requestsModel.findCategories();
 exports.listForRequester = async (requesterId) => {
   if (!requesterId) {

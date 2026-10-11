@@ -3,10 +3,8 @@
 }) %>
 
 <%
-  // Managers only ever see requests that belong to their own department.
-  const myRequests = requests.filter(function (r) {
-    return r.department === user.department;
-  });
+  // Department access is enforced by the database query before rendering.
+  const myRequests = requests;
 %>
 
 <div class="space-y-5">
@@ -17,7 +15,7 @@
       <!-- Department banner (read-only context) -->
       <div class="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2.5">
         <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</span>
-        <span class="text-sm font-medium text-slate-800"><%= user.department %></span>
+        <span class="text-sm font-medium text-slate-800"><%= department.name %></span>
       </div>
 
       <input type="text" placeholder="Search requests..."
@@ -35,7 +33,7 @@
   <p class="text-sm text-slate-600">
     Showing <span class="font-semibold text-slate-900"><%= myRequests.length %></span>
     request<%= myRequests.length === 1 ? '' : 's' %>
-    for <span class="font-semibold text-slate-900"><%= user.department %></span>
+    for <span class="font-semibold text-slate-900"><%= department.name %></span>
   </p>
 
   <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">

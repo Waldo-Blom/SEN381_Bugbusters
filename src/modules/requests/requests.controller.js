@@ -194,13 +194,15 @@ exports.staffDetail = async (req, res, next) => {
 
 // ---- manager ----
 exports.allRequests = async (req, res) => {
+  const data = await requestsService.listForManager(getAuthenticatedUserId(req));
+  if (!data) return res.status(403).send('You do not manage an active department.');
   res.render('requests/views/manager/all-requests', {
     ...pageContext('manager', req),
     title: 'All Requests',
     activeHref: '/manager/requests',
     pageTitle: 'All Requests',
-    pageSubtitle: 'Every request across all departments',
-    requests: await requestsService.list(),
+    pageSubtitle: 'Requests for your department',
+    ...data,
   });
 };
 
