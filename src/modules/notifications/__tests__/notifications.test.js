@@ -96,6 +96,18 @@ describe('request status email notifications', () => {
     });
   });
 
+  it.each(['SMTP', ' smtp '])('accepts SMTP provider value %j', (provider) => {
+    process.env.EMAIL_PROVIDER = provider;
+
+    expect(getEmailProvider()).toBe('smtp');
+    expect(getEmailTransportOptions()).toEqual({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: { user: 'ethereal-user', pass: 'ethereal-pass' },
+    });
+  });
+
   // Opt in with RUN_ETHEREAL_TEST=true to send a real test email and print its preview link.
   const etherealTest = process.env.RUN_ETHEREAL_TEST === 'true' ? test : test.skip;
 

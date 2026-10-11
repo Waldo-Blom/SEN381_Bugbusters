@@ -28,8 +28,12 @@ const getEmailTransportOptions = () => {
 };
 
 const getEmailProvider = () => {
-  const provider =
-    process.env.EMAIL_PROVIDER || (process.env.NODE_ENV === 'production' ? 'gmail' : 'smtp');
+  const configuredProvider = process.env.EMAIL_PROVIDER;
+  const provider = configuredProvider
+    ? configuredProvider.trim().toLowerCase()
+    : process.env.NODE_ENV === 'production'
+      ? 'gmail'
+      : 'smtp';
 
   if (!['gmail', 'smtp'].includes(provider)) {
     throw new Error('EMAIL_PROVIDER must be either "gmail" or "smtp".');
