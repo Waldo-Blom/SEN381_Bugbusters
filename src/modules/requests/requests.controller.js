@@ -144,14 +144,14 @@ exports.requesterDetail = async (req, res, next) => {
 };
 
 // ---- staff ----
-exports.staffSearch = (req, res) => {
+exports.staffSearch = async (req, res) => {
   res.render('requests/views/staff/search', {
     ...pageContext('staff'),
     title: 'Search & Filter',
     activeHref: '/staff/search',
     pageTitle: 'Search & Filter',
     pageSubtitle: 'Find requests across all categories',
-    requests: requestsService.list(),
+    requests: await requestsService.list(),
   });
 };
 
@@ -171,14 +171,14 @@ exports.staffDetail = async (req, res, next) => {
 };
 
 // ---- manager ----
-exports.allRequests = (req, res) => {
+exports.allRequests = async (req, res) => {
   res.render('requests/views/manager/all-requests', {
     ...pageContext('manager'),
     title: 'All Requests',
     activeHref: '/manager/requests',
     pageTitle: 'All Requests',
     pageSubtitle: 'Every request across all departments',
-    requests: requestsService.list(),
+    requests: await requestsService.list(),
   });
 };
 

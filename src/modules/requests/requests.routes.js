@@ -50,4 +50,11 @@ router.get('/manager/requests/:id', requireManager, c.managerDetail);
 router.post('/staff/requests/:id/resolve', requireStaff, c.resolveRequest);
 router.post('/manager/requests/:id/close', requireManager, c.closeRequest);
 
+// workflow actions
+router.post('/staff/requests/:id/assign', c.assignRequest);
+router.post('/staff/requests/:id/start-progress', c.startProgress);
+router.post('/staff/requests/:id/resolve', c.resolveRequest);
+router.post('/staff/requests/:id/reject', c.rejectRequest);
+router.post('/manager/requests/:id/close', c.closeRequest);
+
 module.exports = router;

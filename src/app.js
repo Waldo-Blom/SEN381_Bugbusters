@@ -4,6 +4,7 @@ const session = require('express-session');
 const path = require('path');
 
 const registerModules = require('./modules');
+const { query } = require('./config/database');
 
 const app = express();
 
@@ -34,9 +35,15 @@ app.use((req, res, next) => {
 // Routes: each module declares its own paths (see modules/index.js)
 registerModules(app);
 
-// Health check for CI
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+// Health check for CI and deployment monitoring
+app.get('/health', async (req, res) => {
+  try {
+    await query('SELECT 1');
+    res.status(200).json({ status: 'ok', database: 'connected' });
+  } catch (error) {
+    console.error('Health check failed: PostgreSQL is unavailable:', error.message);
+    res.status(503).json({ status: 'error', database: 'unavailable' });
+  }
 });
 
 // // TEMP route to deliberately throw a 500 error for testing
