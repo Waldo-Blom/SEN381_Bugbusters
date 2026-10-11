@@ -291,12 +291,21 @@ exports.updateStatus = async (id, newStatus, comment) => {
     if (reqRes.rows.length === 0) throw new Error('Request not found');
     const oldDbStatus = reqRes.rows[0].status;
 
-    const now = new Date();
-
-    // Update status
+    // Use the database clock for every timestamp in this transaction. Passing
+    // a JS Date into timestamp-without-time-zone columns stored local wall time.
     await client.query(
-      'UPDATE service_requests SET status = $1, updated_at = $2 WHERE request_id = $3',
-      [dbStatus, now, id]
+      `UPDATE service_requests
+       SET status = $1, updated_at = LOCALTIMESTAMP,
+           resolved_at = CASE
+             WHEN $1 = 'RESOLVED' THEN LOCALTIMESTAMP
+             WHEN $1 = 'IN_PROGRESS' THEN NULL
+             ELSE resolved_at END,
+           closed_at = CASE WHEN $1 = 'CLOSED' THEN LOCALTIMESTAMP ELSE NULL END,
+           overdue_flag = CASE
+             WHEN $1 IN ('RESOLVED', 'CLOSED', 'REJECTED') THEN false
+             ELSE overdue_flag END
+       WHERE request_id = $2`,
+      [dbStatus, id]
     );
 
     // Find a generic staff user for the comment author / history since we don't pass userId from the model yet
@@ -311,16 +320,16 @@ exports.updateStatus = async (id, newStatus, comment) => {
     // Insert into status history if it changed
     if (oldDbStatus !== dbStatus && genericUserId) {
       await client.query(
-        'INSERT INTO request_status_history (request_id, old_status, new_status, changed_by, changed_at) VALUES ($1, $2, $3, $4, $5)',
-        [id, oldDbStatus, dbStatus, genericUserId, now]
+        'INSERT INTO request_status_history (request_id, old_status, new_status, changed_by, changed_at) VALUES ($1, $2, $3, $4, LOCALTIMESTAMP)',
+        [id, oldDbStatus, dbStatus, genericUserId]
       );
     }
 
     // If there's a comment
     if (comment && genericUserId) {
       await client.query(
-        'INSERT INTO request_comments (request_id, commented_by, content, created_at) VALUES ($1, $2, $3, $4)',
-        [id, genericUserId, comment, now]
+        'INSERT INTO request_comments (request_id, commented_by, content, created_at) VALUES ($1, $2, $3, LOCALTIMESTAMP)',
+        [id, genericUserId, comment]
       );
     }
 

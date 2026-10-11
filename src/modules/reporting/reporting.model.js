@@ -105,11 +105,10 @@ exports.findDashboardStats = async (managerId, departmentId) => {
             AVG(EXTRACT(EPOCH FROM (first_response_at - created_at)) / 3600.0)
               FILTER (WHERE first_response_at <= LOCALTIMESTAMP) AS avg_response_hours,
             COUNT(*) FILTER (WHERE status IN ('RESOLVED', 'CLOSED')
-              AND deadline IS NOT NULL AND completion_at >= created_at
-              AND completion_at <= LOCALTIMESTAMP) AS sla_total,
+              AND deadline IS NOT NULL AND completion_at >= created_at) AS sla_total,
             COUNT(*) FILTER (WHERE status IN ('RESOLVED', 'CLOSED')
               AND deadline IS NOT NULL AND completion_at >= created_at
-              AND completion_at <= LOCALTIMESTAMP AND completion_at <= deadline) AS sla_met
+              AND completion_at <= deadline) AS sla_met
      FROM timings`,
     [departmentId, managerId]
   );
