@@ -3,8 +3,8 @@
 }) %>
 
 <%
-  // Only show data for the logged-in manager's own department.
-  const scoped = requests.filter(function (r) { return r.department === user.department; });
+  // Requests have already been scoped to the manager's department server-side.
+  const scoped = requests;
 
   const open     = scoped.filter(r => ['Submitted','Assigned','In Progress'].includes(r.status));
   const overdue  = scoped.filter(r => r.overdue);
@@ -20,7 +20,7 @@
   <!-- Department banner -->
   <div class="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2.5">
     <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</span>
-    <span class="text-sm font-medium text-slate-800"><%= user.department %></span>
+    <span class="text-sm font-medium text-slate-800"><%= department.name %></span>
   </div>
 
   <!-- Metric cards -->
