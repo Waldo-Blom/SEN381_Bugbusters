@@ -1,7 +1,6 @@
 jest.mock('../requests.model', () => ({
   findById: jest.fn(),
   updateStatus: jest.fn(),
-  findGenericActiveUserId: jest.fn(),
   findByRequesterId: jest.fn(),
   findByCreatorId: jest.fn(),
 }));
@@ -16,32 +15,42 @@ describe('RequestWorkflowService', () => {
   });
 
   describe('Requester request listing', () => {
-    it('retrieves requests for the generic database requester', async () => {
+    it('retrieves requests for the authenticated requester ID', async () => {
       const requesterRequests = [{ id: 'request-1' }];
-      requestsModel.findGenericActiveUserId.mockResolvedValue('requester-1');
       requestsModel.findByRequesterId.mockResolvedValue(requesterRequests);
 
-      await expect(requestsService.listForRequester()).resolves.toBe(requesterRequests);
-      expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['REQUESTER']);
+      await expect(requestsService.listForRequester('requester-1')).resolves.toBe(
+        requesterRequests
+      );
       expect(requestsModel.findByRequesterId).toHaveBeenCalledWith('requester-1');
     });
 
-    it('retrieves operator logged requests for the generic database staff user', async () => {
-      requestsModel.findGenericActiveUserId.mockResolvedValue('staff-1');
-      requestsModel.findByCreatorId.mockResolvedValue([]);
-
-      await expect(requestsService.listCreatedByOperator()).resolves.toEqual([]);
-      expect(requestsModel.findGenericActiveUserId).toHaveBeenCalledWith(['STAFF', 'ADMIN']);
-      expect(requestsModel.findByCreatorId).toHaveBeenCalledWith('staff-1');
-    });
-
-    it('fails explicitly when the database has no active requester account', async () => {
-      requestsModel.findGenericActiveUserId.mockResolvedValue(null);
-
+    it('does not query requests without an authenticated requester ID', async () => {
       await expect(requestsService.listForRequester()).rejects.toThrow(
         'No active database user is available for this action.'
       );
       expect(requestsModel.findByRequesterId).not.toHaveBeenCalled();
+    });
+
+    it('loads a detail only for the authenticated requester', async () => {
+      requestsModel.findById.mockResolvedValue(null);
+
+      await expect(requestsService.getForRequester('request-1', 'requester-1')).resolves.toBeNull();
+      expect(requestsModel.findById).toHaveBeenCalledWith('request-1', 'requester-1');
+    });
+
+    it('retrieves operator logged requests for the authenticated operator ID', async () => {
+      requestsModel.findByCreatorId.mockResolvedValue([]);
+
+      await expect(requestsService.listCreatedByOperator('operator-1')).resolves.toEqual([]);
+      expect(requestsModel.findByCreatorId).toHaveBeenCalledWith('operator-1');
+    });
+
+    it('does not list operator requests without an authenticated user ID', async () => {
+      await expect(requestsService.listCreatedByOperator()).rejects.toThrow(
+        'No active database user is available for this action.'
+      );
+      expect(requestsModel.findByCreatorId).not.toHaveBeenCalled();
     });
   });
 

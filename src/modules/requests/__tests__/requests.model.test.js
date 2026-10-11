@@ -85,32 +85,15 @@ describe('Requests model', () => {
     ]);
   });
 
-  it('selects an active generic database user matching the requested roles', async () => {
-    db.query.mockResolvedValue({ rows: [{ user_id: 'staff-1' }] });
+  it('limits a requester detail query to both request ID and requester ID', async () => {
+    db.query.mockResolvedValue({ rows: [] });
 
-    await expect(requestsModel.findGenericActiveUserId(['STAFF', 'ADMIN'])).resolves.toBe(
-      'staff-1'
-    );
+    await expect(requestsModel.findById('request-1', 'requester-1')).resolves.toBeNull();
+
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('user_type = ANY($1::user_type[])'),
-      [['STAFF', 'ADMIN'], 'STAFF']
+      expect.stringContaining('WHERE r.request_id = $1 AND r.requester_id = $2'),
+      ['request-1', 'requester-1']
     );
-  });
-
-  it('creates a temporary generic database user when the requested role has none', async () => {
-    db.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ user_id: 'demo-requester-1' }] });
-
-    await expect(requestsModel.findGenericActiveUserId(['REQUESTER'])).resolves.toBe(
-      'demo-requester-1'
-    );
-    expect(db.query).toHaveBeenNthCalledWith(2, expect.stringContaining('INSERT INTO users'), [
-      'demo-requester@civicconnect.local',
-      'AUTH_NOT_IMPLEMENTED',
-      'Requester',
-      'REQUESTER',
-    ]);
   });
 
   it('lists requests created by a database user ID', async () => {

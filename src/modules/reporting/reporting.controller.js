@@ -3,7 +3,7 @@ const { pageContext } = require('../../shared/views/pageContext');
 
 exports.dashboard = async (req, res) => {
   res.render('reporting/views/manager/dashboard', {
-    ...pageContext('manager'),
+    ...pageContext('manager', req),
     title: 'Management Dashboard',
     activeHref: '/manager/dashboard',
     pageTitle: 'Management Dashboard',
@@ -14,7 +14,7 @@ exports.dashboard = async (req, res) => {
 
 exports.reporting = (req, res) => {
   res.render('reporting/views/manager/reporting', {
-    ...pageContext('manager'),
+    ...pageContext('manager', req),
     title: 'Reporting & Audit',
     activeHref: '/manager/reporting',
     pageTitle: 'Reporting & Audit',

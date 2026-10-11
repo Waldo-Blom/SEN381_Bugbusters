@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const c = require('./workflow.controller');
+const { requireRole } = require('../auth/auth.middleware');
 
+//TODO: Check if the route is correct and working after merge with tesing, with PR #88
 const requireStaff = (req, res, next) => {
   const user = req.session?.user;
   if (!user) {

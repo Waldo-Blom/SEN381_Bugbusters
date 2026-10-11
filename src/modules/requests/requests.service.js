@@ -20,17 +20,7 @@ class SubmissionUserNotFoundError extends Error {
 
 const generateRequestNumber = (year, sequence) => `CC-${year}-${String(sequence).padStart(4, '0')}`;
 
-const getGenericActorId = async (actorType) => {
-  // TODO: Replace generic database users with the authenticated session user's database ID.
-  const actorUserTypes = actorType === 'REQUESTER' ? ['REQUESTER'] : ['STAFF', 'ADMIN'];
-  const actorId = await requestsModel.findGenericActiveUserId(actorUserTypes);
-  if (!actorId) {
-    throw new SubmissionUserNotFoundError();
-  }
-  return actorId;
-};
-
-const createServiceRequest = async ({ input, actorType }) => {
+const createServiceRequest = async ({ input, actorType, actorUserId }) => {
   const submission = validateSubmission(input);
   const errors = { ...submission.errors };
   let externalRequester = null;
@@ -70,7 +60,10 @@ const createServiceRequest = async ({ input, actorType }) => {
     });
   }
 
-  const actorId = await getGenericActorId(actorType);
+  const actorId = actorUserId;
+  if (!actorId) {
+    throw new SubmissionUserNotFoundError();
+  }
 
   const created = await requestsModel.create(
     {
@@ -149,20 +142,35 @@ workflowService.on('RequestStatusChanged', (data) => {
 
 exports.list = async () => await requestsModel.findAll();
 exports.listCategories = async () => await requestsModel.findCategories();
-exports.listForRequester = async () =>
-  requestsModel.findByRequesterId(await getGenericActorId('REQUESTER'));
-exports.listCreatedByOperator = async () =>
-  requestsModel.findByCreatorId(await getGenericActorId('OPERATOR'));
+exports.listForRequester = async (requesterId) => {
+  if (!requesterId) {
+    throw new SubmissionUserNotFoundError();
+  }
+  return requestsModel.findByRequesterId(requesterId);
+};
+exports.listCreatedByOperator = async (operatorId) => {
+  if (!operatorId) {
+    throw new SubmissionUserNotFoundError();
+  }
+  return requestsModel.findByCreatorId(operatorId);
+};
 exports.searchExternalRequesters = async (searchTerm) =>
   requestsModel.searchExternalRequesters(searchTerm);
-exports.submit = async (input) =>
+exports.submit = async (input, requesterId) =>
   createServiceRequest({
     input,
     actorType: 'REQUESTER',
+    actorUserId: requesterId,
   });
 exports.createServiceRequest = createServiceRequest;
 exports.generateRequestNumber = generateRequestNumber;
 exports.RequestValidationError = RequestValidationError;
 exports.SubmissionUserNotFoundError = SubmissionUserNotFoundError;
 exports.getById = async (id) => await requestsModel.findById(id);
+exports.getForRequester = async (id, requesterId) => {
+  if (!requesterId) {
+    throw new SubmissionUserNotFoundError();
+  }
+  return requestsModel.findById(id, requesterId);
+};
 exports.workflow = workflowService;
