@@ -296,9 +296,13 @@ exports.updateStatus = async (id, newStatus, comment, userId = null) => {
       throw new Error(`Request is already ${toTitleCase(oldDbStatus)}`);
     }
 
-    const now = new Date();
+    // Concurrency / idempotency guard: reject duplicate transition if already at target status
+    if (oldDbStatus === dbStatus) {
+      throw new Error(`Request is already ${toTitleCase(oldDbStatus)}`);
+    }
 
-    // Update status
+    // Use the database clock for every timestamp in this transaction. Passing
+    // a JS Date into timestamp-without-time-zone columns stored local wall time.
     await client.query(
       'UPDATE service_requests SET status = $1, updated_at = $2 WHERE request_id = $3',
       [dbStatus, now, id]
