@@ -111,7 +111,7 @@ class RequestWorkflowService extends EventEmitter {
 
     // Update state in real implementation this needs to be a DB transaction
     const oldStatus = currentStatus;
-    const updatedRequest = await requestsModel.updateStatus(requestId, newStatus, comment);
+    const updatedRequest = await requestsModel.updateStatus(requestId, newStatus, comment, userId);
 
     // Fire side effects asynchronously (FR-104 email, FR-302 audit log)
     this.emit('RequestStatusChanged', {

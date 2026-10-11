@@ -25,4 +25,3 @@ exports.assignToSelf = async (requestId, staffUserId) => {
 };
 
 exports.AssignmentAuthorizationError = AssignmentAuthorizationError;
-

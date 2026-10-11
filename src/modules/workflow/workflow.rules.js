@@ -30,10 +30,9 @@ exports.canAssignToSelf = async (requestId, staffUserId) => {
   if (terminalStatuses.includes(validation.currentStatus)) {
     return {
       allowed: false,
-      reason: `Cannot assign request in terminal status '${validation.currentStatus}'.`
+      reason: `Cannot assign request in terminal status '${validation.currentStatus}'.`,
     };
   }
 
   return { allowed: true };
 };
-

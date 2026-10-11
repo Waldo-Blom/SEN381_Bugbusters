@@ -37,11 +37,11 @@ exports.validateStaffDepartment = async (requestId, staffUserId) => {
        WHERE sa.staff_id = $1 AND sa.is_active = true`,
       [staffUserId]
     );
-    const assignedNames = staffDepts.rows.map(r => r.name).join(', ') || 'No department assigned';
+    const assignedNames = staffDepts.rows.map((r) => r.name).join(', ') || 'No department assigned';
     return {
       allowed: false,
       reason: `Staff member belongs to [${assignedNames}], but this request is assigned to [${row.request_department_name}].`,
-      currentStatus: row.status
+      currentStatus: row.status,
     };
   }
 
@@ -110,7 +110,7 @@ exports.assignToStaff = async (requestId, staffUserId) => {
       requestId,
       status: newStatus,
       assignedStaffId: staffUserId,
-      assignedAt: now
+      assignedAt: now,
     };
   } catch (error) {
     await client.query('ROLLBACK');
@@ -119,4 +119,3 @@ exports.assignToStaff = async (requestId, staffUserId) => {
     client.release();
   }
 };
-

@@ -276,7 +276,7 @@ exports.findById = async (id, requesterId) => {
   return request;
 };
 
-exports.updateStatus = async (id, newStatus, comment) => {
+exports.updateStatus = async (id, newStatus, comment, userId = null) => {
   const dbStatus = newStatus.toUpperCase().replace(' ', '_');
 
   const client = await pool.connect();
@@ -291,6 +291,11 @@ exports.updateStatus = async (id, newStatus, comment) => {
     if (reqRes.rows.length === 0) throw new Error('Request not found');
     const oldDbStatus = reqRes.rows[0].status;
 
+    // Concurrency / idempotency guard: reject duplicate transition if already at target status
+    if (oldDbStatus === dbStatus) {
+      throw new Error(`Request is already ${toTitleCase(oldDbStatus)}`);
+    }
+
     const now = new Date();
 
     // Update status
@@ -299,28 +304,30 @@ exports.updateStatus = async (id, newStatus, comment) => {
       [dbStatus, now, id]
     );
 
-    // Find a generic staff user for the comment author / history since we don't pass userId from the model yet
-    let genericUserId = null;
-    const userRes = await client.query(
-      "SELECT user_id FROM users WHERE user_type IN ('STAFF', 'MANAGER', 'ADMIN') LIMIT 1"
-    );
-    if (userRes.rows.length > 0) {
-      genericUserId = userRes.rows[0].user_id;
+    // Use authenticated userId or fallback to staff user lookup
+    let actorUserId = userId;
+    if (!actorUserId) {
+      const userRes = await client.query(
+        "SELECT user_id FROM users WHERE user_type IN ('STAFF', 'MANAGER', 'ADMIN') LIMIT 1"
+      );
+      if (userRes.rows.length > 0) {
+        actorUserId = userRes.rows[0].user_id;
+      }
     }
 
     // Insert into status history if it changed
-    if (oldDbStatus !== dbStatus && genericUserId) {
+    if (oldDbStatus !== dbStatus && actorUserId) {
       await client.query(
         'INSERT INTO request_status_history (request_id, old_status, new_status, changed_by, changed_at) VALUES ($1, $2, $3, $4, $5)',
-        [id, oldDbStatus, dbStatus, genericUserId, now]
+        [id, oldDbStatus, dbStatus, actorUserId, now]
       );
     }
 
     // If there's a comment
-    if (comment && genericUserId) {
+    if (comment && actorUserId) {
       await client.query(
         'INSERT INTO request_comments (request_id, commented_by, content, created_at) VALUES ($1, $2, $3, $4)',
-        [id, genericUserId, comment, now]
+        [id, actorUserId, comment, now]
       );
     }
 

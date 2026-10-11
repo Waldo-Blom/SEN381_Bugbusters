@@ -319,4 +319,59 @@ describe('Requests model', () => {
     expect(db.query.mock.calls[0][0]).toContain('ORDER BY name');
     expect(db.query.mock.calls[0][0]).not.toContain('display_order');
   });
+
+  describe('updateStatus', () => {
+    it('throws error and rolls back when request is already in target status', async () => {
+      const client = {
+        query: jest.fn(async (sql) => {
+          if (sql === 'BEGIN') return {};
+          if (sql.includes('SELECT status FROM service_requests')) {
+            return { rows: [{ status: 'RESOLVED' }] };
+          }
+          if (sql === 'ROLLBACK') return {};
+          return { rows: [] };
+        }),
+        release: jest.fn(),
+      };
+      db.pool.connect.mockResolvedValue(client);
+
+      await expect(
+        requestsModel.updateStatus('req-1', 'Resolved', 'Duplicate resolve comment', 'staff-1')
+      ).rejects.toThrow('Request is already Resolved');
+
+      expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+      expect(
+        client.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO request_comments'))
+      ).toBe(false);
+      expect(client.release).toHaveBeenCalled();
+    });
+
+    it('inserts comment and updates status using actor userId when transitioning to a new status', async () => {
+      const client = {
+        query: jest.fn(async (sql) => {
+          if (sql === 'BEGIN') return {};
+          if (sql.includes('SELECT status FROM service_requests')) {
+            return { rows: [{ status: 'IN_PROGRESS' }] };
+          }
+          if (sql.includes('UPDATE service_requests')) return {};
+          if (sql.includes('INSERT INTO request_status_history')) return {};
+          if (sql.includes('INSERT INTO request_comments')) return {};
+          if (sql === 'COMMIT') return {};
+          return { rows: [] };
+        }),
+        release: jest.fn(),
+      };
+      db.pool.connect.mockResolvedValue(client);
+      db.query.mockResolvedValue({ rows: [] });
+
+      await requestsModel.updateStatus('req-1', 'Resolved', 'Fixed successfully', 'staff-1');
+
+      expect(client.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO request_comments'),
+        expect.arrayContaining(['req-1', 'staff-1', 'Fixed successfully'])
+      );
+      expect(client.query).toHaveBeenCalledWith('COMMIT');
+      expect(client.release).toHaveBeenCalled();
+    });
+  });
 });

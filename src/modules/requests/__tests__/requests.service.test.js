@@ -110,7 +110,8 @@ describe('RequestWorkflowService', () => {
     expect(requestsModel.updateStatus).toHaveBeenCalledWith(
       'request-1',
       REQUEST_STATUSES.ASSIGNED,
-      null
+      null,
+      'staff-1'
     );
   });
 });

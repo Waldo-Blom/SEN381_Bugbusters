@@ -5,7 +5,7 @@ const db = require('../../../config/database');
 
 jest.mock('../../../config/database', () => ({
   query: jest.fn(),
-  pool: { connect: jest.fn() }
+  pool: { connect: jest.fn() },
 }));
 
 describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
@@ -38,12 +38,12 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
               status: 'SUBMITTED',
               request_department_id: 'dept-roads',
               request_department_name: 'Roads and Transport',
-              staff_department_id: null
-            }
-          ]
+              staff_department_id: null,
+            },
+          ],
         })
         .mockResolvedValueOnce({
-          rows: [{ name: 'Water and Sanitation' }]
+          rows: [{ name: 'Water and Sanitation' }],
         });
 
       const res = await workflowRules.canAssignToSelf(dummyRequestId, dummyStaffId);
@@ -59,9 +59,9 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
             status: 'RESOLVED',
             request_department_id: 'dept-roads',
             request_department_name: 'Roads and Transport',
-            staff_department_id: 'dept-roads'
-          }
-        ]
+            staff_department_id: 'dept-roads',
+          },
+        ],
       });
 
       const res = await workflowRules.canAssignToSelf(dummyRequestId, dummyStaffId);
@@ -76,9 +76,9 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
             status: 'SUBMITTED',
             request_department_id: 'dept-roads',
             request_department_name: 'Roads and Transport',
-            staff_department_id: 'dept-roads'
-          }
-        ]
+            staff_department_id: 'dept-roads',
+          },
+        ],
       });
 
       const res = await workflowRules.canAssignToSelf(dummyRequestId, dummyStaffId);
@@ -90,14 +90,14 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
     test('updates service_requests, inserts into assignment_history and status_history on SUBMITTED', async () => {
       const mockClient = {
         query: jest.fn(),
-        release: jest.fn()
+        release: jest.fn(),
       };
       db.pool.connect.mockResolvedValue(mockClient);
 
       // 1. SELECT request
       mockClient.query.mockResolvedValueOnce({}); // BEGIN
       mockClient.query.mockResolvedValueOnce({
-        rows: [{ status: 'SUBMITTED', assigned_staff_id: null }]
+        rows: [{ status: 'SUBMITTED', assigned_staff_id: null }],
       }); // SELECT FOR UPDATE
       mockClient.query.mockResolvedValueOnce({}); // UPDATE service_requests
       mockClient.query.mockResolvedValueOnce({}); // INSERT request_assignment_history
@@ -112,16 +112,16 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
       expect(mockClient.release).toHaveBeenCalled();
 
       // Check UPDATE service_requests
-      const updateCall = mockClient.query.mock.calls.find(c =>
-        c[0] && c[0].includes('UPDATE service_requests')
+      const updateCall = mockClient.query.mock.calls.find(
+        (c) => c[0] && c[0].includes('UPDATE service_requests')
       );
       expect(updateCall).toBeDefined();
       expect(updateCall[1]).toContain(dummyStaffId);
       expect(updateCall[1]).toContain('ASSIGNED');
 
       // Check request_assignment_history
-      const historyCall = mockClient.query.mock.calls.find(c =>
-        c[0] && c[0].includes('INSERT INTO request_assignment_history')
+      const historyCall = mockClient.query.mock.calls.find(
+        (c) => c[0] && c[0].includes('INSERT INTO request_assignment_history')
       );
       expect(historyCall).toBeDefined();
       expect(historyCall[1]).toContain(dummyRequestId);
@@ -138,17 +138,17 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
               status: 'SUBMITTED',
               request_department_id: 'dept-roads',
               request_department_name: 'Roads and Transport',
-              staff_department_id: null
-            }
-          ]
+              staff_department_id: null,
+            },
+          ],
         })
         .mockResolvedValueOnce({
-          rows: [{ name: 'Waste Management' }]
+          rows: [{ name: 'Waste Management' }],
         });
 
-      await expect(
-        workflowService.assignToSelf(dummyRequestId, dummyStaffId)
-      ).rejects.toThrow(workflowService.AssignmentAuthorizationError);
+      await expect(workflowService.assignToSelf(dummyRequestId, dummyStaffId)).rejects.toThrow(
+        workflowService.AssignmentAuthorizationError
+      );
     });
 
     test('successfully executes assignment when valid', async () => {
@@ -159,20 +159,20 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
             status: 'SUBMITTED',
             request_department_id: 'dept-roads',
             request_department_name: 'Roads and Transport',
-            staff_department_id: 'dept-roads'
-          }
-        ]
+            staff_department_id: 'dept-roads',
+          },
+        ],
       });
 
       // 2. Transaction queries
       const mockClient = {
         query: jest.fn(),
-        release: jest.fn()
+        release: jest.fn(),
       };
       db.pool.connect.mockResolvedValue(mockClient);
       mockClient.query.mockResolvedValueOnce({}); // BEGIN
       mockClient.query.mockResolvedValueOnce({
-        rows: [{ status: 'SUBMITTED', assigned_staff_id: null }]
+        rows: [{ status: 'SUBMITTED', assigned_staff_id: null }],
       }); // SELECT
       mockClient.query.mockResolvedValueOnce({}); // UPDATE
       mockClient.query.mockResolvedValueOnce({}); // INSERT history
@@ -185,4 +185,3 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
     });
   });
 });
-
