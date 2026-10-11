@@ -1,4 +1,5 @@
 const requireAuth = (req, res, next) => {
+  // express-session attaches the user's saved session to req for every request.
   if (!req.session?.user) {
     return res.status(401).send('Please sign in to continue.');
   }

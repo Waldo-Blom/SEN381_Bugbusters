@@ -19,9 +19,10 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// Load the server-side session from the cookie's session ID before handling routes.
 app.use(session(sessionConfig));
 
-// Make the logged-in user available to every EJS view as `user`
+// Expose the authenticated user saved in that session to every EJS view.
 app.use((req, res, next) => {
   res.locals.user = req.session?.user || null;
   next();

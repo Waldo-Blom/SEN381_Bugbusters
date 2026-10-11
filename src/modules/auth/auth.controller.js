@@ -34,6 +34,8 @@ const getConfiguredDemoCredentials = (role) => {
   return email && password ? { email, password } : null;
 };
 
+// Rotate the session ID after authentication to prevent session fixation, then
+// store only the signed-in user's identity and authorization context server-side.
 const renewSession = (req, user) =>
   new Promise((resolve, reject) => {
     req.session.regenerate((error) => {
@@ -149,6 +151,7 @@ exports.login = async (req, res) => {
     });
   }
 
+  // Look up the active database account and verify its bcrypt hash before creating a session.
   const user = await authService.authenticate(values.email, values.password);
   if (!user) {
     return res.status(401).render('auth/views/login', {
@@ -165,6 +168,7 @@ exports.login = async (req, res) => {
 };
 
 exports.logout = (req, res, next) => {
+  // Remove the server-side session and expire the browser's session cookie.
   req.session.destroy((error) => {
     if (error) {
       next(error);
