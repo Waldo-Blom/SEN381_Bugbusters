@@ -1,8 +1,21 @@
 <div class="space-y-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
   <div>
     <h3 class="text-sm font-semibold text-slate-800">Community member details</h3>
-    <p class="mt-1 text-xs text-slate-500">Enter the contact details provided by the person reporting this issue.</p>
+    <p class="mt-1 text-xs text-slate-500">Find a previous community member or enter details for someone new.</p>
   </div>
+
+  <div class="space-y-1.5">
+    <label for="communityMemberSearch" class="block text-sm font-medium text-slate-700">Find existing community member</label>
+    <input id="communityMemberSearch" type="search" autocomplete="off" aria-controls="communityMemberResults"
+           aria-describedby="communityMemberSearchHelp"
+           placeholder="Search by name, email or phone"
+           class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+    <p id="communityMemberSearchHelp" class="text-xs text-slate-500">Type at least 2 characters. You can also enter a new member below.</p>
+    <div id="communityMemberResults" role="listbox" aria-label="Matching community members" class="hidden max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white"></div>
+    <p id="communityMemberSearchStatus" role="status" aria-live="polite" class="text-xs text-slate-600"></p>
+  </div>
+
+  <input id="externalRequesterId" name="externalRequesterId" type="hidden" value="<%= values.externalRequesterId || '' %>" />
 
   <div class="grid gap-5 sm:grid-cols-2">
     <div class="space-y-1.5">

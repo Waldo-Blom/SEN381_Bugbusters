@@ -1,6 +1,6 @@
 const requestsModel = require('./requests.model');
 const { REQUEST_STATUSES, ALLOWED_TRANSITIONS } = require('./requests.constants');
-const { validateSubmission, validateExternalRequester } = require('./requests.schema');
+const { validateSubmission, validateExternalRequester, isUuid } = require('./requests.schema');
 const EventEmitter = require('events');
 
 class RequestValidationError extends Error {
@@ -36,9 +36,25 @@ const createServiceRequest = async ({ input, actorType }) => {
   let externalRequester = null;
 
   if (actorType === 'OPERATOR') {
-    const external = validateExternalRequester(input);
-    Object.assign(errors, external.errors);
-    externalRequester = external.value;
+    const externalRequesterId =
+      typeof input.externalRequesterId === 'string' ? input.externalRequesterId.trim() : '';
+    if (externalRequesterId) {
+      if (!isUuid(externalRequesterId)) {
+        throw new RequestValidationError({
+          externalRequesterId: 'Please select a valid community member.',
+        });
+      }
+      externalRequester = await requestsModel.findExternalRequesterById(externalRequesterId);
+      if (!externalRequester) {
+        throw new RequestValidationError({
+          externalRequesterId: 'Please select an existing community member or enter new details.',
+        });
+      }
+    } else {
+      const external = validateExternalRequester(input);
+      Object.assign(errors, external.errors);
+      externalRequester = external.value;
+    }
   } else if (actorType !== 'REQUESTER') {
     throw new Error(`Unsupported request creator type: ${actorType}`);
   }
@@ -60,6 +76,10 @@ const createServiceRequest = async ({ input, actorType }) => {
     {
       ...submission.value,
       requesterId: actorType === 'REQUESTER' ? actorId : null,
+      externalRequesterId:
+        actorType === 'OPERATOR' && input.externalRequesterId
+          ? input.externalRequesterId.trim()
+          : null,
       externalRequester: actorType === 'OPERATOR' ? externalRequester : null,
       createdBy: actorId,
     },
@@ -133,6 +153,8 @@ exports.listForRequester = async () =>
   requestsModel.findByRequesterId(await getGenericActorId('REQUESTER'));
 exports.listCreatedByOperator = async () =>
   requestsModel.findByCreatorId(await getGenericActorId('OPERATOR'));
+exports.searchExternalRequesters = async (searchTerm) =>
+  requestsModel.searchExternalRequesters(searchTerm);
 exports.submit = async (input) =>
   createServiceRequest({
     input,

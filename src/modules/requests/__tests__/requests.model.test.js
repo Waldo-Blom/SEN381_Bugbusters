@@ -122,6 +122,27 @@ describe('Requests model', () => {
     ]);
   });
 
+  it('searches saved community members with a parameterized, bounded query', async () => {
+    const members = [
+      {
+        id: 'external-1',
+        firstName: 'Taylor',
+        lastName: 'Morgan',
+        phone: '555-0100',
+        email: null,
+        preferredContactMethod: 'PHONE',
+      },
+    ];
+    db.query.mockResolvedValue({ rows: members });
+
+    await expect(requestsModel.searchExternalRequesters('Taylor')).resolves.toEqual(members);
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('FROM external_requesters'), [
+      '%Taylor%',
+    ]);
+    expect(db.query.mock.calls[0][0]).toContain('LIMIT 10');
+    expect(db.query.mock.calls[0][0]).toContain('concat_ws');
+  });
+
   it('inserts a requester submission into service_requests through a DB transaction', async () => {
     const client = {
       query: jest.fn(async (sql) => {
@@ -245,6 +266,64 @@ describe('Requests model', () => {
     );
     expect(client.query).toHaveBeenCalledWith('COMMIT');
     expect(client.release).toHaveBeenCalled();
+  });
+
+  it('links an existing community member without inserting a duplicate', async () => {
+    const client = {
+      query: jest.fn(async (sql) => {
+        if (sql.includes('COALESCE(MAX')) {
+          return { rows: [{ last_sequence: 2 }] };
+        }
+        if (sql.includes('INSERT INTO service_requests')) {
+          return {
+            rows: [
+              {
+                request_id: 'request-3',
+                request_number: 'CC-2026-0003',
+                status: 'SUBMITTED',
+              },
+            ],
+          };
+        }
+        return { rows: [] };
+      }),
+      release: jest.fn(),
+    };
+    db.pool.connect.mockResolvedValue(client);
+
+    await requestsModel.create(
+      {
+        requesterId: null,
+        externalRequesterId: 'external-1',
+        externalRequester: null,
+        createdBy: 'staff-1',
+        categoryId: 'category-1',
+        title: 'Pothole',
+        description: 'A caller reported a pothole.',
+        location: 'Oak Street',
+        priority: 'HIGH',
+      },
+      () => 'CC-2026-0003'
+    );
+
+    expect(
+      client.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO external_requesters'))
+    ).toBe(false);
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO service_requests'),
+      [
+        'CC-2026-0003',
+        null,
+        'external-1',
+        'staff-1',
+        'category-1',
+        'Pothole',
+        'A caller reported a pothole.',
+        'Oak Street',
+        'HIGH',
+      ]
+    );
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
   });
 
   it('lists active request categories in display order', async () => {

@@ -5,6 +5,8 @@ jest.mock('../requests.model', () => ({
   findCategories: jest.fn(),
   findActiveCategory: jest.fn(),
   findGenericActiveUserId: jest.fn(),
+  findExternalRequesterById: jest.fn(),
+  searchExternalRequesters: jest.fn(),
   create: jest.fn(),
   findByRequesterId: jest.fn(),
   findByCreatorId: jest.fn(),
@@ -86,6 +88,7 @@ describe('operator-assisted request submission', () => {
     requestsModel.findCategories.mockResolvedValue([category]);
     requestsModel.findActiveCategory.mockResolvedValue(category);
     requestsModel.findGenericActiveUserId.mockResolvedValue('33333333-3333-4333-8333-333333333333');
+    requestsModel.searchExternalRequesters.mockResolvedValue([]);
     requestsModel.create.mockResolvedValue({
       request_id: '22222222-2222-4222-8222-222222222222',
       request_number: 'CC-2026-0001',
@@ -114,6 +117,64 @@ describe('operator-assisted request submission', () => {
       }),
       expect.any(Function)
     );
+  });
+
+  it('reuses a selected community member instead of creating a duplicate', async () => {
+    const externalRequesterId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    requestsModel.findExternalRequesterById.mockResolvedValue({
+      id: externalRequesterId,
+      firstName: 'Taylor',
+      lastName: 'Morgan',
+      phone: '555-0100',
+      email: null,
+      preferredContactMethod: 'PHONE',
+    });
+
+    await requestsService.createServiceRequest({
+      input: {
+        ...operatorForm,
+        externalRequesterId,
+      },
+      actorType: 'OPERATOR',
+    });
+
+    expect(requestsModel.findExternalRequesterById).toHaveBeenCalledWith(externalRequesterId);
+    expect(requestsModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalRequesterId,
+        externalRequester: expect.objectContaining({ id: externalRequesterId }),
+      }),
+      expect.any(Function)
+    );
+  });
+
+  it('rejects invalid or missing selected community-member IDs', async () => {
+    await expect(
+      requestsService.createServiceRequest({
+        input: { ...operatorForm, externalRequesterId: 'not-a-uuid' },
+        actorType: 'OPERATOR',
+      })
+    ).rejects.toMatchObject({
+      name: 'RequestValidationError',
+      errors: { externalRequesterId: 'Please select a valid community member.' },
+    });
+
+    requestsModel.findExternalRequesterById.mockResolvedValue(null);
+    await expect(
+      requestsService.createServiceRequest({
+        input: {
+          ...operatorForm,
+          externalRequesterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        },
+        actorType: 'OPERATOR',
+      })
+    ).rejects.toMatchObject({
+      name: 'RequestValidationError',
+      errors: {
+        externalRequesterId: 'Please select an existing community member or enter new details.',
+      },
+    });
+    expect(requestsModel.create).not.toHaveBeenCalled();
   });
 
   it('renders the existing submission page with external requester fields for operators only', async () => {
@@ -172,6 +233,33 @@ describe('operator-assisted request submission', () => {
     expect(requestsModel.findByCreatorId).toHaveBeenCalledWith(
       '33333333-3333-4333-8333-333333333333'
     );
+  });
+
+  it('searches community members only for authenticated operators', async () => {
+    const matchingMember = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      firstName: 'Taylor',
+      lastName: 'Morgan',
+      phone: '555-0100',
+      email: null,
+      preferredContactMethod: 'PHONE',
+    };
+    requestsModel.searchExternalRequesters.mockResolvedValue([matchingMember]);
+    const operator = request.agent(app);
+    await operator.post('/auth/login').type('form').send({ role: 'operator' });
+
+    const response = await operator.get('/operator/community-members/search?q=Taylor');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([matchingMember]);
+    expect(requestsModel.searchExternalRequesters).toHaveBeenCalledWith('Taylor');
+    expect((await request(app).get('/operator/community-members/search?q=Taylor')).status).toBe(
+      401
+    );
+
+    const requester = request.agent(app);
+    await requester.post('/auth/login').type('form').send({ role: 'requester' });
+    expect((await requester.get('/operator/community-members/search?q=Taylor')).status).toBe(403);
   });
 
   it('does not allow requesters to access operator logged requests', async () => {

@@ -87,6 +87,44 @@ exports.findActiveCategory = async (id) => {
   return result.rows[0] || null;
 };
 
+exports.searchExternalRequesters = async (searchTerm) => {
+  const result = await query(
+    `SELECT
+      external_requester_id AS id,
+      first_name AS "firstName",
+      last_name AS "lastName",
+      phone,
+      email,
+      preferred_contact_method AS "preferredContactMethod"
+    FROM external_requesters
+    WHERE first_name ILIKE $1
+      OR last_name ILIKE $1
+      OR concat_ws(' ', first_name, last_name) ILIKE $1
+      OR email ILIKE $1
+      OR phone ILIKE $1
+    ORDER BY last_name, first_name
+    LIMIT 10`,
+    [`%${searchTerm}%`]
+  );
+  return result.rows;
+};
+
+exports.findExternalRequesterById = async (id) => {
+  const result = await query(
+    `SELECT
+      external_requester_id AS id,
+      first_name AS "firstName",
+      last_name AS "lastName",
+      phone,
+      email,
+      preferred_contact_method AS "preferredContactMethod"
+    FROM external_requesters
+    WHERE external_requester_id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+};
+
 exports.findGenericActiveUserId = async (userTypes) => {
   const findUser = () =>
     query(
@@ -140,8 +178,8 @@ exports.create = async (input, generateRequestNumber) => {
       Number(sequenceResult.rows[0].last_sequence) + 1
     );
 
-    let externalRequesterId = null;
-    if (input.externalRequester) {
+    let externalRequesterId = input.externalRequesterId || null;
+    if (input.externalRequester && !externalRequesterId) {
       const externalResult = await client.query(
         `INSERT INTO external_requesters
           (first_name, last_name, phone, email, preferred_contact_method)

@@ -37,6 +37,7 @@ router.get('/requester/requests/:id', c.requesterDetail);
 router.get('/operator/submit', requireOperator, c.operatorSubmitPage);
 router.post('/operator/submit', requireOperator, c.operatorSubmitRequest);
 router.get('/operator/requests', requireOperator, c.operatorLoggedRequests);
+router.get('/operator/community-members/search', requireOperator, c.searchExternalRequesters);
 
 // staff
 router.get('/staff/search', requireStaff, c.staffSearch);

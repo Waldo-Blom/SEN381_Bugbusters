@@ -59,6 +59,20 @@ exports.operatorLoggedRequests = async (req, res, next) => {
   }
 };
 
+exports.searchExternalRequesters = async (req, res, next) => {
+  const searchTerm = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (searchTerm.length < 2) {
+    return res.json([]);
+  }
+
+  try {
+    const requesters = await requestsService.searchExternalRequesters(searchTerm);
+    res.json(requesters);
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.submitRequest = async (req, res, next) => {
   try {
     await requestsService.submit(req.body);

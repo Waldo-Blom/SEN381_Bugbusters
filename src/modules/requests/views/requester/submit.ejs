@@ -131,6 +131,117 @@
       });
     });
   });
+
+  const memberSearch = document.getElementById('communityMemberSearch');
+  if (memberSearch) {
+    const results = document.getElementById('communityMemberResults');
+    const searchStatus = document.getElementById('communityMemberSearchStatus');
+    const memberId = document.getElementById('externalRequesterId');
+    const fields = {
+      firstName: document.getElementById('externalFirstName'),
+      lastName: document.getElementById('externalLastName'),
+      phone: document.getElementById('externalPhone'),
+      email: document.getElementById('externalEmail'),
+      preferredContactMethod: document.getElementById('preferredContactMethod'),
+    };
+    let debounceTimer;
+    let activeSearch;
+
+    const clearResults = () => {
+      results.replaceChildren();
+      results.classList.add('hidden');
+    };
+
+    const showMember = (member) => {
+      memberId.value = member.id;
+      fields.firstName.value = member.firstName || '';
+      fields.lastName.value = member.lastName || '';
+      fields.phone.value = member.phone || '';
+      fields.email.value = member.email || '';
+      fields.preferredContactMethod.value = member.preferredContactMethod || '';
+      fields.firstName.required = false;
+      fields.lastName.required = false;
+      fields.preferredContactMethod.required = false;
+      memberSearch.value = `${member.firstName} ${member.lastName}`.trim();
+      searchStatus.textContent = 'Existing member selected. Their record will be reused.';
+      clearResults();
+    };
+
+    const clearSelectedMember = () => {
+      memberId.value = '';
+      fields.firstName.required = true;
+      fields.lastName.required = true;
+      fields.preferredContactMethod.required = true;
+    };
+
+    if (memberId.value) {
+      fields.firstName.required = false;
+      fields.lastName.required = false;
+      fields.preferredContactMethod.required = false;
+      memberSearch.value = `${fields.firstName.value} ${fields.lastName.value}`.trim();
+      searchStatus.textContent = 'Existing member selected. Their record will be reused.';
+    }
+
+    memberSearch.addEventListener('input', () => {
+      window.clearTimeout(debounceTimer);
+      if (activeSearch) activeSearch.abort();
+      clearSelectedMember();
+      searchStatus.textContent = '';
+      clearResults();
+
+      const term = memberSearch.value.trim();
+      if (term.length < 2) return;
+
+      searchStatus.textContent = 'Searching...';
+      debounceTimer = window.setTimeout(async () => {
+        activeSearch = new AbortController();
+        try {
+          const response = await fetch(
+            `/operator/community-members/search?q=${encodeURIComponent(term)}`,
+            { signal: activeSearch.signal }
+          );
+          if (!response.ok) throw new Error('Unable to search community members.');
+
+          const members = await response.json();
+          clearResults();
+          if (members.length === 0) {
+            searchStatus.textContent = 'No matching members. Enter their details below.';
+            return;
+          }
+
+          members.forEach((member) => {
+            const option = document.createElement('button');
+            const contact = member.email || member.phone || 'No contact details';
+            option.type = 'button';
+            option.role = 'option';
+            option.className = 'block w-full border-b border-slate-100 px-3.5 py-2.5 text-left last:border-b-0 hover:bg-slate-50';
+            option.textContent = `${member.firstName} ${member.lastName} — ${contact}`;
+            option.addEventListener('click', () => showMember(member));
+            results.append(option);
+          });
+          results.classList.remove('hidden');
+          searchStatus.textContent = `${members.length} matching member${members.length === 1 ? '' : 's'}.`;
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            searchStatus.textContent = error.message;
+          }
+        }
+      }, 250);
+    });
+
+    Object.values(fields).forEach((field) => {
+      field.addEventListener('input', () => {
+        if (!memberId.value) return;
+        clearSelectedMember();
+        searchStatus.textContent = 'Member details changed. This will be saved as a new member.';
+      });
+      field.addEventListener('change', () => {
+        if (!memberId.value) return;
+        clearSelectedMember();
+        searchStatus.textContent = 'Member details changed. This will be saved as a new member.';
+      });
+    });
+  }
 </script>
 
 <%- include('partials/app-layout-foot') %>

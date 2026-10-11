@@ -4,6 +4,8 @@ const CONTACT_METHODS = ['PHONE', 'EMAIL'];
 
 const stringValue = (input, field) => (typeof input[field] === 'string' ? input[field].trim() : '');
 
+exports.isUuid = (value) => UUID_PATTERN.test(value);
+
 exports.validateSubmission = (input = {}) => {
   const errors = {};
   const categoryId = stringValue(input, 'categoryId');
