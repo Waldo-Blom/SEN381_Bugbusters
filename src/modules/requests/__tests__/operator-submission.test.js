@@ -186,11 +186,17 @@ describe('operator-assisted request submission', () => {
     expect(operatorPage.text).toContain('action="/operator/submit"');
     expect(operatorPage.text).toContain('name="externalFirstName"');
     expect(operatorPage.text).toContain('name="preferredContactMethod"');
+    expect(operatorPage.text).toContain(`value="${category.id}"`);
+    expect(operatorPage.text).toContain(category.name);
+    expect(requestsModel.findCategories).toHaveBeenCalledTimes(1);
     expect(operatorPage.text).not.toContain('name="submissionChannel"');
 
     const requesterPage = await request(app).get('/requester/submit');
     expect(requesterPage.status).toBe(200);
     expect(requesterPage.text).toContain('action="/requester/submit"');
+    expect(requesterPage.text).toContain(`value="${category.id}"`);
+    expect(requesterPage.text).toContain(category.name);
+    expect(requestsModel.findCategories).toHaveBeenCalledTimes(2);
     expect(requesterPage.text).not.toContain('name="externalFirstName"');
   });
 

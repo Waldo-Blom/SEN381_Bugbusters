@@ -57,6 +57,16 @@ describe('request submission validation and reference generation', () => {
     expect(result.value.description).toBe(formData.description);
   });
 
+  it('accepts canonical PostgreSQL UUIDs regardless of RFC version or variant bits', () => {
+    const result = validateSubmission({
+      ...formData,
+      categoryId: '1f79da6e-4d90-b319-189a-c93894247b09',
+    });
+
+    expect(result.errors.categoryId).toBeUndefined();
+    expect(result.value.categoryId).toBe('1f79da6e-4d90-b319-189a-c93894247b09');
+  });
+
   // The stored priority defaults to the database's MEDIUM default and accepts only enum values.
   it('defaults priority to medium and rejects unsupported priorities', () => {
     const defaultPriority = validateSubmission({ ...formData, priority: '' });

@@ -15,13 +15,13 @@ const submissionView = async (res, role, options = {}) => {
     pageSubtitle: isOperator
       ? 'Log a community member’s request'
       : 'Report an issue in your community',
-    categories,
     errors: {},
     values: {},
     isOperator,
     formAction: submitPath,
     successReference: null,
     ...options,
+    categories,
   });
 };
 
