@@ -194,13 +194,23 @@ exports.staffDetail = async (req, res, next) => {
 
 // ---- manager ----
 exports.allRequests = async (req, res) => {
+  let data;
+  try {
+    data = await requestsService.listForManager(getAuthenticatedUserId(req), req.query);
+  } catch (error) {
+    if (error instanceof requestsService.RequestValidationError) {
+      return res.status(400).send(Object.values(error.errors).join(' '));
+    }
+    throw error;
+  }
+  if (!data) return res.status(403).send('You do not manage an active department.');
   res.render('requests/views/manager/all-requests', {
     ...pageContext('manager', req),
     title: 'All Requests',
     activeHref: '/manager/requests',
     pageTitle: 'All Requests',
-    pageSubtitle: 'Every request across all departments',
-    requests: await requestsService.list(),
+    pageSubtitle: 'Requests for your department',
+    ...data,
   });
 };
 

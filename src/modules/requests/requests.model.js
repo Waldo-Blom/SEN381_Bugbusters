@@ -67,6 +67,63 @@ exports.findAll = async () => {
   return result.rows.map(mapRowToRequest);
 };
 
+// LEFT JOIN preserves the managed department even when it has no requests.
+// This list projection fetches names, but never requester email or phone.
+exports.findForManager = async (managerId, filters = {}) => {
+  // Escape LIKE metacharacters so search text is treated literally.
+  const search = (filters.q || '').replace(/[\\%_]/g, '\\$&');
+  const result = await query(
+    `SELECT d.department_id, d.name AS department_name,
+            ARRAY(SELECT unnest(enum_range(NULL::request_status))::text) AS statuses,
+            (SELECT COALESCE(json_agg(options ORDER BY options.name), '[]'::json)
+             FROM (SELECT category_id AS id, name FROM request_categories available
+                   WHERE available.department_id = d.department_id
+                     AND (available.is_active = true OR EXISTS
+                       (SELECT 1 FROM service_requests existing
+                        WHERE existing.category_id = available.category_id))) options) AS categories,
+            r.request_id, r.request_number, r.title, r.status, r.priority,
+            r.created_at, c.name AS category_name,
+            COALESCE(NULLIF(concat_ws(' ', citizen.first_name, citizen.last_name), ''),
+                     NULLIF(concat_ws(' ', ext.first_name, ext.last_name), ''),
+                     'Unknown') AS requester_name
+     FROM departments d
+     JOIN users manager ON manager.user_id = d.manager_id
+     LEFT JOIN request_categories c ON c.department_id = d.department_id
+     LEFT JOIN service_requests r ON r.category_id = c.category_id
+       AND ($2::text = '' OR r.status::text = $2::text)
+       AND ($3::text = '' OR c.category_id::text = $3::text)
+       AND ($4::text = '' OR r.title ILIKE $4 ESCAPE E'\\\\'
+            OR r.request_number ILIKE $4 ESCAPE E'\\\\')
+     LEFT JOIN users citizen ON citizen.user_id = r.requester_id
+     LEFT JOIN external_requesters ext ON ext.external_requester_id = r.external_requester_id
+     WHERE d.manager_id = $1 AND d.is_active = true
+       AND manager.is_active = true AND manager.user_type = 'MANAGER'
+     ORDER BY r.created_at DESC NULLS LAST, r.request_id`,
+    [managerId, filters.status || '', filters.category || '', search ? `%${search}%` : '']
+  );
+  if (!result.rows.length) return null;
+  return {
+    department: { id: result.rows[0].department_id, name: result.rows[0].department_name },
+    statuses: (result.rows[0].statuses || []).map((value) => ({
+      value,
+      label: toTitleCase(value),
+    })),
+    categories: result.rows[0].categories || [],
+    requests: result.rows
+      .filter((row) => row.request_id)
+      .map((row) => ({
+        id: row.request_id,
+        reference: row.request_number,
+        title: row.title,
+        category: row.category_name,
+        status: toTitleCase(row.status),
+        priority: toTitleCase(row.priority),
+        requesterName: row.requester_name,
+        submittedAt: formatDate(row.created_at),
+      })),
+  };
+};
+
 exports.findCategories = async () => {
   const result = await query(
     `SELECT category_id AS id, name
