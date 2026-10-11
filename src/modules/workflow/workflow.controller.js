@@ -3,7 +3,7 @@ const { pageContext } = require('../../shared/views/pageContext');
 
 exports.dashboard = async (req, res) => {
   res.render('workflow/views/staff/dashboard', {
-    ...pageContext('staff'),
+    ...pageContext('staff', req),
     title: 'Staff Dashboard',
     activeHref: '/staff/dashboard',
     pageTitle: 'Staff Dashboard',
