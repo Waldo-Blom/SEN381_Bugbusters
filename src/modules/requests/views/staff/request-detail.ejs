@@ -129,8 +129,8 @@
           
           <% if (request.status === 'Submitted') { %>
             <div class="space-y-3">
-              <form method="POST" action="/staff/requests/<%= request.id %>/assign">
-                <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Assign to me</button>
+              <form method="POST" action="/staff/requests/<%= request.id %>/assign" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+                <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">Assign to me</button>
               </form>
               <form method="POST" action="/staff/requests/<%= request.id %>/reject">
                 <button type="submit" class="w-full rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100">Reject Request</button>
@@ -141,11 +141,11 @@
               <button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Start Progress</button>
             </form>
           <% } else if (request.status === 'In Progress') { %>
-            <form method="POST" action="/staff/requests/<%= request.id %>/resolve" class="space-y-3">
+            <form method="POST" action="/staff/requests/<%= request.id %>/resolve" class="space-y-3" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
               <label class="block text-sm font-medium text-slate-700">Resolution Comment</label>
               <textarea name="comment" rows="3" required placeholder="A comment is required to resolve..."
                         class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"></textarea>
-              <button type="submit" class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+              <button type="submit" class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
                 Mark as Resolved
               </button>
             </form>
