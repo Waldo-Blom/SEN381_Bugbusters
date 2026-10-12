@@ -81,6 +81,14 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
     });
 
     it('applies tab filtering for available, mine, overdue, and resolved tabs', async () => {
+      // all tab: requests assigned to this staff member plus unassigned requests
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'all' });
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $3)'),
+        [departmentId, staffUserId, staffUserId]
+      );
+
       // available tab
       db.query.mockResolvedValueOnce({ rows: [] });
       await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'available' });

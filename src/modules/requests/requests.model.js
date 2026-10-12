@@ -627,7 +627,14 @@ exports.searchStaffRequests = async ({
   }
 
   // Tab filtering (FR-203)
-  if (tab === 'available') {
+  if (tab === 'all') {
+    if (staffUserId) {
+      params.push(staffUserId);
+      conditions.push(`(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $${params.length})`);
+    } else {
+      conditions.push('r.assigned_staff_id IS NULL');
+    }
+  } else if (tab === 'available') {
     conditions.push(
       `(r.status = 'SUBMITTED' OR (r.status = 'ASSIGNED' AND r.assigned_staff_id IS NULL))`
     );
