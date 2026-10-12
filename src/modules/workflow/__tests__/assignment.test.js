@@ -99,6 +99,7 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
       mockClient.query.mockResolvedValueOnce({
         rows: [{ status: 'SUBMITTED', assigned_staff_id: null }],
       }); // SELECT FOR UPDATE
+      mockClient.query.mockResolvedValueOnce({ rows: [{ staff_allowed: true }] }); // Active department membership
       mockClient.query.mockResolvedValueOnce({}); // UPDATE service_requests
       mockClient.query.mockResolvedValueOnce({}); // INSERT request_assignment_history
       mockClient.query.mockResolvedValueOnce({}); // INSERT request_status_history
@@ -174,6 +175,7 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
       mockClient.query.mockResolvedValueOnce({
         rows: [{ status: 'SUBMITTED', assigned_staff_id: null }],
       }); // SELECT
+      mockClient.query.mockResolvedValueOnce({ rows: [{ staff_allowed: true }] }); // Active department membership
       mockClient.query.mockResolvedValueOnce({}); // UPDATE
       mockClient.query.mockResolvedValueOnce({}); // INSERT history
       mockClient.query.mockResolvedValueOnce({}); // INSERT status history

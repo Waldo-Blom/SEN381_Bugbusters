@@ -63,3 +63,15 @@ exports.getDashboardData = async (managerId) => {
   };
 };
 exports.getAuditLog = () => reportingModel.getAuditLog();
+
+exports.getContactAccessInbox = async (managerId) => {
+  if (!managerId) return null;
+  const department = await reportingModel.findManagedDepartment(managerId);
+  if (!department) return null;
+  const { requestsService } = require('../requests');
+  const contactAccessRequests = await requestsService.contactAccess.listInbox(
+    managerId,
+    department.id
+  );
+  return { department, contactAccessRequests, contactAccessRequestsEnabled: true };
+};

@@ -1,9 +1,10 @@
 const { requestsService } = require('../requests');
 const { pageContext } = require('../../shared/views/pageContext');
 const workflowService = require('./workflow.service');
+const { getAuthenticatedUserId } = require('../auth/auth.middleware');
 
 exports.dashboard = async (req, res) => {
-  const staffUserId = req.session?.user?.id;
+  const staffUserId = getAuthenticatedUserId(req);
   const usersService = require('../users/users.service');
   const staffDept = await usersService.getStaffDepartment(staffUserId);
   const departmentId = staffDept?.departmentId || null;

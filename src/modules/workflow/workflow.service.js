@@ -5,6 +5,7 @@ class AssignmentAuthorizationError extends Error {
   constructor(message) {
     super(message);
     this.name = 'AssignmentAuthorizationError';
+    this.statusCode = 403;
   }
 }
 

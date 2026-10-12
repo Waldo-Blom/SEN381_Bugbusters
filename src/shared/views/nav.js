@@ -12,6 +12,7 @@ const staffNav = [
 const managementNav = [
   { href: '/manager/dashboard', label: 'Dashboard' },
   { href: '/manager/requests', label: 'All Requests' },
+  { href: '/manager/contact-access-requests', label: 'Contact Access Requests' },
   { href: '/manager/reporting', label: 'Reporting & Audit' },
   { href: '/manager/users', label: 'User Management' },
 ];

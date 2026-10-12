@@ -1,7 +1,8 @@
 const requestsService = require('./requests.service');
 const { REQUEST_STATUSES } = require('./requests.constants');
 const { pageContext } = require('../../shared/views/pageContext');
-const { getAuthenticatedUserId } = require('../auth/auth.middleware');
+const { getAuthenticatedUserId, getAuthenticatedUserRole } = require('../auth/auth.middleware');
+const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
 
 // ---- requester ----
 const submissionView = async (req, res, role, options = {}) => {
@@ -166,6 +167,7 @@ exports.requesterDetail = async (req, res, next) => {
 };
 
 // ---- staff ----
+// FR-203 search/filter/sort, kept from the department-access branch.
 exports.staffSearch = async (req, res) => {
   const staffUserId = getAuthenticatedUserId(req);
   const usersService = require('../users/users.service');
@@ -211,6 +213,8 @@ exports.staffDetail = async (req, res, next) => {
     if (!request) {
       return res.status(404).render('errors/404', { title: 'Request Details' });
     }
+    // Contact details may be revealed after approval, so never cache this page.
+    res.set('Cache-Control', 'no-store');
     res.render('requests/views/staff/request-detail', {
       ...pageContext('staff', req),
       title: 'Request Details',
@@ -218,41 +222,135 @@ exports.staffDetail = async (req, res, next) => {
       pageTitle: 'Request Details',
       pageSubtitle: 'Manage and resolve this request',
       request,
+      contactAccessCsrfToken: getCsrfToken(req),
     });
   } catch (error) {
     if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
       return res.status(403).send(error.message);
     }
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
     next(error);
   }
 };
 
 // ---- manager ----
 exports.allRequests = async (req, res) => {
+  let data;
+  try {
+    data = await requestsService.listForManager(getAuthenticatedUserId(req), req.query);
+  } catch (error) {
+    if (error instanceof requestsService.RequestValidationError) {
+      return res.status(400).send(Object.values(error.errors).join(' '));
+    }
+    throw error;
+  }
+  if (!data) return res.status(403).send('You do not manage an active department.');
   res.render('requests/views/manager/all-requests', {
     ...pageContext('manager', req),
     title: 'All Requests',
     activeHref: '/manager/requests',
     pageTitle: 'All Requests',
-    pageSubtitle: 'Every request across all departments',
-    requests: await requestsService.list(),
+    pageSubtitle: 'Requests for your department',
+    ...data,
   });
 };
 
 exports.managerDetail = async (req, res, next) => {
   try {
+    res.set('Cache-Control', 'no-store');
     res.render('requests/views/manager/request-detail', {
       ...pageContext('manager', req),
       title: 'Request Details',
       activeHref: '/manager/requests',
       pageTitle: 'Request Details',
       pageSubtitle: 'Manager view with assignment controls',
-      request: await requestsService.getById(req.params.id),
+      request: await requestsService.getForManager(req.params.id, getAuthenticatedUserId(req)),
+      contactAccessCsrfToken: getCsrfToken(req),
     });
   } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
     next(error);
   }
 };
+
+const contactAction = async (req, res, next, operation, destination) => {
+  try {
+    await operation();
+    res.redirect(destination);
+  } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    next(error);
+  }
+};
+
+exports.requestContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.requestAccess(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        req.body?.reason
+      ),
+    `/staff/requests/${req.params.id}`
+  );
+exports.approveContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.reviewAccess(
+        req.params.accessId,
+        getAuthenticatedUserId(req),
+        true
+      ),
+    '/manager/contact-access-requests'
+  );
+exports.rejectContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.reviewAccess(
+        req.params.accessId,
+        getAuthenticatedUserId(req),
+        false
+      ),
+    '/manager/contact-access-requests'
+  );
+exports.authoriseContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.changeApproval(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        true
+      ),
+    `/manager/requests/${req.params.id}`
+  );
+exports.revokeContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.changeApproval(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        false
+      ),
+    `/manager/requests/${req.params.id}`
+  );
+
+const errorStatus = (error) =>
+  error.statusCode || (error.name === 'StaffDepartmentAccessError' ? 403 : 400);
 
 const transitionRequest = async (req, res, status, redirectPath) => {
   try {
@@ -260,19 +358,29 @@ const transitionRequest = async (req, res, status, redirectPath) => {
       req.params.id,
       status,
       getAuthenticatedUserId(req),
-      req.body.comment || null
+      req.body?.comment || null,
+      getAuthenticatedUserRole(req) === 'staff'
     );
     res.redirect(redirectPath(req.params.id));
   } catch (error) {
-    if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
-      return res.status(403).send(error.message);
-    }
-    res.status(400).send(error.message);
+    res.status(errorStatus(error)).send(error.message);
   }
 };
 
-exports.assignRequest = (req, res) =>
-  transitionRequest(req, res, REQUEST_STATUSES.ASSIGNED, (id) => `/staff/requests/${id}`);
+exports.assignRequest = async (req, res) => {
+  try {
+    const request = await requestsService.getForStaff(req.params.id, getAuthenticatedUserId(req));
+    if (!request.canAssign)
+      return res.status(403).send('This request is not available for assignment.');
+    await require('../workflow/workflow.service').assignToSelf(
+      req.params.id,
+      getAuthenticatedUserId(req)
+    );
+    res.redirect(`/staff/requests/${req.params.id}`);
+  } catch (error) {
+    res.status(errorStatus(error)).send(error.message);
+  }
+};
 
 exports.startProgress = (req, res) =>
   transitionRequest(req, res, REQUEST_STATUSES.IN_PROGRESS, (id) => `/staff/requests/${id}`);
