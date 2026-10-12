@@ -1,6 +1,37 @@
 const { query, pool } = require('../../config/database');
 const auditModel = require('../audit/audit.model');
 
+exports.findRequesterSettings = async (userId) => {
+  const result = await query(
+    `SELECT first_name AS "firstName", last_name AS "lastName", email, phone,
+            email_notifications_enabled AS "emailNotificationsEnabled"
+     FROM users WHERE user_id = $1 AND user_type = 'REQUESTER'`,
+    [userId]
+  );
+  return result.rows[0] || null;
+};
+
+exports.updateRequesterProfile = async (userId, profile) => {
+  const result = await query(
+    `UPDATE users SET first_name = $2, last_name = $3, email = $4, phone = $5,
+                      updated_at = now()
+     WHERE user_id = $1 AND user_type = 'REQUESTER'
+     RETURNING first_name AS "firstName", last_name AS "lastName", email, phone`,
+    [userId, profile.firstName, profile.lastName, profile.email, profile.phone || null]
+  );
+  return result.rows[0] || null;
+};
+
+exports.updateRequesterNotifications = async (userId, preferences) => {
+  const result = await query(
+    `UPDATE users SET email_notifications_enabled = $2, updated_at = now()
+     WHERE user_id = $1 AND user_type = 'REQUESTER'
+     RETURNING user_id`,
+    [userId, preferences.emailNotificationsEnabled]
+  );
+  return result.rowCount > 0;
+};
+
 const transaction = async (operation) => {
   const client = await pool.connect();
   try {
