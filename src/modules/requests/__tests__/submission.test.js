@@ -204,6 +204,28 @@ describe('request submission routes', () => {
     expect(listResponse.text).toContain(formData.title);
   });
 
+  it('prevents duplicate request creation on rapid double-clicks', async () => {
+    const browser = request.agent(app);
+    await browser
+      .post('/auth/login')
+      .type('form')
+      .send({ email: 'requester@demo.invalid', password: 'SecurePass1' });
+
+    requestsModel.create.mockClear();
+
+    // First click
+    const res1 = await browser.post('/requester/submit').type('form').send(formData);
+    expect(res1.status).toBe(302);
+    expect(requestsModel.create).toHaveBeenCalledTimes(1);
+
+    // Immediate second click (double-click simulation)
+    const res2 = await browser.post('/requester/submit').type('form').send(formData);
+    expect(res2.status).toBe(302);
+    expect(res2.headers.location).toBe('/requester/my-requests');
+    // Model should NOT be called a second time
+    expect(requestsModel.create).toHaveBeenCalledTimes(1);
+  });
+
   // Invalid input should be reported to the user without attempting a model write.
   it('shows validation errors and does not persist invalid submissions', async () => {
     const browser = request.agent(app);
