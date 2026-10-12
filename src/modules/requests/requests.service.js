@@ -21,7 +21,9 @@ class SubmissionUserNotFoundError extends Error {
 
 const generateRequestNumber = (year, sequence) => `CC-${year}-${String(sequence).padStart(4, '0')}`;
 
-const createServiceRequest = async ({ input, actorType, actorUserId }) => {
+const createServiceRequest = async ({ input, actorType, actorUserId, files = [] }) => {
+  const attachments = require('./requests.attachments.service');
+  const images = await attachments.prepareImages(files);
   const submission = validateSubmission(input);
   const errors = { ...submission.errors };
   let externalRequester = null;
@@ -66,19 +68,42 @@ const createServiceRequest = async ({ input, actorType, actorUserId }) => {
     throw new SubmissionUserNotFoundError();
   }
 
-  const created = await requestsModel.create(
-    {
-      ...submission.value,
-      requesterId: actorType === 'REQUESTER' ? actorId : null,
-      externalRequesterId:
-        actorType === 'OPERATOR' && input.externalRequesterId
-          ? input.externalRequesterId.trim()
-          : null,
-      externalRequester: actorType === 'OPERATOR' ? externalRequester : null,
-      createdBy: actorId,
-    },
-    generateRequestNumber
-  );
+  const creationInput = {
+    ...submission.value,
+    requesterId: actorType === 'REQUESTER' ? actorId : null,
+    externalRequesterId:
+      actorType === 'OPERATOR' && input.externalRequesterId
+        ? input.externalRequesterId.trim()
+        : null,
+    externalRequester: actorType === 'OPERATOR' ? externalRequester : null,
+    createdBy: actorId,
+  };
+  const uploadedKeys = [];
+  let created;
+  try {
+    created = images.length
+      ? await requestsModel.create(
+          creationInput,
+          generateRequestNumber,
+          async (client, request) => {
+            await attachments.persist(
+              client,
+              request.request_id,
+              actorId,
+              images,
+              uploadedKeys,
+              actorType === 'OPERATOR' ? 'operator' : 'requester'
+            );
+          }
+        )
+      : await requestsModel.create(creationInput, generateRequestNumber);
+  } catch (error) {
+    await attachments.cleanup(uploadedKeys);
+    if (images.length && !error.statusCode) {
+      throw require('./requests.attachments.errors').failure('request', error);
+    }
+    throw error;
+  }
 
   return {
     ...created,
@@ -208,11 +233,12 @@ exports.listCreatedByOperator = async (operatorId) => {
 };
 exports.searchExternalRequesters = async (searchTerm) =>
   requestsModel.searchExternalRequesters(searchTerm);
-exports.submit = async (input, requesterId) =>
+exports.submit = async (input, requesterId, files = []) =>
   createServiceRequest({
     input,
     actorType: 'REQUESTER',
     actorUserId: requesterId,
+    files,
   });
 class StaffDepartmentAccessError extends Error {
   constructor(message = 'You do not have permission to access requests for this department.') {

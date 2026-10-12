@@ -1,0 +1,8 @@
+<div class="space-y-2" data-image-picker data-max-images="<%= typeof maxImages === 'number' ? maxImages : 5 %>">
+  <label for="request-images" class="block text-sm font-medium text-slate-700">Attach images (optional)</label>
+  <input id="request-images" type="file" name="images" multiple accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+         aria-describedby="image-upload-help image-upload-error" class="block w-full rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm" />
+  <p id="image-upload-help" class="text-xs text-slate-500">JPEG, PNG or WebP. Up to five images per request, 5 MB per image.</p>
+  <p id="image-upload-error" role="alert" class="text-sm text-red-700"></p>
+  <div data-image-previews class="grid grid-cols-2 gap-3 sm:grid-cols-3"></div>
+</div>

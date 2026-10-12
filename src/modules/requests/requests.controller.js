@@ -3,6 +3,7 @@ const { REQUEST_STATUSES } = require('./requests.constants');
 const { pageContext } = require('../../shared/views/pageContext');
 const { getAuthenticatedUserId, getAuthenticatedUserRole } = require('../auth/auth.middleware');
 const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
+const { AttachmentError } = require('./requests.attachments.validation');
 
 // ---- requester ----
 const submissionView = async (req, res, role, options = {}) => {
@@ -22,6 +23,7 @@ const submissionView = async (req, res, role, options = {}) => {
     isOperator,
     formAction: submitPath,
     successReference: null,
+    uploadCsrfToken: getCsrfToken(req),
     ...options,
     categories,
   });
@@ -77,6 +79,7 @@ exports.searchExternalRequesters = async (req, res, next) => {
 
 exports.submitRequest = async (req, res, next) => {
   try {
+    if (req.attachmentError) throw req.attachmentError;
     const userId = getAuthenticatedUserId(req);
     const submissionKey = `${userId}:${req.body?.categoryId}:${req.body?.title}:${req.body?.location}`;
     const now = Date.now();
@@ -91,16 +94,20 @@ exports.submitRequest = async (req, res, next) => {
       req.session.lastSubmission = { key: submissionKey, time: now };
     }
 
-    await requestsService.submit(req.body, userId);
+    await requestsService.submit(req.body, userId, req.files || []);
     res.redirect('/requester/my-requests');
   } catch (error) {
     if (req.session) {
       delete req.session.lastSubmission;
     }
-    if (error instanceof requestsService.RequestValidationError) {
+    if (
+      error instanceof requestsService.RequestValidationError ||
+      error instanceof AttachmentError
+    ) {
       try {
-        await submissionView(req, res.status(400), 'requester', {
+        await submissionView(req, res.status(error.statusCode || 400), 'requester', {
           errors: error.errors,
+          attachmentSaveFailed: error instanceof AttachmentError && error.statusCode >= 500,
           values: req.body,
         });
       } catch (renderError) {
@@ -119,6 +126,7 @@ exports.submitRequest = async (req, res, next) => {
 
 exports.operatorSubmitRequest = async (req, res, next) => {
   try {
+    if (req.attachmentError) throw req.attachmentError;
     const operatorId = getAuthenticatedUserId(req);
     const submissionKey = `${operatorId}:${req.body?.categoryId}:${req.body?.title}:${req.body?.location}:${req.body?.externalRequesterId || ''}`;
     const now = Date.now();
@@ -137,6 +145,7 @@ exports.operatorSubmitRequest = async (req, res, next) => {
       input: req.body,
       actorType: 'OPERATOR',
       actorUserId: operatorId,
+      files: req.files || [],
     });
     if (req.session) {
       req.session.lastOperatorSubmission = {
@@ -150,10 +159,14 @@ exports.operatorSubmitRequest = async (req, res, next) => {
     if (req.session) {
       delete req.session.lastOperatorSubmission;
     }
-    if (error instanceof requestsService.RequestValidationError) {
+    if (
+      error instanceof requestsService.RequestValidationError ||
+      error instanceof AttachmentError
+    ) {
       try {
-        await submissionView(req, res.status(400), 'operator', {
+        await submissionView(req, res.status(error.statusCode || 400), 'operator', {
           errors: error.errors,
+          attachmentSaveFailed: error instanceof AttachmentError && error.statusCode >= 500,
           values: req.body,
         });
       } catch (renderError) {
@@ -222,6 +235,7 @@ exports.requesterDetail = async (req, res, next) => {
       pageTitle: 'Request Details',
       pageSubtitle: 'Full request information and timeline',
       request,
+      attachmentCsrfToken: getCsrfToken(req),
     });
   } catch (error) {
     next(error);

@@ -241,7 +241,7 @@ exports.findExternalRequesterById = async (id) => {
   return result.rows[0] || null;
 };
 
-exports.create = async (input, generateRequestNumber) => {
+exports.create = async (input, generateRequestNumber, beforeCommit) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -297,6 +297,7 @@ exports.create = async (input, generateRequestNumber) => {
       ]
     );
 
+    if (beforeCommit) await beforeCommit(client, requestResult.rows[0]);
     await client.query('COMMIT');
     return requestResult.rows[0];
   } catch (error) {
