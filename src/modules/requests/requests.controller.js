@@ -130,7 +130,26 @@ exports.operatorSubmitRequest = async (req, res, next) => {
 
 exports.myRequests = async (req, res, next) => {
   try {
-    const requests = await requestsService.listForRequester(getAuthenticatedUserId(req));
+    const requesterId = getAuthenticatedUserId(req);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const status = typeof req.query.status === 'string' ? req.query.status.trim() : 'All';
+    const hasFilter = Boolean(q || (status && status.toLowerCase() !== 'all'));
+    const filters = { q, status };
+
+    const requests = await requestsService.listForRequester(
+      requesterId,
+      hasFilter ? filters : undefined
+    );
+
+    let summaryCounts = null;
+    if (typeof requestsService.getRequesterSummaryCounts === 'function') {
+      try {
+        summaryCounts = await requestsService.getRequesterSummaryCounts(requesterId);
+      } catch {
+        summaryCounts = null;
+      }
+    }
+
     res.render('requests/views/requester/my-requests', {
       ...pageContext('requester', req),
       title: 'My Requests',
@@ -138,6 +157,8 @@ exports.myRequests = async (req, res, next) => {
       pageTitle: 'My Requests',
       pageSubtitle: 'Track the status of your submissions',
       requests,
+      filters,
+      summaryCounts,
     });
   } catch (error) {
     next(error);
@@ -393,3 +414,36 @@ exports.rejectRequest = (req, res) =>
 
 exports.closeRequest = (req, res) =>
   transitionRequest(req, res, REQUEST_STATUSES.CLOSED, (id) => `/manager/requests/${id}`);
+
+exports.addStaffComment = async (req, res, next) => {
+  try {
+    const staffUserId = getAuthenticatedUserId(req);
+    const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : '';
+    if (!comment) {
+      return res.redirect(`/staff/requests/${req.params.id}`);
+    }
+    await requestsService.addStaffComment(req.params.id, staffUserId, comment);
+    res.redirect(`/staff/requests/${req.params.id}`);
+  } catch (error) {
+    if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
+      return res.status(403).send(error.message);
+    }
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    next(error);
+  }
+};
+
+exports.addManagerComment = async (req, res, next) => {
+  try {
+    const managerUserId = getAuthenticatedUserId(req);
+    const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : '';
+    if (!comment) {
+      return res.redirect(`/manager/requests/${req.params.id}`);
+    }
+    await requestsService.addManagerComment(req.params.id, managerUserId, comment);
+    res.redirect(`/manager/requests/${req.params.id}`);
+  } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    next(error);
+  }
+};

@@ -182,11 +182,22 @@ exports.listForManager = async (managerId, input = {}) => {
   return { ...data, filters };
 };
 exports.listCategories = async () => await requestsModel.findCategories();
-exports.listForRequester = async (requesterId) => {
+exports.listForRequester = async (requesterId, filters) => {
   if (!requesterId) {
     throw new SubmissionUserNotFoundError();
   }
-  return requestsModel.findByRequesterId(requesterId);
+  return filters
+    ? requestsModel.findByRequesterId(requesterId, filters)
+    : requestsModel.findByRequesterId(requesterId);
+};
+exports.getRequesterSummaryCounts = async (requesterId) => {
+  if (!requesterId) {
+    throw new SubmissionUserNotFoundError();
+  }
+  if (typeof requestsModel.getRequesterSummaryCounts === 'function') {
+    return requestsModel.getRequesterSummaryCounts(requesterId);
+  }
+  return null;
 };
 exports.listCreatedByOperator = async (operatorId) => {
   if (!operatorId) {
@@ -235,6 +246,30 @@ exports.getForStaff = async (id, staffUserId) => {
     throw new StaffDepartmentAccessError(access.reason);
   }
   return requestsModel.findById(id, undefined, staffUserId);
+};
+exports.addStaffComment = async (requestId, staffUserId, comment) => {
+  if (!isUuid(requestId)) throw new RequestAccessError('Invalid request identifier.', 400);
+  if (!isUuid(staffUserId)) throw new RequestAccessError('Invalid staff identifier.', 403);
+
+  const usersService = require('../users/users.service');
+  const access = await usersService.verifyStaffRequestAccess(staffUserId, requestId);
+  if (!access.allowed) {
+    if (access.reason === 'Request not found.') {
+      throw new RequestAccessError('Request not found.', 404);
+    }
+    throw new StaffDepartmentAccessError(access.reason);
+  }
+
+  return requestsModel.addComment(requestId, staffUserId, comment, 'NOTE');
+};
+exports.addManagerComment = async (requestId, managerUserId, comment) => {
+  if (!isUuid(requestId)) throw new RequestAccessError('Invalid request identifier.', 400);
+  if (!isUuid(managerUserId)) throw new RequestAccessError('Invalid manager identifier.', 403);
+
+  const request = await requestsModel.findById(requestId, undefined, undefined, managerUserId);
+  if (!request) throw new RequestAccessError('Request not found.', 404);
+
+  return requestsModel.addComment(requestId, managerUserId, comment, 'NOTE');
 };
 exports.searchStaffRequests = async (params) => requestsModel.searchStaffRequests(params);
 exports.listCategoriesByDepartment = async (departmentId) =>
