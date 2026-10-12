@@ -300,6 +300,49 @@ exports.findDepartmentsForAdmin = async () => {
   return result.rows;
 };
 
+exports.findRequestCategoriesForAdmin = async () => {
+  const result = await query(
+    `SELECT c.category_id AS "categoryId", c.name AS "categoryName",
+            c.description, c.is_active AS "isActive",
+            d.department_id AS "departmentId", d.name AS "departmentName"
+     FROM request_categories c
+     JOIN departments d ON d.department_id = c.department_id
+     ORDER BY d.name, c.name`
+  );
+  return result.rows;
+};
+
+exports.createRequestCategory = (adminId, { name, description, departmentId }) =>
+  transaction(async (client) => {
+    const departmentResult = await client.query(
+      `SELECT department_id
+       FROM departments
+       WHERE department_id = $1 AND is_active = true
+       FOR SHARE`,
+      [departmentId]
+    );
+    if (!departmentResult.rows[0]) return { departmentMissing: true };
+
+    const categoryResult = await client.query(
+      `INSERT INTO request_categories (name, description, department_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (name) DO NOTHING
+       RETURNING category_id AS "categoryId"`,
+      [name, description || null, departmentId]
+    );
+    const category = categoryResult.rows[0];
+    if (!category) return { duplicateName: true };
+
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'CATEGORY_CREATED',
+      targetType: 'CATEGORY',
+      targetId: category.categoryId,
+      changedData: { name, description: description || null, departmentId },
+    });
+    return { categoryId: category.categoryId };
+  });
+
 exports.findUsersForAdmin = async () => {
   const result = await query(
     `SELECT u.user_id AS "userId", u.first_name AS "firstName",

@@ -114,6 +114,36 @@ class DuplicateDepartmentNameError extends Error {
   }
 }
 
+class RequestCategoryValidationError extends Error {
+  constructor(errors, values) {
+    super('Please correct the request category details.');
+    this.name = 'RequestCategoryValidationError';
+    this.errors = errors;
+    this.values = values;
+    this.statusCode = 400;
+  }
+}
+
+class DuplicateRequestCategoryNameError extends Error {
+  constructor(values) {
+    super('A request category with this name already exists.');
+    this.name = 'DuplicateRequestCategoryNameError';
+    this.errors = { name: 'A request category with this name already exists.' };
+    this.values = values;
+    this.statusCode = 409;
+  }
+}
+
+class RequestCategoryDepartmentError extends Error {
+  constructor(values) {
+    super('Select an active department for this request category.');
+    this.name = 'RequestCategoryDepartmentError';
+    this.errors = { departmentId: this.message };
+    this.values = values;
+    this.statusCode = 400;
+  }
+}
+
 const validateStaffDetails = (input = {}) => {
   const firstName = typeof input.firstName === 'string' ? input.firstName.trim() : '';
   const lastName = typeof input.lastName === 'string' ? input.lastName.trim() : '';
@@ -163,6 +193,9 @@ exports.AdminUserNotFoundError = AdminUserNotFoundError;
 exports.AdminUserAssignmentConflictError = AdminUserAssignmentConflictError;
 exports.DepartmentValidationError = DepartmentValidationError;
 exports.DuplicateDepartmentNameError = DuplicateDepartmentNameError;
+exports.RequestCategoryValidationError = RequestCategoryValidationError;
+exports.DuplicateRequestCategoryNameError = DuplicateRequestCategoryNameError;
+exports.RequestCategoryDepartmentError = RequestCategoryDepartmentError;
 
 exports.listStaff = async (managerId) => {
   const department = await usersModel.findManagerDepartment(managerId);
@@ -215,6 +248,7 @@ exports.listAdminUsers = async () => {
 
 exports.listAdminDepartments = () => usersModel.findAdminDepartments();
 exports.listDepartmentsForAdmin = () => usersModel.findDepartmentsForAdmin();
+exports.listRequestCategoriesForAdmin = () => usersModel.findRequestCategoriesForAdmin();
 
 exports.createDepartment = async (adminId, input = {}) => {
   const name = typeof input.name === 'string' ? input.name.trim() : '';
@@ -231,6 +265,29 @@ exports.createDepartment = async (adminId, input = {}) => {
 
   const result = await usersModel.createDepartment(adminId, values);
   if (result.duplicateName) throw new DuplicateDepartmentNameError(values);
+  return result;
+};
+
+exports.createRequestCategory = async (adminId, input = {}) => {
+  const name = typeof input.name === 'string' ? input.name.trim() : '';
+  const description = typeof input.description === 'string' ? input.description.trim() : '';
+  const departmentId = typeof input.departmentId === 'string' ? input.departmentId.trim() : '';
+  const errors = {};
+  if (!name || name.length > 100) {
+    errors.name = 'Enter a category name (up to 100 characters).';
+  }
+  if (description.length > 2000) {
+    errors.description = 'Category description must be 2000 characters or fewer.';
+  }
+  if (!UUID_PATTERN.test(departmentId)) {
+    errors.departmentId = 'Select an active department for this request category.';
+  }
+  const values = { name, description, departmentId };
+  if (Object.keys(errors).length) throw new RequestCategoryValidationError(errors, values);
+
+  const result = await usersModel.createRequestCategory(adminId, values);
+  if (result.departmentMissing) throw new RequestCategoryDepartmentError(values);
+  if (result.duplicateName) throw new DuplicateRequestCategoryNameError(values);
   return result;
 };
 

@@ -20,6 +20,7 @@ const managementNav = [
 const adminNav = [
   { href: '/admin/users', label: 'User Management' },
   { href: '/admin/departments', label: 'Departments' },
+  { href: '/admin/categories', label: 'Request Categories' },
 ];
 
 const operatorNav = [

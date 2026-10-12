@@ -71,6 +71,32 @@ const renderAdminDepartments = async (req, res) => {
   });
 };
 
+const renderAdminCategories = async (
+  req,
+  res,
+  { errors = {}, values = {}, statusCode = 200, error = null } = {}
+) => {
+  const [categories, departments] = await Promise.all([
+    usersService.listRequestCategoriesForAdmin(),
+    usersService.listAdminDepartments(),
+  ]);
+  res.set('Cache-Control', 'no-store');
+  return res.status(statusCode).render('users/views/admin/categories', {
+    ...pageContext('admin', req),
+    title: 'Request Categories',
+    activeHref: '/admin/categories',
+    pageTitle: 'Request Categories',
+    pageSubtitle: 'Route each request category to exactly one department',
+    csrfToken: getCsrfToken(req),
+    categories,
+    departments,
+    errors,
+    values,
+    error,
+    success: req.query.status === 'created' ? 'Request category created.' : null,
+  });
+};
+
 const renderStaffList = async (
   req,
   res,
@@ -198,6 +224,27 @@ exports.createManager = async (req, res) => {
 
 exports.createDepartmentPage = (req, res) => renderDepartmentForm(req, res);
 exports.adminDepartments = (req, res) => renderAdminDepartments(req, res);
+exports.adminCategories = (req, res) => renderAdminCategories(req, res);
+
+exports.createRequestCategory = async (req, res) => {
+  try {
+    await usersService.createRequestCategory(getAuthenticatedUserId(req), req.body);
+    return res.redirect('/admin/categories?status=created');
+  } catch (error) {
+    if (
+      error instanceof usersService.RequestCategoryValidationError ||
+      error instanceof usersService.DuplicateRequestCategoryNameError ||
+      error instanceof usersService.RequestCategoryDepartmentError
+    ) {
+      return renderAdminCategories(req, res, {
+        errors: error.errors,
+        values: error.values || {},
+        statusCode: error.statusCode || 400,
+      });
+    }
+    throw error;
+  }
+};
 
 exports.createDepartment = async (req, res) => {
   try {

@@ -13,6 +13,8 @@ router.post('/admin/users', requireRole('admin'), requireCsrf, c.createManager);
 router.get('/admin/departments', requireRole('admin'), c.adminDepartments);
 router.get('/admin/departments/create', requireRole('admin'), c.createDepartmentPage);
 router.post('/admin/departments', requireRole('admin'), requireCsrf, c.createDepartment);
+router.get('/admin/categories', requireRole('admin'), c.adminCategories);
+router.post('/admin/categories', requireRole('admin'), requireCsrf, c.createRequestCategory);
 router.post('/admin/users/:userId/deactivate', requireRole('admin'), requireCsrf, c.deactivateUser);
 router.post('/admin/users/:userId/activate', requireRole('admin'), requireCsrf, c.reactivateUser);
 router.get('/requester/settings', c.settings);

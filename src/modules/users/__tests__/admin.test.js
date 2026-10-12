@@ -170,6 +170,86 @@ describe('admin user management', () => {
     });
   });
 
+  it('validates request category details and department before database access', async () => {
+    await expect(
+      usersService.createRequestCategory(adminId, {
+        name: '',
+        departmentId: 'not-a-uuid',
+      })
+    ).rejects.toMatchObject({
+      name: 'RequestCategoryValidationError',
+      errors: {
+        name: expect.any(String),
+        departmentId: expect.any(String),
+      },
+    });
+    expect(db.pool.connect).not.toHaveBeenCalled();
+  });
+
+  it('creates a request category attached to exactly one active department', async () => {
+    const categoryId = '77777777-7777-4777-8777-777777777777';
+    const client = makeClient(async (sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return { rows: [] };
+      if (sql.includes('FROM departments')) return { rows: [{ department_id: departmentId }] };
+      if (sql.includes('INSERT INTO request_categories')) return { rows: [{ categoryId }] };
+      if (sql.includes('INSERT INTO admin_audit_log')) return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await usersService.createRequestCategory(adminId, {
+      name: '  Road Maintenance  ',
+      description: '  Potholes and road damage  ',
+      departmentId,
+      departmentIds: [departmentId, '88888888-8888-4888-8888-888888888888'],
+    });
+
+    expect(result).toEqual({ categoryId });
+    const insert = client.query.mock.calls.find(([sql]) =>
+      sql.includes('INSERT INTO request_categories')
+    );
+    expect(insert[0]).toContain('department_id)');
+    expect(insert[0]).toContain('VALUES ($1, $2, $3)');
+    expect(insert[1]).toEqual(['Road Maintenance', 'Potholes and road damage', departmentId]);
+    expect(
+      client.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO admin_audit_log'))[1][1]
+    ).toBe('CATEGORY_CREATED');
+  });
+
+  it('rejects a category assigned to a missing or inactive department', async () => {
+    makeClient(async (sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return { rows: [] };
+      if (sql.includes('FROM departments')) return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await expect(
+      usersService.createRequestCategory(adminId, {
+        name: 'Road Maintenance',
+        departmentId,
+      })
+    ).rejects.toMatchObject({
+      name: 'RequestCategoryDepartmentError',
+      errors: { departmentId: expect.any(String) },
+    });
+  });
+
+  it('rejects duplicate request category names with a human-readable error', async () => {
+    makeClient(async (sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return { rows: [] };
+      if (sql.includes('FROM departments')) return { rows: [{ department_id: departmentId }] };
+      if (sql.includes('INSERT INTO request_categories')) return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await expect(
+      usersService.createRequestCategory(adminId, { name: 'Road Maintenance', departmentId })
+    ).rejects.toMatchObject({
+      name: 'DuplicateRequestCategoryNameError',
+      statusCode: 409,
+      errors: { name: 'A request category with this name already exists.' },
+    });
+  });
+
   it('rejects duplicate manager email addresses with a useful validation error', async () => {
     makeClient(async (sql) => {
       if (sql === 'BEGIN' || sql === 'COMMIT') return { rows: [] };
@@ -243,6 +323,8 @@ describe('admin user management', () => {
     expect(createPage.text).toContain('Create Manager Account');
     expect(createPage.text).toContain('name="departmentId"');
     expect(createPage.text).toContain('name="_csrf"');
+    expect(createPage.text).toContain('data-password-toggle');
+    expect(createPage.text).toContain('aria-controls="password"');
   });
 
   it('provides a separate departments page in the admin navigation', async () => {
@@ -269,6 +351,34 @@ describe('admin user management', () => {
     expect(response.text).toContain('Roads');
     expect(response.text).toContain('Not assigned');
     expect(response.text).toContain('/admin/departments/create');
+  });
+
+  it('lists request categories with their single assigned department and admin navigation', async () => {
+    const admin = request.agent(app);
+    await admin.get('/test/login/admin');
+    db.query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            categoryId: '77777777-7777-4777-8777-777777777777',
+            categoryName: 'Road Maintenance',
+            description: 'Road damage',
+            isActive: true,
+            departmentId,
+            departmentName: 'Roads',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ departmentId, departmentName: 'Roads' }] });
+
+    const response = await admin.get('/admin/categories');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('Request Categories');
+    expect(response.text).toContain('href="/admin/categories"');
+    expect(response.text).toContain('Road Maintenance');
+    expect(response.text).toContain('Roads');
+    expect(response.text).toContain('name="departmentId"');
   });
 
   it('creates a manager from the admin form and redirects into admin user management', async () => {
