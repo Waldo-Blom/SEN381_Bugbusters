@@ -3,6 +3,62 @@ const { pageContext } = require('../../shared/views/pageContext');
 const { getAuthenticatedUserId } = require('../auth/auth.middleware');
 const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
 
+const renderAdminUsers = async (
+  req,
+  res,
+  { error = null, success = null, statusCode = 200 } = {}
+) => {
+  const data = await usersService.listAdminUsers();
+  res.set('Cache-Control', 'no-store');
+  return res.status(statusCode).render('users/views/admin/users', {
+    ...pageContext('admin', req),
+    title: 'User Management',
+    activeHref: '/admin/users',
+    pageTitle: 'User Management',
+    pageSubtitle: 'Manage managers and staff across all departments',
+    csrfToken: getCsrfToken(req),
+    error,
+    success,
+    ...data,
+  });
+};
+
+const renderManagerForm = async (req, res, { errors = {}, values = {}, statusCode = 200 } = {}) => {
+  const departments = await usersService.listAdminDepartments();
+  res.set('Cache-Control', 'no-store');
+  return res.status(statusCode).render('users/views/admin/create-user', {
+    ...pageContext('admin', req),
+    title: 'Create Manager',
+    activeHref: '/admin/users',
+    pageTitle: 'Create Manager Account',
+    pageSubtitle: 'Register a manager and assign their department',
+    csrfToken: getCsrfToken(req),
+    errors,
+    values,
+    departments,
+  });
+};
+
+const renderDepartmentForm = async (
+  req,
+  res,
+  { errors = {}, values = {}, statusCode = 200 } = {}
+) => {
+  const managers = await usersService.listAvailableManagersForDepartment();
+  res.set('Cache-Control', 'no-store');
+  return res.status(statusCode).render('users/views/admin/create-department', {
+    ...pageContext('admin', req),
+    title: 'Create Department',
+    activeHref: '/admin/users',
+    pageTitle: 'Create Department',
+    pageSubtitle: 'Add a department before assigning its manager',
+    csrfToken: getCsrfToken(req),
+    errors,
+    values,
+    managers,
+  });
+};
+
 const renderStaffList = async (
   req,
   res,
@@ -89,6 +145,94 @@ exports.reactivateStaff = async (req, res) => {
       error instanceof usersService.StaffAssignmentConflictError
     ) {
       return res.status(error.statusCode).send(error.message);
+    }
+    throw error;
+  }
+};
+
+exports.adminUsers = async (req, res) =>
+  renderAdminUsers(req, res, {
+    success:
+      req.query.status === 'created'
+        ? 'Manager account created.'
+        : req.query.status === 'department-created'
+          ? 'Department created.'
+          : req.query.status === 'deactivated'
+            ? 'User account deactivated.'
+            : req.query.status === 'activated'
+              ? 'User account re-enabled.'
+              : null,
+  });
+
+exports.createManagerPage = (req, res) => renderManagerForm(req, res);
+
+exports.createManager = async (req, res) => {
+  try {
+    await usersService.createManager(getAuthenticatedUserId(req), req.body);
+    return res.redirect('/admin/users?status=created');
+  } catch (error) {
+    if (
+      error instanceof usersService.ManagerValidationError ||
+      error instanceof usersService.DuplicateManagerEmailError ||
+      error instanceof usersService.AdminDepartmentNotFoundError
+    ) {
+      return renderManagerForm(req, res, {
+        errors: error.errors,
+        values: error.values || {},
+        statusCode: error.statusCode || 400,
+      });
+    }
+    throw error;
+  }
+};
+
+exports.createDepartmentPage = (req, res) => renderDepartmentForm(req, res);
+
+exports.createDepartment = async (req, res) => {
+  try {
+    await usersService.createDepartment(getAuthenticatedUserId(req), req.body);
+    return res.redirect('/admin/users?status=department-created');
+  } catch (error) {
+    if (
+      error instanceof usersService.DepartmentValidationError ||
+      error instanceof usersService.DuplicateDepartmentNameError ||
+      error instanceof usersService.DepartmentManagerUnavailableError
+    ) {
+      return renderDepartmentForm(req, res, {
+        errors: error.errors,
+        values: error.values,
+        statusCode: error.statusCode || 400,
+      });
+    }
+    throw error;
+  }
+};
+
+exports.deactivateUser = async (req, res) => {
+  try {
+    await usersService.deactivateUserForAdmin(getAuthenticatedUserId(req), req.params.userId);
+    return res.redirect('/admin/users?status=deactivated');
+  } catch (error) {
+    if (error instanceof usersService.AdminUserNotFoundError) {
+      return res.status(error.statusCode).send(error.message);
+    }
+    throw error;
+  }
+};
+
+exports.reactivateUser = async (req, res) => {
+  try {
+    await usersService.reactivateUserForAdmin(getAuthenticatedUserId(req), req.params.userId);
+    return res.redirect('/admin/users?status=activated');
+  } catch (error) {
+    if (
+      error instanceof usersService.AdminUserNotFoundError ||
+      error instanceof usersService.AdminUserAssignmentConflictError
+    ) {
+      return renderAdminUsers(req, res, {
+        error: error.message,
+        statusCode: error.statusCode,
+      });
     }
     throw error;
   }

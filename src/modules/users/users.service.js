@@ -49,6 +49,81 @@ class StaffAssignmentConflictError extends Error {
   }
 }
 
+class ManagerValidationError extends Error {
+  constructor(errors, values) {
+    super('Please correct the manager account details.');
+    this.name = 'ManagerValidationError';
+    this.errors = errors;
+    this.values = values;
+  }
+}
+
+class DuplicateManagerEmailError extends Error {
+  constructor(values) {
+    super('An account with this email address already exists.');
+    this.name = 'DuplicateManagerEmailError';
+    this.errors = { email: 'An account with this email address already exists.' };
+    this.values = values;
+    this.statusCode = 409;
+  }
+}
+
+class AdminDepartmentNotFoundError extends Error {
+  constructor(values = {}) {
+    super('Select an active department.');
+    this.name = 'AdminDepartmentNotFoundError';
+    this.errors = { departmentId: 'Select an active department.' };
+    this.values = values;
+    this.statusCode = 400;
+  }
+}
+
+class AdminUserNotFoundError extends Error {
+  constructor() {
+    super('That manager or staff account was not found.');
+    this.name = 'AdminUserNotFoundError';
+    this.statusCode = 404;
+  }
+}
+
+class AdminUserAssignmentConflictError extends Error {
+  constructor() {
+    super('This staff member already has an active department assignment.');
+    this.name = 'AdminUserAssignmentConflictError';
+    this.statusCode = 409;
+  }
+}
+
+class DepartmentValidationError extends Error {
+  constructor(errors, values) {
+    super('Please correct the department details.');
+    this.name = 'DepartmentValidationError';
+    this.errors = errors;
+    this.values = values;
+    this.statusCode = 400;
+  }
+}
+
+class DuplicateDepartmentNameError extends Error {
+  constructor(values) {
+    super('A department with this name already exists.');
+    this.name = 'DuplicateDepartmentNameError';
+    this.errors = { name: 'A department with this name already exists.' };
+    this.values = values;
+    this.statusCode = 409;
+  }
+}
+
+class DepartmentManagerUnavailableError extends Error {
+  constructor(values) {
+    super('Select an active manager who is not assigned to another department.');
+    this.name = 'DepartmentManagerUnavailableError';
+    this.errors = { managerId: this.message };
+    this.values = values;
+    this.statusCode = 409;
+  }
+}
+
 const validateStaffDetails = (input = {}) => {
   const firstName = typeof input.firstName === 'string' ? input.firstName.trim() : '';
   const lastName = typeof input.lastName === 'string' ? input.lastName.trim() : '';
@@ -91,6 +166,14 @@ exports.ManagerDepartmentError = ManagerDepartmentError;
 exports.DuplicateStaffEmailError = DuplicateStaffEmailError;
 exports.StaffNotFoundError = StaffNotFoundError;
 exports.StaffAssignmentConflictError = StaffAssignmentConflictError;
+exports.ManagerValidationError = ManagerValidationError;
+exports.DuplicateManagerEmailError = DuplicateManagerEmailError;
+exports.AdminDepartmentNotFoundError = AdminDepartmentNotFoundError;
+exports.AdminUserNotFoundError = AdminUserNotFoundError;
+exports.AdminUserAssignmentConflictError = AdminUserAssignmentConflictError;
+exports.DepartmentValidationError = DepartmentValidationError;
+exports.DuplicateDepartmentNameError = DuplicateDepartmentNameError;
+exports.DepartmentManagerUnavailableError = DepartmentManagerUnavailableError;
 
 exports.listStaff = async (managerId) => {
   const department = await usersModel.findManagerDepartment(managerId);
@@ -131,6 +214,78 @@ exports.reactivateStaff = async (managerId, staffId) => {
   const result = await usersModel.reactivateStaff(managerId, staffId);
   if (result.notFound) throw new StaffNotFoundError();
   if (result.activeAssignmentExists) throw new StaffAssignmentConflictError();
+};
+
+exports.listAdminUsers = async () => {
+  const [users, departments, allDepartments] = await Promise.all([
+    usersModel.findUsersForAdmin(),
+    usersModel.findAdminDepartments(),
+    usersModel.findDepartmentsForAdmin(),
+  ]);
+  return { users, departments, allDepartments };
+};
+
+exports.listAdminDepartments = () => usersModel.findAdminDepartments();
+exports.listAvailableManagersForDepartment = () => usersModel.findAvailableManagersForDepartment();
+
+exports.createDepartment = async (adminId, input = {}) => {
+  const name = typeof input.name === 'string' ? input.name.trim() : '';
+  const description = typeof input.description === 'string' ? input.description.trim() : '';
+  const managerId = typeof input.managerId === 'string' ? input.managerId.trim() : '';
+  const errors = {};
+  if (!name || name.length > 100) {
+    errors.name = 'Enter a department name (up to 100 characters).';
+  }
+  if (description.length > 2000) {
+    errors.description = 'Department description must be 2000 characters or fewer.';
+  }
+  if (!UUID_PATTERN.test(managerId)) {
+    errors.managerId = 'Select an active manager who is not assigned to another department.';
+  }
+  const values = { name, description, managerId };
+  if (Object.keys(errors).length) throw new DepartmentValidationError(errors, values);
+
+  const result = await usersModel.createDepartment(adminId, values);
+  if (result.duplicateName) throw new DuplicateDepartmentNameError(values);
+  if (result.managerUnavailable) throw new DepartmentManagerUnavailableError(values);
+  return result;
+};
+
+exports.createManager = async (adminId, input) => {
+  const { errors, values, password } = validateStaffDetails(input);
+  const departmentId = typeof input.departmentId === 'string' ? input.departmentId.trim() : '';
+  const managerValues = { ...values, departmentId };
+  if (!UUID_PATTERN.test(departmentId)) {
+    errors.departmentId = 'Select an active department.';
+  }
+  if (Object.keys(errors).length) throw new ManagerValidationError(errors, managerValues);
+
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  const result = await usersModel.createManager(adminId, {
+    ...values,
+    passwordHash,
+    departmentId,
+  });
+  if (result.departmentMissing) throw new AdminDepartmentNotFoundError(managerValues);
+  if (result.duplicateEmail) throw new DuplicateManagerEmailError(managerValues);
+  return result;
+};
+
+exports.deactivateUserForAdmin = async (adminId, userId) => {
+  if (typeof userId !== 'string' || !UUID_PATTERN.test(userId)) {
+    throw new AdminUserNotFoundError();
+  }
+  const deactivated = await usersModel.deactivateUserForAdmin(adminId, userId);
+  if (!deactivated) throw new AdminUserNotFoundError();
+};
+
+exports.reactivateUserForAdmin = async (adminId, userId) => {
+  if (typeof userId !== 'string' || !UUID_PATTERN.test(userId)) {
+    throw new AdminUserNotFoundError();
+  }
+  const result = await usersModel.reactivateUserForAdmin(adminId, userId);
+  if (result.notFound) throw new AdminUserNotFoundError();
+  if (result.activeAssignmentExists) throw new AdminUserAssignmentConflictError();
 };
 
 exports.getStaffDepartment = (staffUserId) => usersModel.findStaffDepartment(staffUserId);
