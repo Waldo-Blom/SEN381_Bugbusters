@@ -70,6 +70,13 @@ exports.assignToStaff = async (requestId, staffUserId) => {
       throw new Error('Request not found');
     }
     const currentStatus = reqRes.rows[0].status;
+    const { requestsService } = require('../requests');
+    await requestsService.checkStaffAccess(requestId, staffUserId, client);
+    if (reqRes.rows[0].assigned_staff_id || currentStatus !== 'SUBMITTED') {
+      const error = new Error('This request is not available for assignment.');
+      error.statusCode = 403;
+      throw error;
+    }
     const now = new Date();
 
     // 2. Determine new status: if currently SUBMITTED, transition to ASSIGNED

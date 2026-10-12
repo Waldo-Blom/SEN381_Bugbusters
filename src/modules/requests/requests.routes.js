@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const c = require('./requests.controller');
 const { requireRole } = require('../auth/auth.middleware');
+const { requireCsrf } = require('../../shared/middleware/csrf.middleware');
 
 const requireRequester = requireRole(
   'requester',
@@ -37,5 +38,35 @@ router.post('/staff/requests/:id/start-progress', requireStaff, c.startProgress)
 router.post('/staff/requests/:id/resolve', requireStaff, c.resolveRequest);
 router.post('/staff/requests/:id/reject', requireStaff, c.rejectRequest);
 router.post('/manager/requests/:id/close', requireManager, c.closeRequest);
+router.post(
+  '/staff/requests/:id/contact-access',
+  requireStaff,
+  requireCsrf,
+  c.requestContactAccess
+);
+router.post(
+  '/manager/contact-access-requests/:accessId/approve',
+  requireManager,
+  requireCsrf,
+  c.approveContactAccess
+);
+router.post(
+  '/manager/contact-access-requests/:accessId/reject',
+  requireManager,
+  requireCsrf,
+  c.rejectContactAccess
+);
+router.post(
+  '/manager/requests/:id/contact-access/authorise',
+  requireManager,
+  requireCsrf,
+  c.authoriseContactAccess
+);
+router.post(
+  '/manager/requests/:id/contact-access/revoke',
+  requireManager,
+  requireCsrf,
+  c.revokeContactAccess
+);
 
 module.exports = router;

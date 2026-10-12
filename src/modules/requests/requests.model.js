@@ -1,4 +1,24 @@
 const { query, pool } = require('../../config/database');
+const { requireStaffAccess } = require('./requests.access');
+const { ALLOWED_TRANSITIONS } = require('./requests.constants');
+
+const staffMembership = `EXISTS (
+  SELECT 1 FROM staff_assignments sa JOIN users viewer ON viewer.user_id = sa.staff_id
+  WHERE sa.staff_id = $2 AND sa.department_id = c.department_id AND sa.is_active = true
+    AND viewer.is_active = true AND viewer.user_type = 'STAFF' AND d.is_active = true
+)`;
+
+exports.findAccessContext = async (id, staffId, client = { query }) => {
+  const result = await client.query(
+    `SELECT r.assigned_staff_id, r.contact_information_approved, r.status,
+      ${staffMembership} AS staff_allowed
+     FROM service_requests r JOIN request_categories c ON c.category_id = r.category_id
+     JOIN departments d ON d.department_id = c.department_id WHERE r.request_id = $1`,
+    [id, staffId]
+  );
+  const row = result.rows[0];
+  return row ? { ...row, status: toTitleCase(row.status) } : null;
+};
 
 const toTitleCase = (str) => {
   if (!str) return '';
@@ -13,20 +33,40 @@ const formatDate = (date) => {
   return new Date(date).toISOString().slice(0, 16).replace('T', ' ');
 };
 
-const requestsSelect = `
+// Suppress contact fields in PostgreSQL before they reach staff-facing code.
+const contactProjection = (condition) =>
+  [
+    ["u.first_name || ' ' || u.last_name", 'requester_name'],
+    ['u.email', 'requester_email'],
+    ['u.phone', 'requester_phone'],
+    ["ext.first_name || ' ' || ext.last_name", 'ext_requester_name'],
+    ['ext.email', 'ext_requester_email'],
+    ['ext.phone', 'ext_requester_phone'],
+  ]
+    .map(
+      ([expression, alias]) =>
+        `${condition ? `CASE WHEN ${condition} THEN ${expression} ELSE NULL END` : expression} as ${alias}`
+    )
+    .join(',\n');
+
+const requestsSelect = (contactCondition) => `
   SELECT
     r.request_id, r.request_number, r.title, r.description, r.status, r.priority, r.location,
     r.created_at, r.updated_at, r.overdue_flag,
+    r.assigned_staff_id, r.contact_information_approved,
+    ${contactCondition && contactCondition !== 'false' ? `${staffMembership} AS staff_allowed,` : ''}
+    ${
+      contactCondition && contactCondition !== 'false'
+        ? `(SELECT a.status FROM request_contact_access_requests a
+      WHERE a.request_id = r.request_id AND a.requested_by = $2 AND a.department_id = c.department_id
+      ORDER BY a.requested_at DESC, a.contact_access_request_id DESC LIMIT 1) AS contact_access_status,`
+        : ''
+    }
     c.name as category_name,
     d.name as department_name,
-    u.first_name || ' ' || u.last_name as requester_name,
-    u.email as requester_email,
-    u.phone as requester_phone,
-    ext.first_name || ' ' || ext.last_name as ext_requester_name,
-    ext.email as ext_requester_email,
-    ext.phone as ext_requester_phone,
+    ${contactProjection(contactCondition)},
     staff.first_name || ' ' || staff.last_name as assigned_to_name,
-    creator.first_name || ' ' || creator.last_name as created_by_name,
+    ${contactCondition ? 'NULL' : "creator.first_name || ' ' || creator.last_name"} as created_by_name,
     (SELECT COUNT(*) FROM request_attachments WHERE request_id = r.request_id) as attachment_count
   FROM service_requests r
   LEFT JOIN request_categories c ON r.category_id = c.category_id
@@ -59,12 +99,22 @@ const mapRowToRequest = (row) => ({
   overdue: row.overdue_flag || false,
   comments: [],
   timeline: [],
+  contactInformationApproved: row.contact_information_approved === true,
 });
 
 exports.findAll = async () => {
-  const sql = `${requestsSelect} ORDER BY r.created_at DESC`;
+  const sql = `${requestsSelect()} ORDER BY r.created_at DESC`;
   const result = await query(sql);
   return result.rows.map(mapRowToRequest);
+};
+
+exports.findForStaff = async (staffId) => {
+  // Staff lists do not need contact data, including for approved requests.
+  const result = await query(
+    `${requestsSelect('false')} WHERE ${staffMembership.replace('$2', '$1')} ORDER BY r.created_at DESC`,
+    [staffId]
+  );
+  return result.rows.map((row) => ({ ...mapRowToRequest(row), requesterName: 'Restricted' }));
 };
 
 // LEFT JOIN preserves the managed department even when it has no requests.
@@ -249,60 +299,78 @@ exports.create = async (input, generateRequestNumber) => {
 };
 
 exports.findByRequesterId = async (userId) => {
-  const sql = `${requestsSelect} WHERE r.requester_id = $1 ORDER BY r.created_at DESC`;
+  const sql = `${requestsSelect()} WHERE r.requester_id = $1 ORDER BY r.created_at DESC`;
   const result = await query(sql, [userId]);
   return result.rows.map(mapRowToRequest);
 };
 
 exports.findByCreatorId = async (userId) => {
-  const sql = `${requestsSelect}
+  const sql = `${requestsSelect()}
     WHERE r.created_by = $1
     ORDER BY r.created_at DESC`;
   const result = await query(sql, [userId]);
   return result.rows.map(mapRowToRequest);
 };
 
-exports.findById = async (id, requesterId) => {
+exports.findById = async (id, requesterId, staffId, managerId) => {
   const requesterFilter = requesterId ? 'AND r.requester_id = $2' : '';
-  const sql = `
-    SELECT 
-      r.request_id, r.request_number, r.title, r.description, r.status, r.priority, r.location, 
-      r.created_at, r.updated_at, r.overdue_flag,
-      c.name as category_name,
-      d.name as department_name,
-      u.first_name || ' ' || u.last_name as requester_name,
-      u.email as requester_email,
-      u.phone as requester_phone,
-      ext.first_name || ' ' || ext.last_name as ext_requester_name,
-      ext.email as ext_requester_email,
-      ext.phone as ext_requester_phone,
-      staff.first_name || ' ' || staff.last_name as assigned_to_name,
-      (SELECT COUNT(*) FROM request_attachments WHERE request_id = r.request_id) as attachment_count
-    FROM service_requests r
-    LEFT JOIN request_categories c ON r.category_id = c.category_id
-    LEFT JOIN departments d ON c.department_id = d.department_id
-    LEFT JOIN users u ON r.requester_id = u.user_id
-    LEFT JOIN external_requesters ext ON r.external_requester_id = ext.external_requester_id
-    LEFT JOIN users staff ON r.assigned_staff_id = staff.user_id
-    WHERE r.request_id = $1 ${requesterFilter}
-  `;
-  const params = requesterId ? [id, requesterId] : [id];
+  const contactCondition = staffId
+    ? 'r.contact_information_approved = true AND r.assigned_staff_id = $2'
+    : null;
+  let sql = `${requestsSelect(contactCondition)} WHERE r.request_id = $1 ${requesterFilter}`;
+  if (staffId) sql += ` AND ${staffMembership}`;
+  if (managerId)
+    sql += ` AND d.manager_id = $2 AND d.is_active = true AND EXISTS (
+    SELECT 1 FROM users manager WHERE manager.user_id = $2 AND manager.user_type = 'MANAGER' AND manager.is_active = true)`;
+  const actorId = requesterId || staffId || managerId;
+  const params = actorId ? [id, actorId] : [id];
   const result = await query(sql, params);
-  if (result.rows.length === 0) return null;
+  if (result.rows.length === 0) {
+    if (staffId) requireStaffAccess(await exports.findAccessContext(id, staffId), staffId);
+    return null;
+  }
   const request = mapRowToRequest(result.rows[0]);
+  if (staffId) {
+    const row = result.rows[0];
+    requireStaffAccess(row, staffId);
+    request.canViewContact =
+      row.contact_information_approved === true && row.assigned_staff_id === staffId;
+    request.canManageStatus = row.assigned_staff_id === staffId;
+    request.canAssign = !row.assigned_staff_id && request.status === 'Submitted';
+    request.contactAccessStatus = row.contact_access_status || null;
+    if (!request.canViewContact) {
+      request.requesterName = 'Restricted';
+      request.requesterEmail = '';
+      request.requesterPhone = '';
+    }
+  }
 
   // Fetch comments
   const commentsSql = `
     SELECT 
       rc.comment_id, rc.content, rc.created_at, 
-      u.first_name || ' ' || u.last_name as author_name,
+      ${staffId ? "CASE WHEN u.user_type = 'REQUESTER' THEN 'Restricted' ELSE u.first_name || ' ' || u.last_name END" : "u.first_name || ' ' || u.last_name"} as author_name,
       u.user_type
     FROM request_comments rc
     LEFT JOIN users u ON rc.commented_by = u.user_id
-    WHERE rc.request_id = $1
+    WHERE rc.request_id = $1 AND rc.is_deleted IS NOT TRUE
     ORDER BY rc.created_at ASC
   `;
-  const commentsResult = await query(commentsSql, [id]);
+
+  // Fetch timeline
+  const historySql = `
+    SELECT 
+      h.status_history_id, h.new_status, h.changed_at,
+      ${staffId ? "CASE WHEN u.user_type = 'REQUESTER' THEN 'Restricted' ELSE u.first_name || ' ' || u.last_name END" : "u.first_name || ' ' || u.last_name"} as actor_name
+    FROM request_status_history h
+    LEFT JOIN users u ON h.changed_by = u.user_id
+    WHERE h.request_id = $1
+    ORDER BY h.changed_at ASC
+  `;
+  const [commentsResult, historyResult] = await Promise.all([
+    query(commentsSql, [id]),
+    query(historySql, [id]),
+  ]);
   request.comments = commentsResult.rows.map((row) => ({
     id: row.comment_id,
     author: row.author_name || 'System',
@@ -310,18 +378,6 @@ exports.findById = async (id, requesterId) => {
     text: row.content,
     timestamp: formatDate(row.created_at),
   }));
-
-  // Fetch timeline
-  const historySql = `
-    SELECT 
-      h.status_history_id, h.new_status, h.changed_at,
-      u.first_name || ' ' || u.last_name as actor_name
-    FROM request_status_history h
-    LEFT JOIN users u ON h.changed_by = u.user_id
-    WHERE h.request_id = $1
-    ORDER BY h.changed_at ASC
-  `;
-  const historyResult = await query(historySql, [id]);
   request.timeline = historyResult.rows.map((row) => ({
     id: row.status_history_id,
     status: toTitleCase(row.new_status),
@@ -333,7 +389,7 @@ exports.findById = async (id, requesterId) => {
   return request;
 };
 
-exports.updateStatus = async (id, newStatus, comment, userId = null) => {
+exports.updateStatus = async (id, newStatus, comment, userId = null, staffOnly = false) => {
   const dbStatus = newStatus.toUpperCase().replace(' ', '_');
 
   const client = await pool.connect();
@@ -347,6 +403,12 @@ exports.updateStatus = async (id, newStatus, comment, userId = null) => {
     );
     if (reqRes.rows.length === 0) throw new Error('Request not found');
     const oldDbStatus = reqRes.rows[0].status;
+    if (staffOnly) {
+      requireStaffAccess(await exports.findAccessContext(id, userId, client), userId, true);
+      if (!(ALLOWED_TRANSITIONS[toTitleCase(oldDbStatus)] || []).includes(newStatus)) {
+        throw new Error(`Invalid transition from ${toTitleCase(oldDbStatus)} to ${newStatus}`);
+      }
+    }
 
     // Concurrency / idempotency guard: reject duplicate transition if already at target status
     if (oldDbStatus === dbStatus) {
@@ -399,7 +461,7 @@ exports.updateStatus = async (id, newStatus, comment, userId = null) => {
 
     await client.query('COMMIT');
 
-    return exports.findById(id);
+    return exports.findById(id, undefined, staffOnly ? userId : undefined);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
