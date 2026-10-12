@@ -1,6 +1,6 @@
 const { query, pool } = require('../../config/database');
 const { RequestAccessError, requireStaffAccess } = require('./requests.access');
-const { recordContactAccessChange } = require('../audit');
+const eventBus = require('../../shared/events/eventBus');
 
 // Resolve ownership from PostgreSQL rather than trusting session department IDs.
 exports.findContext = async (requestId, actorId, client = { query }, lock = false) => {
@@ -54,6 +54,19 @@ const setApproval = (client, requestId, managerId, approved) =>
     [requestId, approved, managerId]
   );
 
+/**
+ * Emit a contact access event for audit logging
+ * @param {string} action - Action type
+ * @param {Object} params - Event parameters
+ */
+const emitContactAccessEvent = (action, params) => {
+  eventBus.emitAuditEvent('ContactAccessAuthorized', {
+    action,
+    ...params,
+    timestamp: new Date(),
+  });
+};
+
 exports.createRequest = (requestId, staffId, reason) =>
   transaction(async (client) => {
     const context = await exports.findContext(requestId, staffId, client, true);
@@ -74,10 +87,10 @@ exports.createRequest = (requestId, staffId, reason) =>
      VALUES ($1, $2, $3, $4) RETURNING contact_access_request_id, status`,
       [requestId, staffId, context.department_id, reason]
     );
-    await recordContactAccessChange(client, {
-      actorId: staffId,
+    // Emit event for audit logging (append-only, non-blocking)
+    emitContactAccessEvent('CONTACT_ACCESS_REQUESTED', {
       requestId,
-      action: 'CONTACT_ACCESS_REQUESTED',
+      actorId: staffId,
       details: {
         contactAccessRequestId: saved.rows[0].contact_access_request_id,
         requestedBy: staffId,
@@ -130,10 +143,10 @@ exports.reviewRequest = (accessId, managerId, approved) =>
       ]
     );
     await setApproval(client, requestId, managerId, approved);
-    await recordContactAccessChange(client, {
-      actorId: managerId,
+    // Emit event for audit logging
+    emitContactAccessEvent(approved ? 'CONTACT_ACCESS_APPROVED' : 'CONTACT_ACCESS_REJECTED', {
       requestId,
-      action: approved ? 'CONTACT_ACCESS_APPROVED' : 'CONTACT_ACCESS_REJECTED',
+      actorId: managerId,
       details: {
         contactAccessRequestId: accessId,
         requestedBy: access.requested_by,
@@ -172,10 +185,10 @@ exports.changeApproval = (requestId, managerId, approved) =>
       ]
     );
     await setApproval(client, requestId, managerId, approved);
-    await recordContactAccessChange(client, {
-      actorId: managerId,
+    // Emit event for audit logging
+    emitContactAccessEvent(approved ? 'CONTACT_ACCESS_APPROVED' : 'CONTACT_ACCESS_REVOKED', {
       requestId,
-      action: approved ? 'CONTACT_ACCESS_APPROVED' : 'CONTACT_ACCESS_REVOKED',
+      actorId: managerId,
       details: {
         requestedBy: context.assigned_staff_id,
         departmentId: context.department_id,

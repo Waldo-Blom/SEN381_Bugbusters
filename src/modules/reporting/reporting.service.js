@@ -62,7 +62,59 @@ exports.getDashboardData = async (managerId) => {
     })),
   };
 };
-exports.getAuditLog = () => reportingModel.getAuditLog();
+
+const auditActionLabel = (actionType) => {
+  const labels = {
+    REQUEST_SUBMITTED: 'Request submitted',
+    STATUS_CHANGED: 'Status changed',
+    REQUEST_ASSIGNED: 'Assignment changed',
+    CONTACT_ACCESS_REQUESTED: 'Contact access requested',
+    CONTACT_ACCESS_APPROVED: 'Contact access approved',
+    CONTACT_ACCESS_REJECTED: 'Contact access rejected',
+    CONTACT_ACCESS_REVOKED: 'Contact access revoked',
+  };
+  return labels[actionType] || displayEnum(actionType);
+};
+
+const auditDetail = (entry) => {
+  const changedData = entry.changed_data || {};
+  if (entry.action_type === 'STATUS_CHANGED') {
+    return `Status changed from ${displayEnum(changedData.oldStatus)} to ${displayEnum(changedData.newStatus)}`;
+  }
+  if (entry.action_type === 'REQUEST_ASSIGNED') {
+    return entry.assignee_name ? `Assigned to ${entry.assignee_name}` : 'Assignment removed';
+  }
+  if (entry.action_type === 'REQUEST_SUBMITTED') {
+    return 'Request entered the system';
+  }
+  if (entry.action_type.startsWith('CONTACT_ACCESS_')) {
+    return 'Contact access authorization activity';
+  }
+  return 'Request activity recorded';
+};
+
+exports.getAuditLog = async (managerId, departmentId, page = 1) => {
+  const pageSize = 100;
+  const totalCount = await reportingModel.getAuditLogCount(managerId, departmentId);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const entries = await reportingModel.getAuditLog(managerId, departmentId, {
+    limit: pageSize,
+    offset: (currentPage - 1) * pageSize,
+  });
+  return {
+    entries: entries.map((entry) => ({
+      action: auditActionLabel(entry.action_type),
+      timestamp: entry.timestamp,
+      detail: auditDetail(entry),
+      actor: entry.actor_name || 'Unknown user',
+      reference: entry.request_number,
+    })),
+    totalCount,
+    page: currentPage,
+    totalPages,
+  };
+};
 
 exports.getContactAccessInbox = async (managerId) => {
   if (!managerId) return null;

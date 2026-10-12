@@ -1,4 +1,5 @@
 const { query, pool } = require('../../config/database');
+const eventBus = require('../../shared/events/eventBus');
 
 /**
  * Validates whether a staff member belongs to the same department as the request category.
@@ -70,6 +71,7 @@ exports.assignToStaff = async (requestId, staffUserId) => {
       throw new Error('Request not found');
     }
     const currentStatus = reqRes.rows[0].status;
+    const previousAssignee = reqRes.rows[0].assigned_staff_id;
     const { requestsService } = require('../requests');
     await requestsService.checkStaffAccess(requestId, staffUserId, client);
     if (reqRes.rows[0].assigned_staff_id || currentStatus !== 'SUBMITTED') {
@@ -113,6 +115,16 @@ exports.assignToStaff = async (requestId, staffUserId) => {
     }
 
     await client.query('COMMIT');
+
+    // Emit audit event for assignment (after successful commit)
+    eventBus.emitAuditEvent('RequestAssigned', {
+      requestId,
+      assignedToStaffId: staffUserId,
+      userId: staffUserId,
+      previousAssignee,
+      timestamp: new Date(),
+    });
+
     return {
       requestId,
       status: newStatus,

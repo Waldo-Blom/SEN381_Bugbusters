@@ -13,7 +13,7 @@
 <div class="space-y-5">
 
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Total Actions Logged</p><p class="mt-1 text-2xl font-bold text-slate-900"><%= auditLog.length %></p></div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Total Actions Logged</p><p class="mt-1 text-2xl font-bold text-slate-900"><%= totalCount %></p></div>
     <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Avg. Resolution Time</p><p class="mt-1 text-2xl font-bold text-slate-900">4.2<span class="text-sm text-slate-400"> hrs</span></p></div>
     <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Access Authorisations</p><p class="mt-1 text-2xl font-bold text-slate-900">3</p></div>
     <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Priority Escalations</p><p class="mt-1 text-2xl font-bold text-slate-900">2</p></div>
@@ -40,6 +40,9 @@
       <button class="text-sm font-medium text-blue-600 hover:text-blue-700">Export log</button>
     </div>
     <div class="divide-y divide-slate-100">
+      <% if (auditLog.length === 0) { %>
+        <p class="px-5 py-8 text-center text-sm text-slate-500">No request audit activity has been recorded.</p>
+      <% } %>
       <% auditLog.forEach(function (entry) { %>
         <div class="flex items-start gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
           <div class="flex-1 min-w-0">
@@ -48,11 +51,24 @@
               <span class="text-xs text-slate-400">&middot; <%= entry.timestamp %></span>
             </div>
             <p class="mt-0.5 text-sm text-slate-600"><%= entry.detail %></p>
-            <p class="mt-0.5 text-xs text-slate-400"><%= entry.actor %></p>
+            <p class="mt-0.5 text-xs text-slate-400">
+              <%= entry.actor %><% if (entry.reference) { %> &middot; <%= entry.reference %><% } %>
+            </p>
           </div>
         </div>
       <% }); %>
     </div>
+    <% if (totalPages > 1) { %>
+      <div class="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm">
+        <span class="text-slate-500">Page <%= currentPage %> of <%= totalPages %></span>
+        <% if (currentPage > 1) { %>
+          <a class="font-medium text-blue-600 hover:text-blue-700" href="/manager/reporting?page=<%= currentPage - 1 %>">Previous</a>
+        <% } %>
+        <% if (currentPage < totalPages) { %>
+          <a class="font-medium text-blue-600 hover:text-blue-700" href="/manager/reporting?page=<%= currentPage + 1 %>">Next</a>
+        <% } %>
+      </div>
+    <% } %>
   </div>
 </div>
 

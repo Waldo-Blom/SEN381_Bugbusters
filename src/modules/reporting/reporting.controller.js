@@ -18,14 +18,31 @@ exports.dashboard = async (req, res) => {
   });
 };
 
-exports.reporting = (req, res) => {
+exports.reporting = async (req, res) => {
+  const managerId = getAuthenticatedUserId(req);
+  const reportingModel = require('./reporting.model');
+  const department = await reportingModel.findManagedDepartment(managerId);
+  if (!department) {
+    return res.status(403).send('You do not manage an active department.');
+  }
+  const requestedPage = Number(req.query.page);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const {
+    entries: auditLog,
+    totalCount,
+    page: currentPage,
+    totalPages,
+  } = await reportingService.getAuditLog(managerId, department.id, page);
   res.render('reporting/views/manager/reporting', {
     ...pageContext('manager', req),
     title: 'Reporting & Audit',
     activeHref: '/manager/reporting',
     pageTitle: 'Reporting & Audit',
     pageSubtitle: 'Request lifecycle and action history',
-    auditLog: reportingService.getAuditLog(),
+    auditLog,
+    totalCount,
+    currentPage,
+    totalPages,
   });
 };
 

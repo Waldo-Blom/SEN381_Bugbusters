@@ -2,6 +2,7 @@
 // (e.g. /staff/dashboard), so they are mounted at the root.
 module.exports = function registerModules(app) {
   require('./notifications').initialize();
+  require('./audit').initialize();
   app.use('/auth', require('./auth').routes); // use the prefix app.js used before
   app.use(require('./requests').routes);
   app.use(require('./workflow').routes);

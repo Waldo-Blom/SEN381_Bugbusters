@@ -1,7 +1,15 @@
 const { query } = require('../../config/database');
-const { auditLog } = require('../../../db/mock/mockData');
+const auditModule = require('../audit');
 
-exports.getAuditLog = () => auditLog;
+exports.getAuditLog = (managerId, departmentId, filters = {}) =>
+  auditModule.getAuditLog({
+    managerId,
+    departmentId,
+    ...filters,
+  });
+
+exports.getAuditLogCount = (managerId, departmentId, actionType) =>
+  auditModule.getAuditLogCount({ managerId, departmentId, actionType });
 
 exports.findManagedDepartment = async (managerId) => {
   const result = await query(
