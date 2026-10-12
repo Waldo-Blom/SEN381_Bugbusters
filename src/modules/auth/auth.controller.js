@@ -6,7 +6,7 @@ const redirectByRole = {
   staff: '/staff/dashboard',
   management: '/manager/requests',
   operator: '/operator/submit',
-  admin: '/',
+  admin: '/admin/users',
 };
 
 const demoRoles = [
