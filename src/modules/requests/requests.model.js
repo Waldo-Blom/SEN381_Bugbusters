@@ -365,12 +365,20 @@ exports.findById = async (id, requesterId, staffId, managerId) => {
   // Fetch timeline
   const historySql = `
     SELECT 
-      h.status_history_id, h.new_status, h.changed_at,
+      h.status_history_id, h.new_status, h.changed_at, NULL::text as assignment_name,
       ${staffId ? "CASE WHEN u.user_type = 'REQUESTER' THEN 'Restricted' ELSE u.first_name || ' ' || u.last_name END" : "u.first_name || ' ' || u.last_name"} as actor_name
     FROM request_status_history h
     LEFT JOIN users u ON h.changed_by = u.user_id
     WHERE h.request_id = $1
-    ORDER BY h.changed_at ASC
+    UNION ALL
+    SELECT a.assignment_history_id, NULL::request_status, a.assigned_at,
+      staff.first_name || ' ' || staff.last_name as assignment_name,
+      manager.first_name || ' ' || manager.last_name as actor_name
+    FROM request_assignment_history a
+    LEFT JOIN users staff ON staff.user_id = a.assigned_to_staff_id
+    LEFT JOIN users manager ON manager.user_id = a.assigned_by_id
+    WHERE a.request_id = $1
+    ORDER BY changed_at ASC
   `;
   const [commentsResult, historyResult] = await Promise.all([
     query(commentsSql, [id]),
@@ -386,7 +394,9 @@ exports.findById = async (id, requesterId, staffId, managerId) => {
   request.timeline = historyResult.rows.map((row) => ({
     id: row.status_history_id,
     status: toTitleCase(row.new_status),
-    label: `Status changed to ${toTitleCase(row.new_status)}`,
+    label: row.assignment_name
+      ? `Assigned to ${row.assignment_name}`
+      : `Status changed to ${toTitleCase(row.new_status)}`,
     timestamp: formatDate(row.changed_at),
     actor: row.actor_name || 'System',
   }));

@@ -169,6 +169,7 @@ it.each([false, true])('connects direct contact controls with approval=%s', asyn
         submittedAt: '',
         updatedAt: '',
         assignedTo: 'Assigned Staff',
+        assignedStaffId: '55555555-5555-4555-8555-555555555555',
         requesterName: 'Citizen',
         requesterEmail: '',
         requesterPhone: '',
