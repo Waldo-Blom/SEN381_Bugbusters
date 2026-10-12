@@ -19,12 +19,15 @@
 
     <% if (Object.keys(errors).length > 0) { %>
       <div role="alert" class="mx-5 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-        <p class="font-semibold">Please correct the following:</p>
+        <p class="font-semibold"><%= typeof attachmentSaveFailed !== 'undefined' && attachmentSaveFailed ? 'We could not submit your request' : 'Please correct the following:' %></p>
         <ul class="mt-1 list-disc pl-5">
           <% Object.values(errors).forEach(function (message) { %>
             <li><%= message %></li>
           <% }); %>
         </ul>
+        <% if (typeof attachmentSaveFailed !== 'undefined' && attachmentSaveFailed) { %>
+          <p class="mt-2">Your request was not submitted. Your entered details are still here. Please select your images again before retrying.</p>
+        <% } %>
       </div>
     <% } %>
     <% if (successReference) { %>
@@ -33,7 +36,8 @@
       </div>
     <% } %>
 
-    <form id="serviceRequestForm" action="<%= formAction || '/requester/submit' %>" method="post" class="px-5 py-4 space-y-5">
+    <form id="serviceRequestForm" action="<%= formAction || '/requester/submit' %>" method="post" enctype="multipart/form-data" class="px-5 py-4 space-y-5">
+      <input type="hidden" name="_csrf" value="<%= typeof uploadCsrfToken === 'string' ? uploadCsrfToken : '' %>" />
 
       <div class="space-y-1.5">
         <label for="categoryId" class="block text-sm font-medium text-slate-700">Category *</label>
@@ -95,15 +99,10 @@
         </div>
       </div>
 
-      <div class="space-y-2">
-        <label class="block text-sm font-medium text-slate-700">Attach images (optional)</label>
-        <div class="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center hover:border-blue-400 hover:bg-blue-50/50">
-          <p class="text-sm text-slate-600">
-            <span class="font-semibold text-blue-600">Click to upload</span> or drag and drop
-          </p>
-          <p class="mt-1 text-xs text-slate-400">PNG, JPG, or GIF — max 5MB per image</p>
-        </div>
-      </div>
+      <%- include('../partials/image-picker') %>
+      <% if (Object.keys(errors).length > 0) { %>
+        <p class="text-xs text-slate-500">If you selected images, please select them again before resubmitting.</p>
+      <% } %>
 
       <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end pt-2">
         <button id="submitRequestButton" type="submit" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -120,6 +119,7 @@
 
   if (serviceRequestForm && submitRequestButton) {
     serviceRequestForm.addEventListener('submit', (e) => {
+      if (e.defaultPrevented) return;
       if (serviceRequestForm.dataset.submitting === 'true') {
         e.preventDefault();
         return false;
@@ -260,4 +260,5 @@
   }
 </script>
 
+<script src="/js/request-images.js"></script>
 <%- include('partials/app-layout-foot') %>

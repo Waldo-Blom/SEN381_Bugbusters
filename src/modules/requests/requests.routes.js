@@ -2,6 +2,12 @@ const router = require('express').Router();
 const c = require('./requests.controller');
 const { requireRole } = require('../auth/auth.middleware');
 const { requireCsrf } = require('../../shared/middleware/csrf.middleware');
+const attachments = require('./requests.attachments.controller');
+const { parseImages } = require('./requests.attachments.middleware');
+const requireUploadCsrf = (req, res, next) =>
+  req.is('multipart/form-data') ? requireCsrf(req, res, next) : next();
+const requireAttachmentViewer = requireRole(['requester', 'operator', 'staff', 'management']);
+const requireAttachmentUploader = requireRole(['requester', 'operator']);
 
 const requireRequester = requireRole(
   'requester',
@@ -14,15 +20,32 @@ const requireManager = requireRole('management', 'Only managers can access this 
 
 // requester
 router.get('/requester/submit', requireRequester, c.submitPage);
-router.post('/requester/submit', requireRequester, c.submitRequest);
+router.post('/requester/submit', requireRequester, parseImages, requireUploadCsrf, c.submitRequest);
 router.get('/requester/my-requests', requireRequester, c.myRequests);
 router.get('/requester/requests/:id', requireRequester, c.requesterDetail);
 
 // operators are limited to creating requests on behalf of external requesters
 router.get('/operator/submit', requireOperator, c.operatorSubmitPage);
-router.post('/operator/submit', requireOperator, c.operatorSubmitRequest);
+router.post(
+  '/operator/submit',
+  requireOperator,
+  parseImages,
+  requireUploadCsrf,
+  c.operatorSubmitRequest
+);
 router.get('/operator/requests', requireOperator, c.operatorLoggedRequests);
+router.get('/operator/requests/:id', requireOperator, attachments.operatorDetail);
 router.get('/operator/community-members/search', requireOperator, c.searchExternalRequesters);
+
+router.get('/requests/:id/attachments', requireAttachmentViewer, attachments.list);
+router.get('/requests/:id/attachments/:attachmentId', requireAttachmentViewer, attachments.view);
+router.post(
+  '/requests/:id/attachments',
+  requireAttachmentUploader,
+  parseImages,
+  requireCsrf,
+  attachments.upload
+);
 
 // staff
 router.get('/staff/search', requireStaff, c.staffSearch);
