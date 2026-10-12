@@ -300,20 +300,6 @@ exports.findDepartmentsForAdmin = async () => {
   return result.rows;
 };
 
-exports.findAvailableManagersForDepartment = async () => {
-  const result = await query(
-    `SELECT u.user_id AS "userId", u.first_name AS "firstName",
-            u.last_name AS "lastName", u.email
-     FROM users u
-     WHERE u.user_type = 'MANAGER' AND u.is_active = true
-       AND NOT EXISTS (
-         SELECT 1 FROM departments d WHERE d.manager_id = u.user_id
-       )
-     ORDER BY u.last_name, u.first_name, u.email`
-  );
-  return result.rows;
-};
-
 exports.findUsersForAdmin = async () => {
   const result = await query(
     `SELECT u.user_id AS "userId", u.first_name AS "firstName",
@@ -385,28 +371,14 @@ exports.createManager = (
     return { userId: user.userId };
   });
 
-exports.createDepartment = (adminId, { name, description, managerId }) =>
+exports.createDepartment = (adminId, { name, description }) =>
   transaction(async (client) => {
-    const managerResult = await client.query(
-      `SELECT user_id FROM users
-       WHERE user_id = $1 AND user_type = 'MANAGER' AND is_active = true
-       FOR UPDATE`,
-      [managerId]
-    );
-    if (!managerResult.rows[0]) return { managerUnavailable: true };
-
-    const assignmentResult = await client.query(
-      'SELECT 1 FROM departments WHERE manager_id = $1 LIMIT 1',
-      [managerId]
-    );
-    if (assignmentResult.rows.length) return { managerUnavailable: true };
-
     const departmentResult = await client.query(
       `INSERT INTO departments (name, description, manager_id)
-       VALUES ($1, $2, $3)
+       VALUES ($1, $2, NULL)
        ON CONFLICT (name) DO NOTHING
        RETURNING department_id AS "departmentId"`,
-      [name, description || null, managerId]
+      [name, description || null]
     );
     const department = departmentResult.rows[0];
     if (!department) return { duplicateName: true };

@@ -17,7 +17,10 @@ const managementNav = [
   { href: '/manager/users', label: 'User Management' },
 ];
 
-const adminNav = [{ href: '/admin/users', label: 'User Management' }];
+const adminNav = [
+  { href: '/admin/users', label: 'User Management' },
+  { href: '/admin/departments', label: 'Departments' },
+];
 
 const operatorNav = [
   { href: '/operator/submit', label: 'Log a Request' },

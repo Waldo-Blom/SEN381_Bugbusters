@@ -44,18 +44,30 @@ const renderDepartmentForm = async (
   res,
   { errors = {}, values = {}, statusCode = 200 } = {}
 ) => {
-  const managers = await usersService.listAvailableManagersForDepartment();
   res.set('Cache-Control', 'no-store');
   return res.status(statusCode).render('users/views/admin/create-department', {
     ...pageContext('admin', req),
     title: 'Create Department',
-    activeHref: '/admin/users',
+    activeHref: '/admin/departments',
     pageTitle: 'Create Department',
-    pageSubtitle: 'Add a department before assigning its manager',
+    pageSubtitle: 'Add a department, then assign a manager when creating their account',
     csrfToken: getCsrfToken(req),
     errors,
     values,
-    managers,
+  });
+};
+
+const renderAdminDepartments = async (req, res) => {
+  const departments = await usersService.listDepartmentsForAdmin();
+  res.set('Cache-Control', 'no-store');
+  return res.render('users/views/admin/departments', {
+    ...pageContext('admin', req),
+    title: 'Departments',
+    activeHref: '/admin/departments',
+    pageTitle: 'Departments',
+    pageSubtitle: 'Manage departments and their manager assignments',
+    departments,
+    success: req.query.status === 'created' ? 'Department created.' : null,
   });
 };
 
@@ -155,13 +167,11 @@ exports.adminUsers = async (req, res) =>
     success:
       req.query.status === 'created'
         ? 'Manager account created.'
-        : req.query.status === 'department-created'
-          ? 'Department created.'
-          : req.query.status === 'deactivated'
-            ? 'User account deactivated.'
-            : req.query.status === 'activated'
-              ? 'User account re-enabled.'
-              : null,
+        : req.query.status === 'deactivated'
+          ? 'User account deactivated.'
+          : req.query.status === 'activated'
+            ? 'User account re-enabled.'
+            : null,
   });
 
 exports.createManagerPage = (req, res) => renderManagerForm(req, res);
@@ -187,16 +197,16 @@ exports.createManager = async (req, res) => {
 };
 
 exports.createDepartmentPage = (req, res) => renderDepartmentForm(req, res);
+exports.adminDepartments = (req, res) => renderAdminDepartments(req, res);
 
 exports.createDepartment = async (req, res) => {
   try {
     await usersService.createDepartment(getAuthenticatedUserId(req), req.body);
-    return res.redirect('/admin/users?status=department-created');
+    return res.redirect('/admin/departments?status=created');
   } catch (error) {
     if (
       error instanceof usersService.DepartmentValidationError ||
-      error instanceof usersService.DuplicateDepartmentNameError ||
-      error instanceof usersService.DepartmentManagerUnavailableError
+      error instanceof usersService.DuplicateDepartmentNameError
     ) {
       return renderDepartmentForm(req, res, {
         errors: error.errors,

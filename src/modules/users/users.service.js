@@ -114,16 +114,6 @@ class DuplicateDepartmentNameError extends Error {
   }
 }
 
-class DepartmentManagerUnavailableError extends Error {
-  constructor(values) {
-    super('Select an active manager who is not assigned to another department.');
-    this.name = 'DepartmentManagerUnavailableError';
-    this.errors = { managerId: this.message };
-    this.values = values;
-    this.statusCode = 409;
-  }
-}
-
 const validateStaffDetails = (input = {}) => {
   const firstName = typeof input.firstName === 'string' ? input.firstName.trim() : '';
   const lastName = typeof input.lastName === 'string' ? input.lastName.trim() : '';
@@ -173,7 +163,6 @@ exports.AdminUserNotFoundError = AdminUserNotFoundError;
 exports.AdminUserAssignmentConflictError = AdminUserAssignmentConflictError;
 exports.DepartmentValidationError = DepartmentValidationError;
 exports.DuplicateDepartmentNameError = DuplicateDepartmentNameError;
-exports.DepartmentManagerUnavailableError = DepartmentManagerUnavailableError;
 
 exports.listStaff = async (managerId) => {
   const department = await usersModel.findManagerDepartment(managerId);
@@ -217,21 +206,19 @@ exports.reactivateStaff = async (managerId, staffId) => {
 };
 
 exports.listAdminUsers = async () => {
-  const [users, departments, allDepartments] = await Promise.all([
+  const [users, departments] = await Promise.all([
     usersModel.findUsersForAdmin(),
     usersModel.findAdminDepartments(),
-    usersModel.findDepartmentsForAdmin(),
   ]);
-  return { users, departments, allDepartments };
+  return { users, departments };
 };
 
 exports.listAdminDepartments = () => usersModel.findAdminDepartments();
-exports.listAvailableManagersForDepartment = () => usersModel.findAvailableManagersForDepartment();
+exports.listDepartmentsForAdmin = () => usersModel.findDepartmentsForAdmin();
 
 exports.createDepartment = async (adminId, input = {}) => {
   const name = typeof input.name === 'string' ? input.name.trim() : '';
   const description = typeof input.description === 'string' ? input.description.trim() : '';
-  const managerId = typeof input.managerId === 'string' ? input.managerId.trim() : '';
   const errors = {};
   if (!name || name.length > 100) {
     errors.name = 'Enter a department name (up to 100 characters).';
@@ -239,15 +226,11 @@ exports.createDepartment = async (adminId, input = {}) => {
   if (description.length > 2000) {
     errors.description = 'Department description must be 2000 characters or fewer.';
   }
-  if (!UUID_PATTERN.test(managerId)) {
-    errors.managerId = 'Select an active manager who is not assigned to another department.';
-  }
-  const values = { name, description, managerId };
+  const values = { name, description };
   if (Object.keys(errors).length) throw new DepartmentValidationError(errors, values);
 
   const result = await usersModel.createDepartment(adminId, values);
   if (result.duplicateName) throw new DuplicateDepartmentNameError(values);
-  if (result.managerUnavailable) throw new DepartmentManagerUnavailableError(values);
   return result;
 };
 

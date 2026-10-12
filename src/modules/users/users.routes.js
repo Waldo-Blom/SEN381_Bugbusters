@@ -10,6 +10,7 @@ router.post('/manager/users/:staffId/activate', requireManager, requireCsrf, c.r
 router.get('/admin/users', requireRole('admin'), c.adminUsers);
 router.get('/admin/users/create', requireRole('admin'), c.createManagerPage);
 router.post('/admin/users', requireRole('admin'), requireCsrf, c.createManager);
+router.get('/admin/departments', requireRole('admin'), c.adminDepartments);
 router.get('/admin/departments/create', requireRole('admin'), c.createDepartmentPage);
 router.post('/admin/departments', requireRole('admin'), requireCsrf, c.createDepartment);
 router.post('/admin/users/:userId/deactivate', requireRole('admin'), requireCsrf, c.deactivateUser);

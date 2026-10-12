@@ -11,6 +11,12 @@
     </p>
   <% } %>
 
+  <% if (departments.length === 0) { %>
+    <p role="status" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      No active departments are available yet. <a href="/admin/departments/create" class="font-semibold underline">Create a department</a> first, then return here to register its manager.
+    </p>
+  <% } %>
+
   <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
     <h2 class="font-semibold text-slate-800">Manager details</h2>
     <p class="mt-1 text-sm text-slate-500">Managers are assigned to one department. The selected department's current manager assignment will be replaced.</p>

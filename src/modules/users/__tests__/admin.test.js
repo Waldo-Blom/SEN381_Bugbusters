@@ -131,12 +131,10 @@ describe('admin user management', () => {
     expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
-  it('creates a department with an unassigned active manager and records an audit event', async () => {
+  it('creates a department without a manager and records an audit event', async () => {
     const departmentId = '66666666-6666-4666-8666-666666666666';
     const client = makeClient(async (sql) => {
       if (sql === 'BEGIN' || sql === 'COMMIT') return { rows: [] };
-      if (sql.includes('SELECT user_id FROM users')) return { rows: [{ user_id: managerId }] };
-      if (sql.includes('SELECT 1 FROM departments')) return { rows: [] };
       if (sql.includes('INSERT INTO departments')) return { rows: [{ departmentId }] };
       if (sql.includes('INSERT INTO admin_audit_log')) return { rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
@@ -145,14 +143,12 @@ describe('admin user management', () => {
     const result = await usersService.createDepartment(adminId, {
       name: '  Parks and Recreation  ',
       description: '  Public spaces  ',
-      managerId,
     });
 
     expect(result).toEqual({ departmentId });
-    expect(client.query).toHaveBeenCalledWith(expect.stringContaining('VALUES ($1, $2, $3)'), [
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining('VALUES ($1, $2, NULL)'), [
       'Parks and Recreation',
       'Public spaces',
-      managerId,
     ]);
     expect(
       client.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO admin_audit_log'))[1][1]
@@ -163,15 +159,11 @@ describe('admin user management', () => {
   it('rejects duplicate department names with a human-readable error', async () => {
     makeClient(async (sql) => {
       if (sql === 'BEGIN' || sql === 'COMMIT') return { rows: [] };
-      if (sql.includes('SELECT user_id FROM users')) return { rows: [{ user_id: managerId }] };
-      if (sql.includes('SELECT 1 FROM departments')) return { rows: [] };
       if (sql.includes('INSERT INTO departments')) return { rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
     });
 
-    await expect(
-      usersService.createDepartment(adminId, { name: 'Roads', managerId })
-    ).rejects.toMatchObject({
+    await expect(usersService.createDepartment(adminId, { name: 'Roads' })).rejects.toMatchObject({
       name: 'DuplicateDepartmentNameError',
       statusCode: 409,
       errors: { name: 'A department with this name already exists.' },
@@ -196,7 +188,6 @@ describe('admin user management', () => {
   it('lists management accounts by role with their department and current activity', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ userId: managerId, userType: 'MANAGER' }] });
     db.query.mockResolvedValueOnce({ rows: [{ departmentId, departmentName: 'Roads' }] });
-    db.query.mockResolvedValueOnce({ rows: [] });
 
     const data = await usersService.listAdminUsers();
 
@@ -239,12 +230,10 @@ describe('admin user management', () => {
             managerLastName: 'Manager',
           },
         ],
-      })
-      .mockResolvedValueOnce({ rows: [] });
+      });
     const list = await admin.get('/admin/users');
     expect(list.status).toBe(200);
     expect(list.text).toContain('Manage managers and staff across all departments');
-    expect(list.text).toContain('/admin/departments/create');
     expect(list.text).toContain('Sam');
     expect(list.text).toContain('Roads');
 
@@ -254,6 +243,32 @@ describe('admin user management', () => {
     expect(createPage.text).toContain('Create Manager Account');
     expect(createPage.text).toContain('name="departmentId"');
     expect(createPage.text).toContain('name="_csrf"');
+  });
+
+  it('provides a separate departments page in the admin navigation', async () => {
+    const admin = request.agent(app);
+    await admin.get('/test/login/admin');
+    db.query.mockResolvedValueOnce({
+      rows: [
+        {
+          departmentId,
+          departmentName: 'Roads',
+          description: 'Transport services',
+          isActive: true,
+          managerFirstName: null,
+          managerLastName: null,
+        },
+      ],
+    });
+
+    const response = await admin.get('/admin/departments');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('href="/admin/departments"');
+    expect(response.text).toContain('href="/admin/users"');
+    expect(response.text).toContain('Roads');
+    expect(response.text).toContain('Not assigned');
+    expect(response.text).toContain('/admin/departments/create');
   });
 
   it('creates a manager from the admin form and redirects into admin user management', async () => {
@@ -285,26 +300,13 @@ describe('admin user management', () => {
   it('allows administrators to add a department from the admin screen', async () => {
     const admin = request.agent(app);
     await admin.get('/test/login/admin');
-    db.query.mockResolvedValueOnce({
-      rows: [
-        {
-          userId: managerId,
-          firstName: 'Morgan',
-          lastName: 'Manager',
-          email: 'manager@example.com',
-        },
-      ],
-    });
     const form = await admin.get('/admin/departments/create');
     expect(form.status).toBe(200);
     expect(form.text).toContain('Department name');
-    expect(form.text).toContain('name="managerId"');
     expect(form.text).toContain('name="_csrf"');
 
     const client = makeClient(async (sql) => {
       if (sql === 'BEGIN' || sql === 'COMMIT') return { rows: [] };
-      if (sql.includes('SELECT user_id FROM users')) return { rows: [{ user_id: managerId }] };
-      if (sql.includes('SELECT 1 FROM departments')) return { rows: [] };
       if (sql.includes('INSERT INTO departments')) {
         return { rows: [{ departmentId: '66666666-6666-4666-8666-666666666666' }] };
       }
@@ -317,12 +319,11 @@ describe('admin user management', () => {
       .send({
         name: 'Parks',
         description: 'Public spaces',
-        managerId,
         _csrf: csrfFrom(form.text),
       });
 
     expect(response.status).toBe(302);
-    expect(response.headers.location).toBe('/admin/users?status=department-created');
+    expect(response.headers.location).toBe('/admin/departments?status=created');
     expect(client.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO departments'))).toBe(
       true
     );
