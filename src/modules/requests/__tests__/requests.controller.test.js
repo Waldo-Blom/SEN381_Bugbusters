@@ -1,5 +1,6 @@
 jest.mock('../requests.service', () => ({
   getForStaff: jest.fn(),
+  addStaffComment: jest.fn(),
   workflow: {
     transitionRequest: jest.fn(),
   },
@@ -82,5 +83,31 @@ describe('Requests controller workflow routes', () => {
       'staff-1'
     );
     expect(requestsService.workflow.transitionRequest).not.toHaveBeenCalled();
+  });
+
+  it('posts a staff comment and redirects to staff request detail', async () => {
+    requestsService.addStaffComment.mockResolvedValue({ comment_id: 'c1' });
+
+    const response = await request(app)
+      .post('/staff/requests/request-1/comments')
+      .send({ comment: 'Inspected pothole.' });
+
+    expect(requestsService.addStaffComment).toHaveBeenCalledWith(
+      'request-1',
+      'staff-1',
+      'Inspected pothole.'
+    );
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe('/staff/requests/request-1');
+  });
+
+  it('redirects without calling service when staff comment is empty', async () => {
+    const response = await request(app)
+      .post('/staff/requests/request-1/comments')
+      .send({ comment: '   ' });
+
+    expect(requestsService.addStaffComment).not.toHaveBeenCalled();
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe('/staff/requests/request-1');
   });
 });

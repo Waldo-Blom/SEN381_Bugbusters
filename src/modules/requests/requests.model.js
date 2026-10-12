@@ -303,10 +303,66 @@ exports.create = async (input, generateRequestNumber) => {
   }
 };
 
-exports.findByRequesterId = async (userId) => {
-  const sql = `${requestsSelect()} WHERE r.requester_id = $1 ORDER BY r.created_at DESC`;
-  const result = await query(sql, [userId]);
+exports.findByRequesterId = async (userId, filters = {}) => {
+  const conditions = ['r.requester_id = $1'];
+  const params = [userId];
+
+  const q = typeof filters.q === 'string' ? filters.q.trim() : '';
+  if (q) {
+    const escaped = q.replace(/[\\%_]/g, '\\$&');
+    params.push(`%${escaped}%`);
+    const pIdx = params.length;
+    conditions.push(
+      `(r.title ILIKE $${pIdx} ESCAPE E'\\\\' OR r.request_number ILIKE $${pIdx} ESCAPE E'\\\\')`
+    );
+  }
+
+  const status = typeof filters.status === 'string' ? filters.status.trim() : '';
+  if (status && status.toLowerCase() !== 'all') {
+    const dbStatus = status.toUpperCase().replace(/\s+/g, '_');
+    params.push(dbStatus);
+    const pIdx = params.length;
+    conditions.push(`r.status::text = $${pIdx}`);
+  }
+
+  const sql = `${requestsSelect()} WHERE ${conditions.join(' AND ')} ORDER BY r.created_at DESC`;
+  const result = await query(sql, params);
   return result.rows.map(mapRowToRequest);
+};
+
+exports.getRequesterSummaryCounts = async (userId) => {
+  const result = await query(
+    `SELECT 
+      COUNT(*)::int AS total,
+      COUNT(CASE WHEN status = 'SUBMITTED' THEN 1 END)::int AS submitted,
+      COUNT(CASE WHEN status = 'IN_PROGRESS' THEN 1 END)::int AS in_progress,
+      COUNT(CASE WHEN status = 'RESOLVED' THEN 1 END)::int AS resolved,
+      COUNT(CASE WHEN status = 'CLOSED' THEN 1 END)::int AS closed
+     FROM service_requests
+     WHERE requester_id = $1`,
+    [userId]
+  );
+  const row = result.rows[0] || {};
+  return {
+    total: row.total || 0,
+    submitted: row.submitted || 0,
+    inProgress: row.in_progress || 0,
+    resolved: row.resolved || 0,
+    closed: row.closed || 0,
+  };
+};
+
+exports.addComment = async (requestId, userId, content, commentType = 'NOTE') => {
+  const result = await query(
+    `INSERT INTO request_comments (request_id, commented_by, comment_type, content, created_at)
+     VALUES ($1, $2, $3::comment_type, $4, LOCALTIMESTAMP)
+     RETURNING comment_id, content, created_at`,
+    [requestId, userId, commentType, content]
+  );
+  await query(`UPDATE service_requests SET updated_at = LOCALTIMESTAMP WHERE request_id = $1`, [
+    requestId,
+  ]);
+  return result.rows[0];
 };
 
 exports.findByCreatorId = async (userId) => {
