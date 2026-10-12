@@ -33,7 +33,7 @@
       </div>
     <% } %>
 
-    <form action="<%= formAction || '/requester/submit' %>" method="post" class="px-5 py-4 space-y-5">
+    <form id="serviceRequestForm" action="<%= formAction || '/requester/submit' %>" method="post" class="px-5 py-4 space-y-5">
 
       <div class="space-y-1.5">
         <label for="categoryId" class="block text-sm font-medium text-slate-700">Category *</label>
@@ -106,7 +106,7 @@
       </div>
 
       <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end pt-2">
-        <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+        <button id="submitRequestButton" type="submit" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
           Submit request
         </button>
       </div>
@@ -115,6 +115,22 @@
 </div>
 
 <script>
+  const serviceRequestForm = document.getElementById('serviceRequestForm');
+  const submitRequestButton = document.getElementById('submitRequestButton');
+
+  if (serviceRequestForm && submitRequestButton) {
+    serviceRequestForm.addEventListener('submit', (e) => {
+      if (serviceRequestForm.dataset.submitting === 'true') {
+        e.preventDefault();
+        return false;
+      }
+      serviceRequestForm.dataset.submitting = 'true';
+      submitRequestButton.disabled = true;
+      submitRequestButton.textContent = 'Submitting...';
+      submitRequestButton.classList.add('opacity-50', 'cursor-not-allowed');
+    });
+  }
+
   const priorityInput = document.getElementById('priority');
   const priorityButtons = document.querySelectorAll('[data-priority]');
 

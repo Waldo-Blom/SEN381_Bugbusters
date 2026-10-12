@@ -77,9 +77,26 @@ exports.searchExternalRequesters = async (req, res, next) => {
 
 exports.submitRequest = async (req, res, next) => {
   try {
-    await requestsService.submit(req.body, getAuthenticatedUserId(req));
+    const userId = getAuthenticatedUserId(req);
+    const submissionKey = `${userId}:${req.body?.categoryId}:${req.body?.title}:${req.body?.location}`;
+    const now = Date.now();
+    if (
+      req.session?.lastSubmission &&
+      req.session.lastSubmission.key === submissionKey &&
+      now - req.session.lastSubmission.time < 3000
+    ) {
+      return res.redirect('/requester/my-requests');
+    }
+    if (req.session) {
+      req.session.lastSubmission = { key: submissionKey, time: now };
+    }
+
+    await requestsService.submit(req.body, userId);
     res.redirect('/requester/my-requests');
   } catch (error) {
+    if (req.session) {
+      delete req.session.lastSubmission;
+    }
     if (error instanceof requestsService.RequestValidationError) {
       try {
         await submissionView(req, res.status(400), 'requester', {
@@ -102,13 +119,37 @@ exports.submitRequest = async (req, res, next) => {
 
 exports.operatorSubmitRequest = async (req, res, next) => {
   try {
+    const operatorId = getAuthenticatedUserId(req);
+    const submissionKey = `${operatorId}:${req.body?.categoryId}:${req.body?.title}:${req.body?.location}:${req.body?.externalRequesterId || ''}`;
+    const now = Date.now();
+    if (
+      req.session?.lastOperatorSubmission &&
+      req.session.lastOperatorSubmission.key === submissionKey &&
+      now - req.session.lastOperatorSubmission.time < 3000
+    ) {
+      const ref = req.session.lastOperatorSubmission.reference;
+      return res.redirect(
+        ref ? `/operator/submit?submitted=${encodeURIComponent(ref)}` : '/operator/requests'
+      );
+    }
+
     const created = await requestsService.createServiceRequest({
       input: req.body,
       actorType: 'OPERATOR',
-      actorUserId: getAuthenticatedUserId(req),
+      actorUserId: operatorId,
     });
+    if (req.session) {
+      req.session.lastOperatorSubmission = {
+        key: submissionKey,
+        time: now,
+        reference: created.reference,
+      };
+    }
     res.redirect(`/operator/submit?submitted=${encodeURIComponent(created.reference)}`);
   } catch (error) {
+    if (req.session) {
+      delete req.session.lastOperatorSubmission;
+    }
     if (error instanceof requestsService.RequestValidationError) {
       try {
         await submissionView(req, res.status(400), 'operator', {
@@ -130,7 +171,26 @@ exports.operatorSubmitRequest = async (req, res, next) => {
 
 exports.myRequests = async (req, res, next) => {
   try {
-    const requests = await requestsService.listForRequester(getAuthenticatedUserId(req));
+    const requesterId = getAuthenticatedUserId(req);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const status = typeof req.query.status === 'string' ? req.query.status.trim() : 'All';
+    const hasFilter = Boolean(q || (status && status.toLowerCase() !== 'all'));
+    const filters = { q, status };
+
+    const requests = await requestsService.listForRequester(
+      requesterId,
+      hasFilter ? filters : undefined
+    );
+
+    let summaryCounts = null;
+    if (typeof requestsService.getRequesterSummaryCounts === 'function') {
+      try {
+        summaryCounts = await requestsService.getRequesterSummaryCounts(requesterId);
+      } catch {
+        summaryCounts = null;
+      }
+    }
+
     res.render('requests/views/requester/my-requests', {
       ...pageContext('requester', req),
       title: 'My Requests',
@@ -138,6 +198,8 @@ exports.myRequests = async (req, res, next) => {
       pageTitle: 'My Requests',
       pageSubtitle: 'Track the status of your submissions',
       requests,
+      filters,
+      summaryCounts,
     });
   } catch (error) {
     next(error);
@@ -412,3 +474,36 @@ exports.rejectRequest = (req, res) =>
 
 exports.closeRequest = (req, res) =>
   transitionRequest(req, res, REQUEST_STATUSES.CLOSED, (id) => `/manager/requests/${id}`);
+
+exports.addStaffComment = async (req, res, next) => {
+  try {
+    const staffUserId = getAuthenticatedUserId(req);
+    const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : '';
+    if (!comment) {
+      return res.redirect(`/staff/requests/${req.params.id}`);
+    }
+    await requestsService.addStaffComment(req.params.id, staffUserId, comment);
+    res.redirect(`/staff/requests/${req.params.id}`);
+  } catch (error) {
+    if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
+      return res.status(403).send(error.message);
+    }
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    next(error);
+  }
+};
+
+exports.addManagerComment = async (req, res, next) => {
+  try {
+    const managerUserId = getAuthenticatedUserId(req);
+    const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : '';
+    if (!comment) {
+      return res.redirect(`/manager/requests/${req.params.id}`);
+    }
+    await requestsService.addManagerComment(req.params.id, managerUserId, comment);
+    res.redirect(`/manager/requests/${req.params.id}`);
+  } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    next(error);
+  }
+};

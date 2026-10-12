@@ -1,0 +1,40 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="mx-auto max-w-3xl space-y-5">
+  <a href="/admin/departments" class="inline-flex items-center text-sm font-medium text-blue-700 hover:text-blue-800">← Back to departments</a>
+
+  <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <h2 class="font-semibold text-slate-800">Department details</h2>
+    <p class="mt-1 text-sm text-slate-500">A manager can be assigned after this department is created by using the manager creation page.</p>
+
+    <form action="/admin/departments" method="POST" class="mt-5 space-y-4" novalidate>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="space-y-1.5">
+        <label for="name" class="block text-sm font-medium text-slate-700">Department name</label>
+        <input id="name" name="name" type="text" value="<%= values.name || '' %>" required maxlength="100" autocomplete="organization-title"
+               aria-invalid="<%= errors.name ? 'true' : 'false' %>"
+               class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+        <% if (errors.name) { %><p class="text-sm text-red-700"><%= errors.name %></p><% } %>
+      </div>
+
+      <div class="space-y-1.5">
+        <label for="description" class="block text-sm font-medium text-slate-700">Description <span class="font-normal text-slate-500">(optional)</span></label>
+        <textarea id="description" name="description" rows="4" maxlength="2000"
+                  aria-invalid="<%= errors.description ? 'true' : 'false' %>"
+                  class="w-full resize-y rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"><%= values.description || '' %></textarea>
+        <% if (errors.description) { %><p class="text-sm text-red-700"><%= errors.description %></p><% } %>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+          Add department
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<%- include('partials/app-layout-foot') %>

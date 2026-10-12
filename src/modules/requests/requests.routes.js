@@ -38,7 +38,11 @@ router.post('/staff/requests/:id/assign', requireStaff, c.assignRequest);
 router.post('/staff/requests/:id/start-progress', requireStaff, c.startProgress);
 router.post('/staff/requests/:id/resolve', requireStaff, c.resolveRequest);
 router.post('/staff/requests/:id/reject', requireStaff, c.rejectRequest);
+router.post('/staff/requests/:id/comment', requireStaff, c.addStaffComment);
+router.post('/staff/requests/:id/comments', requireStaff, c.addStaffComment);
 router.post('/manager/requests/:id/close', requireManager, c.closeRequest);
+router.post('/manager/requests/:id/comment', requireManager, c.addManagerComment);
+router.post('/manager/requests/:id/comments', requireManager, c.addManagerComment);
 router.post(
   '/staff/requests/:id/contact-access',
   requireStaff,

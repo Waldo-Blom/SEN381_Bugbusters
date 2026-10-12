@@ -273,3 +273,318 @@ exports.verifyStaffRequestAccess = async (staffUserId, requestId) => {
     departmentName: row.request_department_name,
   };
 };
+
+exports.findAdminDepartments = async () => {
+  const result = await query(
+    `SELECT d.department_id AS "departmentId", d.name AS "departmentName",
+            manager.first_name AS "managerFirstName",
+            manager.last_name AS "managerLastName"
+     FROM departments d
+     LEFT JOIN users manager ON manager.user_id = d.manager_id
+     WHERE d.is_active = true
+     ORDER BY d.name`
+  );
+  return result.rows;
+};
+
+exports.findDepartmentsForAdmin = async () => {
+  const result = await query(
+    `SELECT d.department_id AS "departmentId", d.name AS "departmentName",
+            d.description, d.is_active AS "isActive",
+            manager.first_name AS "managerFirstName",
+            manager.last_name AS "managerLastName"
+     FROM departments d
+     LEFT JOIN users manager ON manager.user_id = d.manager_id
+     ORDER BY d.name`
+  );
+  return result.rows;
+};
+
+exports.findRequestCategoriesForAdmin = async () => {
+  const result = await query(
+    `SELECT c.category_id AS "categoryId", c.name AS "categoryName",
+            c.description, c.is_active AS "isActive",
+            d.department_id AS "departmentId", d.name AS "departmentName"
+     FROM request_categories c
+     JOIN departments d ON d.department_id = c.department_id
+     ORDER BY d.name, c.name`
+  );
+  return result.rows;
+};
+
+exports.createRequestCategory = (adminId, { name, description, departmentId }) =>
+  transaction(async (client) => {
+    const departmentResult = await client.query(
+      `SELECT department_id
+       FROM departments
+       WHERE department_id = $1 AND is_active = true
+       FOR SHARE`,
+      [departmentId]
+    );
+    if (!departmentResult.rows[0]) return { departmentMissing: true };
+
+    const categoryResult = await client.query(
+      `INSERT INTO request_categories (name, description, department_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (name) DO NOTHING
+       RETURNING category_id AS "categoryId"`,
+      [name, description || null, departmentId]
+    );
+    const category = categoryResult.rows[0];
+    if (!category) return { duplicateName: true };
+
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'CATEGORY_CREATED',
+      targetType: 'CATEGORY',
+      targetId: category.categoryId,
+      changedData: { name, description: description || null, departmentId },
+    });
+    return { categoryId: category.categoryId };
+  });
+
+exports.deactivateRequestCategory = (adminId, categoryId) =>
+  transaction(async (client) => {
+    const result = await client.query(
+      `UPDATE request_categories
+       SET is_active = false
+       WHERE category_id = $1 AND is_active = true
+       RETURNING category_id, department_id`,
+      [categoryId]
+    );
+    const category = result.rows[0];
+    if (!category) return false;
+
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'CATEGORY_MODIFIED',
+      targetType: 'CATEGORY',
+      targetId: category.category_id,
+      changedData: { isActive: false, departmentId: category.department_id },
+    });
+    return true;
+  });
+
+exports.reactivateRequestCategory = (adminId, categoryId) =>
+  transaction(async (client) => {
+    const result = await client.query(
+      `UPDATE request_categories
+       SET is_active = true
+       WHERE category_id = $1 AND is_active = false
+       RETURNING category_id, department_id`,
+      [categoryId]
+    );
+    const category = result.rows[0];
+    if (!category) return false;
+
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'CATEGORY_MODIFIED',
+      targetType: 'CATEGORY',
+      targetId: category.category_id,
+      changedData: { isActive: true, departmentId: category.department_id },
+    });
+    return true;
+  });
+
+exports.findUsersForAdmin = async () => {
+  const result = await query(
+    `SELECT u.user_id AS "userId", u.first_name AS "firstName",
+            u.last_name AS "lastName", u.email, u.user_type AS "userType",
+            u.is_active AS "isActive",
+            COALESCE(manager_department.department_id, staff_department.department_id)
+              AS "departmentId",
+            COALESCE(manager_department.name, staff_department.name) AS "departmentName"
+     FROM users u
+     LEFT JOIN departments manager_department
+       ON manager_department.manager_id = u.user_id
+     LEFT JOIN LATERAL (
+       SELECT d.department_id, d.name
+       FROM staff_assignments sa
+       JOIN departments d ON d.department_id = sa.department_id
+       WHERE sa.staff_id = u.user_id
+       ORDER BY sa.is_active DESC, sa.assigned_at DESC, sa.staff_assignment_id DESC
+       LIMIT 1
+     ) staff_department ON true
+     WHERE u.user_type IN ('MANAGER', 'STAFF')
+     ORDER BY u.user_type, u.last_name, u.first_name, u.email`
+  );
+  return result.rows;
+};
+
+exports.createManager = (
+  adminId,
+  { firstName, lastName, email, phone, passwordHash, departmentId }
+) =>
+  transaction(async (client) => {
+    const departmentResult = await client.query(
+      `SELECT department_id
+       FROM departments
+       WHERE department_id = $1 AND is_active = true
+       FOR UPDATE`,
+      [departmentId]
+    );
+    if (!departmentResult.rows[0]) return { departmentMissing: true };
+
+    const userResult = await client.query(
+      `INSERT INTO users (email, password_hash, first_name, last_name, phone, user_type)
+       VALUES ($1, $2, $3, $4, $5, 'MANAGER')
+       ON CONFLICT (email) DO NOTHING
+       RETURNING user_id AS "userId"`,
+      [email, passwordHash, firstName, lastName, phone || null]
+    );
+    const user = userResult.rows[0];
+    if (!user) return { duplicateEmail: true };
+
+    await client.query(
+      `UPDATE departments SET manager_id = $1, updated_at = now()
+       WHERE department_id = $2`,
+      [user.userId, departmentId]
+    );
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'USER_CREATED',
+      targetType: 'USER',
+      targetId: user.userId,
+      changedData: { userType: 'MANAGER', departmentId },
+    });
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'MANAGER_CREATED',
+      targetType: 'USER',
+      targetId: user.userId,
+      changedData: { departmentId },
+    });
+    return { userId: user.userId };
+  });
+
+exports.createDepartment = (adminId, { name, description }) =>
+  transaction(async (client) => {
+    const departmentResult = await client.query(
+      `INSERT INTO departments (name, description, manager_id)
+       VALUES ($1, $2, NULL)
+       ON CONFLICT (name) DO NOTHING
+       RETURNING department_id AS "departmentId"`,
+      [name, description || null]
+    );
+    const department = departmentResult.rows[0];
+    if (!department) return { duplicateName: true };
+
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'DEPARTMENT_CREATED',
+      targetType: 'DEPARTMENT',
+      targetId: department.departmentId,
+      changedData: { name, description: description || null },
+    });
+    return { departmentId: department.departmentId };
+  });
+
+exports.deactivateUserForAdmin = (adminId, userId) =>
+  transaction(async (client) => {
+    const userResult = await client.query(
+      `SELECT user_type, is_active FROM users
+       WHERE user_id = $1 AND user_type IN ('MANAGER', 'STAFF')
+       FOR UPDATE`,
+      [userId]
+    );
+    const user = userResult.rows[0];
+    if (!user || !user.is_active) return false;
+
+    await client.query('UPDATE users SET is_active = false WHERE user_id = $1', [userId]);
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'USER_DEACTIVATED',
+      targetType: 'USER',
+      targetId: userId,
+      changedData: { isActive: false },
+    });
+    if (user.user_type === 'STAFF') {
+      const assignments = await client.query(
+        `UPDATE staff_assignments
+         SET is_active = false, removed_at = now()
+         WHERE staff_id = $1 AND is_active = true
+         RETURNING staff_assignment_id, department_id`,
+        [userId]
+      );
+      for (const assignment of assignments.rows) {
+        await auditModel.recordAdminUserEvent(client, {
+          actorId: adminId,
+          actionType: 'STAFF_REMOVED',
+          targetType: 'ASSIGNMENT',
+          targetId: assignment.staff_assignment_id,
+          changedData: { staffId: userId, departmentId: assignment.department_id },
+        });
+      }
+    } else {
+      await auditModel.recordAdminUserEvent(client, {
+        actorId: adminId,
+        actionType: 'MANAGER_REMOVED',
+        targetType: 'USER',
+        targetId: userId,
+        changedData: { isActive: false },
+      });
+    }
+    return true;
+  });
+
+exports.reactivateUserForAdmin = (adminId, userId) =>
+  transaction(async (client) => {
+    const userResult = await client.query(
+      `SELECT user_type, is_active FROM users
+       WHERE user_id = $1 AND user_type IN ('MANAGER', 'STAFF')
+       FOR UPDATE`,
+      [userId]
+    );
+    const user = userResult.rows[0];
+    if (!user || user.is_active) return { notFound: true };
+
+    let assignment = null;
+    if (user.user_type === 'STAFF') {
+      const assignmentResult = await client.query(
+        `SELECT staff_assignment_id, department_id
+         FROM staff_assignments
+         WHERE staff_id = $1
+         ORDER BY assigned_at DESC, staff_assignment_id DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [userId]
+      );
+      assignment = assignmentResult.rows[0];
+      if (!assignment) return { notFound: true };
+      const activeResult = await client.query(
+        `SELECT 1 FROM staff_assignments
+         WHERE staff_id = $1 AND is_active = true
+         LIMIT 1`,
+        [userId]
+      );
+      if (activeResult.rows.length) return { activeAssignmentExists: true };
+    }
+
+    await client.query('UPDATE users SET is_active = true WHERE user_id = $1', [userId]);
+    if (assignment) {
+      await client.query(
+        `UPDATE staff_assignments
+         SET is_active = true, removed_at = NULL, assigned_at = now(), assigned_by = $2
+         WHERE staff_assignment_id = $1`,
+        [assignment.staff_assignment_id, adminId]
+      );
+    }
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'USER_MODIFIED',
+      targetType: 'USER',
+      targetId: userId,
+      changedData: { isActive: true },
+    });
+    if (assignment) {
+      await auditModel.recordAdminUserEvent(client, {
+        actorId: adminId,
+        actionType: 'STAFF_ASSIGNED',
+        targetType: 'ASSIGNMENT',
+        targetId: assignment.staff_assignment_id,
+        changedData: { staffId: userId, departmentId: assignment.department_id, reactivated: true },
+      });
+    }
+    return { reactivated: true };
+  });

@@ -133,4 +133,34 @@ describe('RequestWorkflowService', () => {
       'staff-1'
     );
   });
+
+  it('allows staff in the department to reject a submitted unassigned request', async () => {
+    const validRequestId = '11111111-1111-4111-8111-111111111111';
+    const validStaffId = '22222222-2222-4222-8222-222222222222';
+    requestsModel.findAccessContext = jest.fn().mockResolvedValue({
+      status: 'Submitted',
+      staff_allowed: true,
+      assigned_staff_id: null,
+    });
+    requestsModel.updateStatus.mockResolvedValue({ id: validRequestId, status: 'Rejected' });
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await expect(
+      requestsService.workflow.transitionRequest(
+        validRequestId,
+        REQUEST_STATUSES.REJECTED,
+        validStaffId,
+        'Spam ticket',
+        true
+      )
+    ).resolves.toMatchObject({ status: 'Rejected' });
+
+    expect(requestsModel.updateStatus).toHaveBeenCalledWith(
+      validRequestId,
+      REQUEST_STATUSES.REJECTED,
+      'Spam ticket',
+      validStaffId,
+      true
+    );
+  });
 });
