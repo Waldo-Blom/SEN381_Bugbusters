@@ -95,3 +95,30 @@ exports.downloadUrl = async (requestId, attachmentId, userId, role) => {
     throw new RequestAccessError('Attachment is unavailable.', 404);
   return storage.downloadUrl(attachment.file_path, contentType);
 };
+
+exports.remove = async (requestId, userId, attachmentIds, role) => {
+  if (!Array.isArray(attachmentIds) || !attachmentIds.length) return [];
+  const validIds = attachmentIds.filter((id) => isUuid(id));
+  if (!validIds.length) return [];
+
+  await access(requestId, userId, undefined, false, true, role);
+  const client = await pool.connect();
+  const deleted = [];
+  try {
+    await client.query('BEGIN');
+    const rows = await model.deleteByIds(client, requestId, validIds);
+    await client.query('COMMIT');
+    deleted.push(...rows);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error.statusCode ? error : failure('metadata', error);
+  } finally {
+    client.release();
+  }
+
+  if (deleted.length) {
+    const keys = deleted.map((r) => r.file_path).filter(Boolean);
+    await exports.cleanup(keys);
+  }
+  return deleted;
+};

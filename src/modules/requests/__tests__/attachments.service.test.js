@@ -141,3 +141,24 @@ test('rejects missing attachments and objects outside the request prefix', async
   });
   expect(storage.downloadUrl).not.toHaveBeenCalled();
 });
+
+test('removes attachments and cleans up storage objects for authorised user', async () => {
+  model.deleteByIds.mockResolvedValue([
+    { id: attachmentId, file_path: `requests/${requestId}/test.png` },
+  ]);
+  storage.remove.mockResolvedValue();
+
+  const deleted = await service.remove(requestId, userId, [attachmentId], 'requester');
+
+  expect(model.findAccess).toHaveBeenCalledWith(requestId, userId, undefined, false, 'requester');
+  expect(model.deleteByIds).toHaveBeenCalledWith(client, requestId, [attachmentId]);
+  expect(client.query).toHaveBeenCalledWith('COMMIT');
+  expect(storage.remove).toHaveBeenCalledWith(`requests/${requestId}/test.png`);
+  expect(deleted).toHaveLength(1);
+});
+
+test('handles empty or non-uuid attachment removal requests gracefully', async () => {
+  expect(await service.remove(requestId, userId, [], 'requester')).toEqual([]);
+  expect(await service.remove(requestId, userId, ['not-a-uuid'], 'requester')).toEqual([]);
+  expect(model.findAccess).not.toHaveBeenCalled();
+});
