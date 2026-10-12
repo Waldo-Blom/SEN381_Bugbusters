@@ -72,6 +72,11 @@ const auditActionLabel = (actionType) => {
     CONTACT_ACCESS_APPROVED: 'Contact access approved',
     CONTACT_ACCESS_REJECTED: 'Contact access rejected',
     CONTACT_ACCESS_REVOKED: 'Contact access revoked',
+    USER_CREATED: 'Staff account created',
+    USER_MODIFIED: 'Staff account updated',
+    USER_DEACTIVATED: 'Staff account deactivated',
+    STAFF_ASSIGNED: 'Staff assigned',
+    STAFF_REMOVED: 'Staff removed',
   };
   return labels[actionType] || displayEnum(actionType);
 };
@@ -86,6 +91,21 @@ const auditDetail = (entry) => {
   }
   if (entry.action_type === 'REQUEST_SUBMITTED') {
     return 'Request entered the system';
+  }
+  if (entry.action_type === 'USER_CREATED') {
+    return `Created an account for ${entry.subject_name || 'a staff member'}`;
+  }
+  if (entry.action_type === 'USER_MODIFIED' && changedData.isActive === true) {
+    return `Re-enabled ${entry.subject_name || 'a staff member'}`;
+  }
+  if (entry.action_type === 'USER_DEACTIVATED') {
+    return `Deactivated ${entry.subject_name || 'a staff member'}`;
+  }
+  if (entry.action_type === 'STAFF_ASSIGNED') {
+    return `${changedData.reactivated ? 'Re-enabled' : 'Assigned'} ${entry.subject_name || 'a staff member'} to this department`;
+  }
+  if (entry.action_type === 'STAFF_REMOVED') {
+    return `Removed ${entry.subject_name || 'a staff member'} from this department`;
   }
   if (entry.action_type.startsWith('CONTACT_ACCESS_')) {
     return 'Contact access authorization activity';
@@ -108,7 +128,7 @@ exports.getAuditLog = async (managerId, departmentId, page = 1) => {
       timestamp: entry.timestamp,
       detail: auditDetail(entry),
       actor: entry.actor_name || 'Unknown user',
-      reference: entry.request_number,
+      reference: entry.request_number || entry.subject_email,
     })),
     totalCount,
     page: currentPage,

@@ -61,37 +61,76 @@ const queryAuditLog = async ({
      ), entries AS (
        SELECT s.request_id AS target_id, s.request_number, 'REQUEST_SUBMITTED'::text AS action_type,
               s.created_by AS actor_id, NULL::uuid AS assignee_id,
-              '{}'::json AS changed_data, s.created_at
+                '{}'::json AS changed_data, s.created_at, NULL::uuid AS subject_id
        FROM scoped_requests s
        UNION ALL
        SELECT h.request_id, s.request_number, 'STATUS_CHANGED',
               h.changed_by, NULL::uuid,
               json_build_object('oldStatus', h.old_status, 'newStatus', h.new_status),
-              h.changed_at
+                h.changed_at, NULL::uuid
        FROM request_status_history h
        JOIN scoped_requests s ON s.request_id = h.request_id
        UNION ALL
        SELECT a.request_id, s.request_number, 'REQUEST_ASSIGNED',
               a.assigned_by_id, a.assigned_to_staff_id,
               json_build_object('assignedToStaffId', a.assigned_to_staff_id),
-              a.assigned_at
+                a.assigned_at, NULL::uuid
        FROM request_assignment_history a
        JOIN scoped_requests s ON s.request_id = a.request_id
        UNION ALL
        SELECT a.target_id, s.request_number, a.action_type::text,
-              a.admin_id, NULL::uuid, a.changed_data, a.created_at
+                a.admin_id, NULL::uuid, a.changed_data, a.created_at, NULL::uuid
        FROM admin_audit_log a
        JOIN scoped_requests s ON s.request_id = a.target_id
        WHERE a.target_type = 'REQUEST'
          AND a.action_type NOT IN ('STATUS_CHANGED', 'REQUEST_ASSIGNED')
-     )
-     SELECT e.target_id, e.request_number, e.action_type, e.changed_data, e.created_at,
-            NULLIF(concat_ws(' ', actor.first_name, actor.last_name), '') AS actor_name,
-            NULLIF(concat_ws(' ', assignee.first_name, assignee.last_name), '') AS assignee_name,
-            to_char(e.created_at, 'YYYY-MM-DD HH24:MI') AS timestamp
-     FROM entries e
-     LEFT JOIN users actor ON actor.user_id = e.actor_id
-     LEFT JOIN users assignee ON assignee.user_id = e.assignee_id
+         UNION ALL
+         SELECT a.target_id, NULL::varchar, a.action_type::text,
+                a.admin_id, NULL::uuid, a.changed_data, a.created_at,
+                CASE WHEN a.target_type = 'USER' THEN a.target_id
+                     ELSE assignment_staff.staff_id END
+         FROM admin_audit_log a
+         LEFT JOIN staff_assignments assignment_staff
+           ON a.target_type = 'ASSIGNMENT'
+          AND assignment_staff.staff_assignment_id = a.target_id
+         WHERE $1::uuid IS NULL
+           AND a.target_type IN ('USER', 'ASSIGNMENT')
+           AND a.action_type IN (
+             'USER_CREATED', 'USER_MODIFIED', 'USER_DEACTIVATED',
+             'STAFF_ASSIGNED', 'STAFF_REMOVED'
+           )
+           AND (
+             (a.target_type = 'USER' AND EXISTS (
+               SELECT 1
+               FROM staff_assignments scoped_assignment
+               JOIN departments d ON d.department_id = scoped_assignment.department_id
+               JOIN users manager ON manager.user_id = d.manager_id
+               WHERE scoped_assignment.staff_id = a.target_id
+                 AND d.manager_id = $2 AND d.department_id = $3 AND d.is_active = true
+                 AND manager.is_active = true AND manager.user_type = 'MANAGER'
+             ))
+             OR
+             (a.target_type = 'ASSIGNMENT' AND EXISTS (
+               SELECT 1
+               FROM staff_assignments scoped_assignment
+               JOIN departments d ON d.department_id = scoped_assignment.department_id
+               JOIN users manager ON manager.user_id = d.manager_id
+               WHERE scoped_assignment.staff_assignment_id = a.target_id
+                 AND d.manager_id = $2 AND d.department_id = $3 AND d.is_active = true
+                 AND manager.is_active = true AND manager.user_type = 'MANAGER'
+             ))
+           )
+       )
+       SELECT e.target_id, e.request_number, e.action_type, e.changed_data, e.created_at,
+              NULLIF(concat_ws(' ', actor.first_name, actor.last_name), '') AS actor_name,
+              NULLIF(concat_ws(' ', assignee.first_name, assignee.last_name), '') AS assignee_name,
+              NULLIF(concat_ws(' ', subject.first_name, subject.last_name), '') AS subject_name,
+              subject.email AS subject_email,
+              to_char(e.created_at, 'YYYY-MM-DD HH24:MI') AS timestamp
+       FROM entries e
+       LEFT JOIN users actor ON actor.user_id = e.actor_id
+       LEFT JOIN users assignee ON assignee.user_id = e.assignee_id
+       LEFT JOIN users subject ON subject.user_id = e.subject_id
      WHERE ($4::text IS NULL OR e.action_type = $4)
      ORDER BY e.created_at DESC, e.action_type, e.target_id
      LIMIT $5 OFFSET $6`,
@@ -156,6 +195,38 @@ exports.getAuditLogCount = async ({ managerId, departmentId, actionType } = {}) 
          AND d.manager_id = $1 AND d.department_id = $2
          AND d.is_active = true AND manager.is_active = true
          AND manager.user_type = 'MANAGER'
+       UNION ALL
+       SELECT a.target_id, a.action_type::text
+       FROM admin_audit_log a
+       LEFT JOIN staff_assignments assignment_staff
+         ON a.target_type = 'ASSIGNMENT'
+        AND assignment_staff.staff_assignment_id = a.target_id
+       WHERE a.target_type IN ('USER', 'ASSIGNMENT')
+         AND a.action_type IN (
+           'USER_CREATED', 'USER_MODIFIED', 'USER_DEACTIVATED',
+           'STAFF_ASSIGNED', 'STAFF_REMOVED'
+         )
+         AND (
+           (a.target_type = 'USER' AND EXISTS (
+             SELECT 1
+             FROM staff_assignments scoped_assignment
+             JOIN departments d ON d.department_id = scoped_assignment.department_id
+             JOIN users manager ON manager.user_id = d.manager_id
+             WHERE scoped_assignment.staff_id = a.target_id
+               AND d.manager_id = $1 AND d.department_id = $2 AND d.is_active = true
+               AND manager.is_active = true AND manager.user_type = 'MANAGER'
+           ))
+           OR
+           (a.target_type = 'ASSIGNMENT' AND EXISTS (
+             SELECT 1
+             FROM staff_assignments scoped_assignment
+             JOIN departments d ON d.department_id = scoped_assignment.department_id
+             JOIN users manager ON manager.user_id = d.manager_id
+             WHERE scoped_assignment.staff_assignment_id = a.target_id
+               AND d.manager_id = $1 AND d.department_id = $2 AND d.is_active = true
+               AND manager.is_active = true AND manager.user_type = 'MANAGER'
+           ))
+         )
      ) entries
      WHERE $3::text IS NULL OR action_type = $3`,
     [managerId, departmentId, actionType || null]

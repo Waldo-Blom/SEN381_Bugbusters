@@ -77,9 +77,34 @@ describe('Audit model', () => {
     expect(sql).toContain('FROM request_status_history');
     expect(sql).toContain('FROM request_assignment_history');
     expect(sql).toContain('FROM admin_audit_log');
+    expect(sql).toContain("a.target_type IN ('USER', 'ASSIGNMENT')");
+    expect(sql).toContain("'USER_DEACTIVATED'");
+    expect(sql).toContain('d.manager_id = $2 AND d.department_id = $3');
     expect(sql).toContain('d.manager_id = $2');
     expect(sql).toContain('d.department_id = $3');
     expect(params).toEqual([null, 'manager-id', 'department-id', null, 25, 10]);
+  });
+
+  it('writes manager staff actions as audit log entries', async () => {
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: 'manager-id',
+      actionType: 'USER_DEACTIVATED',
+      targetType: 'USER',
+      targetId: 'staff-id',
+      changedData: { isActive: false },
+    });
+
+    const [sql, params] = client.query.mock.calls[0];
+    expect(sql).toContain('INSERT INTO admin_audit_log');
+    expect(sql).toContain('$2::action_type');
+    expect(sql).toContain('$3::target_type');
+    expect(params).toEqual([
+      'manager-id',
+      'USER_DEACTIVATED',
+      'USER',
+      'staff-id',
+      JSON.stringify({ isActive: false }),
+    ]);
   });
 
   it('refuses to read a manager audit log without a department scope', async () => {
