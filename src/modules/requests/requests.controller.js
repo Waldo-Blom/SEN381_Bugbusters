@@ -327,6 +327,10 @@ exports.managerDetail = async (req, res, next) => {
       pageTitle: 'Request Details',
       pageSubtitle: 'Manager view with assignment controls',
       request: await requestsService.getForManager(req.params.id, getAuthenticatedUserId(req)),
+      eligibleStaff: await require('./requests.assignment').listEligible(
+        req.params.id,
+        getAuthenticatedUserId(req)
+      ),
       contactAccessCsrfToken: getCsrfToken(req),
     });
   } catch (error) {
@@ -344,6 +348,21 @@ const contactAction = async (req, res, next, operation, destination) => {
     next(error);
   }
 };
+
+exports.managerAssign = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      require('./requests.assignment').assign(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        req.body?.staffId,
+        req.body?.priority
+      ),
+    `/manager/requests/${req.params.id}`
+  );
 
 exports.requestContactAccess = (req, res, next) =>
   contactAction(

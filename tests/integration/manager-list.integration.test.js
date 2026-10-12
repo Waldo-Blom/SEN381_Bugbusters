@@ -30,6 +30,9 @@ describeDatabase('Manager request list PostgreSQL scoping', () => {
         ('external', 'own', 'CC-2', 'Pipe', 'IN_PROGRESS', 'MEDIUM', '2026-01-02', NULL, 'external'),
         ('foreign', 'foreign', 'CC-3', 'Road', 'CLOSED', 'LOW', '2026-01-03', 'citizen', NULL);
       ALTER TABLE request_categories ADD COLUMN is_active boolean DEFAULT true;
+      ALTER TABLE service_requests ADD COLUMN assigned_staff_id text;
+      INSERT INTO users VALUES ('staff', 'STAFF', true, 'Assigned', 'Staff');
+      UPDATE service_requests SET assigned_staff_id = 'staff' WHERE request_id = 'external';
       INSERT INTO request_categories VALUES ('unused', 'own', 'Unused inactive', false);
       UPDATE request_categories SET is_active = false WHERE category_id = 'own';
     `);
@@ -49,6 +52,7 @@ describeDatabase('Manager request list PostgreSQL scoping', () => {
     expect(data.department).toEqual({ id: 'own', name: 'Water' });
     expect(data.requests.map((r) => r.id)).toEqual(['external', 'registered']);
     expect(data.requests.map((r) => r.requesterName)).toEqual(['External Citizen', 'Test Citizen']);
+    expect(data.requests.map((r) => r.assignedTo)).toEqual(['Assigned Staff', 'Unassigned']);
     expect(await model.findForManager('inactive')).toBeNull();
     expect(await model.findForManager('citizen')).toBeNull();
   });
