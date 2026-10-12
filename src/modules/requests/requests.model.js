@@ -137,7 +137,8 @@ exports.findForManager = async (managerId, filters = {}) => {
                        (SELECT 1 FROM service_requests existing
                         WHERE existing.category_id = available.category_id))) options) AS categories,
             r.request_id, r.request_number, r.title, r.status, r.priority,
-            r.created_at, c.name AS category_name,
+            r.created_at, c.name AS category_name, r.assigned_staff_id,
+            NULLIF(concat_ws(' ', staff.first_name, staff.last_name), '') AS assigned_to_name,
             COALESCE(NULLIF(concat_ws(' ', citizen.first_name, citizen.last_name), ''),
                      NULLIF(concat_ws(' ', ext.first_name, ext.last_name), ''),
                      'Unknown') AS requester_name
@@ -150,6 +151,7 @@ exports.findForManager = async (managerId, filters = {}) => {
        AND ($4::text = '' OR r.title ILIKE $4 ESCAPE E'\\\\'
             OR r.request_number ILIKE $4 ESCAPE E'\\\\')
      LEFT JOIN users citizen ON citizen.user_id = r.requester_id
+     LEFT JOIN users staff ON staff.user_id = r.assigned_staff_id
      LEFT JOIN external_requesters ext ON ext.external_requester_id = r.external_requester_id
      WHERE d.manager_id = $1 AND d.is_active = true
        AND manager.is_active = true AND manager.user_type = 'MANAGER'
@@ -174,6 +176,8 @@ exports.findForManager = async (managerId, filters = {}) => {
         status: toTitleCase(row.status),
         priority: toTitleCase(row.priority),
         requesterName: row.requester_name,
+        assignedStaffId: row.assigned_staff_id || null,
+        assignedTo: row.assigned_to_name || 'Unassigned',
         submittedAt: formatDate(row.created_at),
       })),
   };
