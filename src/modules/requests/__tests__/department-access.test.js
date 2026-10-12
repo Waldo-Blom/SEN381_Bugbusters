@@ -3,6 +3,7 @@ jest.mock('../../../config/database', () => ({
   pool: { connect: jest.fn() },
 }));
 
+// Updated by Waldo on 2026-10-12: service tests now use valid UUIDs and expect staff-scoped detail reads; earlier fixtures predated those access checks.
 const db = require('../../../config/database');
 const usersModel = require('../../users/users.model');
 const usersService = require('../../users/users.service');
@@ -10,8 +11,8 @@ const requestsModel = require('../requests.model');
 const requestsService = require('../requests.service');
 
 describe('FR-207 Department-relevant Access', () => {
-  const staffUserId = 'staff-user-1';
-  const requestId = 'request-uuid-1';
+  const staffUserId = '22222222-2222-4222-8222-222222222222';
+  const requestId = '11111111-1111-4111-8111-111111111111';
   const departmentId = 'dept-water';
 
   beforeEach(() => {
@@ -99,7 +100,7 @@ describe('FR-207 Department-relevant Access', () => {
       const result = await requestsService.getForStaff(requestId, staffUserId);
 
       expect(result).toBe(mockRequest);
-      expect(requestsModel.findById).toHaveBeenCalledWith(requestId);
+      expect(requestsModel.findById).toHaveBeenCalledWith(requestId, undefined, staffUserId);
     });
 
     it('throws StaffDepartmentAccessError with 403 when staff is unauthorized', async () => {

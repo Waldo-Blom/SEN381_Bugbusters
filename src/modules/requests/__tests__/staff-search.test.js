@@ -3,6 +3,7 @@ jest.mock('../../../config/database', () => ({
   pool: { connect: jest.fn() },
 }));
 
+// Updated by Waldo on 2026-10-12: assertions now cover the current active-membership scope and its parameter ordering; prior expectations used the older query shape.
 const db = require('../../../config/database');
 const requestsModel = require('../requests.model');
 const requestsService = require('../requests.service');
@@ -26,7 +27,9 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
 
       expect(db.query).toHaveBeenCalledWith(expect.stringContaining('c.department_id = $1'), [
         departmentId,
+        staffUserId,
       ]);
+      expect(db.query.mock.calls[0][0]).toContain('viewer.is_active = true');
     });
 
     it('scopes queries by active staff assignments when departmentId is omitted', async () => {
@@ -36,10 +39,11 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
 
       expect(db.query).toHaveBeenCalledWith(
         expect.stringContaining(
-          'c.department_id IN (SELECT sa.department_id FROM staff_assignments sa WHERE sa.staff_id = $1 AND sa.is_active = true)'
+          'sa.staff_id = $1 AND sa.department_id = c.department_id AND sa.is_active = true'
         ),
         [staffUserId]
       );
+      expect(db.query.mock.calls[0][0]).toContain('viewer.is_active = true');
     });
 
     it('applies text search filter across title, reference, description, and location', async () => {
@@ -53,9 +57,9 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
 
       expect(db.query).toHaveBeenCalledWith(
         expect.stringContaining(
-          'r.title ILIKE $2 OR r.request_number ILIKE $2 OR r.description ILIKE $2 OR r.location ILIKE $2'
+          'r.title ILIKE $3 OR r.request_number ILIKE $3 OR r.description ILIKE $3 OR r.location ILIKE $3'
         ),
-        [departmentId, '%Main Street%']
+        [departmentId, staffUserId, '%Main Street%']
       );
     });
 
@@ -71,7 +75,7 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
       });
 
       expect(db.query).toHaveBeenCalledWith(
-        expect.stringMatching(/r\.status::text = \$2/),
+        expect.stringMatching(/r\.status::text = \$3/),
         expect.arrayContaining([departmentId, 'IN_PROGRESS', 'Pothole', 'HIGH'])
       );
     });

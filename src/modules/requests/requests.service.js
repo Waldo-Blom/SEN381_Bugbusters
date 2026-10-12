@@ -159,11 +159,6 @@ exports.checkStaffAccess = async (id, staffId, client) => {
   requireStaffAccess(context, staffId);
   return context;
 };
-exports.getForStaff = async (id, staffId) => {
-  if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
-  if (!isUuid(staffId)) throw new RequestAccessError('Invalid staff identifier.', 403);
-  return requestsModel.findById(id, undefined, staffId);
-};
 exports.listForManager = async (managerId, input = {}) => {
   if (!managerId) return null;
   const filters = {};
@@ -228,12 +223,18 @@ exports.getForRequester = async (id, requesterId) => {
   return requestsModel.findById(id, requesterId);
 };
 exports.getForStaff = async (id, staffUserId) => {
+  if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
+  if (!isUuid(staffUserId)) throw new RequestAccessError('Invalid staff identifier.', 403);
+
   const usersService = require('../users/users.service');
   const access = await usersService.verifyStaffRequestAccess(staffUserId, id);
   if (!access.allowed) {
+    if (access.reason === 'Request not found.') {
+      throw new RequestAccessError('Request not found.', 404);
+    }
     throw new StaffDepartmentAccessError(access.reason);
   }
-  return requestsModel.findById(id);
+  return requestsModel.findById(id, undefined, staffUserId);
 };
 exports.searchStaffRequests = async (params) => requestsModel.searchStaffRequests(params);
 exports.listCategoriesByDepartment = async (departmentId) =>
