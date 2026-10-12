@@ -77,9 +77,26 @@ exports.searchExternalRequesters = async (req, res, next) => {
 
 exports.submitRequest = async (req, res, next) => {
   try {
-    await requestsService.submit(req.body, getAuthenticatedUserId(req));
+    const userId = getAuthenticatedUserId(req);
+    const submissionKey = `${userId}:${req.body?.categoryId}:${req.body?.title}:${req.body?.location}`;
+    const now = Date.now();
+    if (
+      req.session?.lastSubmission &&
+      req.session.lastSubmission.key === submissionKey &&
+      now - req.session.lastSubmission.time < 3000
+    ) {
+      return res.redirect('/requester/my-requests');
+    }
+    if (req.session) {
+      req.session.lastSubmission = { key: submissionKey, time: now };
+    }
+
+    await requestsService.submit(req.body, userId);
     res.redirect('/requester/my-requests');
   } catch (error) {
+    if (req.session) {
+      delete req.session.lastSubmission;
+    }
     if (error instanceof requestsService.RequestValidationError) {
       try {
         await submissionView(req, res.status(400), 'requester', {
@@ -102,13 +119,37 @@ exports.submitRequest = async (req, res, next) => {
 
 exports.operatorSubmitRequest = async (req, res, next) => {
   try {
+    const operatorId = getAuthenticatedUserId(req);
+    const submissionKey = `${operatorId}:${req.body?.categoryId}:${req.body?.title}:${req.body?.location}:${req.body?.externalRequesterId || ''}`;
+    const now = Date.now();
+    if (
+      req.session?.lastOperatorSubmission &&
+      req.session.lastOperatorSubmission.key === submissionKey &&
+      now - req.session.lastOperatorSubmission.time < 3000
+    ) {
+      const ref = req.session.lastOperatorSubmission.reference;
+      return res.redirect(
+        ref ? `/operator/submit?submitted=${encodeURIComponent(ref)}` : '/operator/requests'
+      );
+    }
+
     const created = await requestsService.createServiceRequest({
       input: req.body,
       actorType: 'OPERATOR',
-      actorUserId: getAuthenticatedUserId(req),
+      actorUserId: operatorId,
     });
+    if (req.session) {
+      req.session.lastOperatorSubmission = {
+        key: submissionKey,
+        time: now,
+        reference: created.reference,
+      };
+    }
     res.redirect(`/operator/submit?submitted=${encodeURIComponent(created.reference)}`);
   } catch (error) {
+    if (req.session) {
+      delete req.session.lastOperatorSubmission;
+    }
     if (error instanceof requestsService.RequestValidationError) {
       try {
         await submissionView(req, res.status(400), 'operator', {

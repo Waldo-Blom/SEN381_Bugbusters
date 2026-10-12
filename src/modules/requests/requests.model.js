@@ -465,7 +465,12 @@ exports.updateStatus = async (id, newStatus, comment, userId = null, staffOnly =
     if (reqRes.rows.length === 0) throw new Error('Request not found');
     const oldDbStatus = reqRes.rows[0].status;
     if (staffOnly) {
-      requireStaffAccess(await exports.findAccessContext(id, userId, client), userId, true);
+      const requiresAssignment = newStatus !== 'Rejected';
+      requireStaffAccess(
+        await exports.findAccessContext(id, userId, client),
+        userId,
+        requiresAssignment
+      );
       if (!(ALLOWED_TRANSITIONS[toTitleCase(oldDbStatus)] || []).includes(newStatus)) {
         throw new Error(`Invalid transition from ${toTitleCase(oldDbStatus)} to ${newStatus}`);
       }
