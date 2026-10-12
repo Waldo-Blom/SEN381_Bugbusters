@@ -144,6 +144,14 @@ class RequestCategoryDepartmentError extends Error {
   }
 }
 
+class RequestCategoryNotFoundError extends Error {
+  constructor() {
+    super('That active request category was not found.');
+    this.name = 'RequestCategoryNotFoundError';
+    this.statusCode = 404;
+  }
+}
+
 const validateStaffDetails = (input = {}) => {
   const firstName = typeof input.firstName === 'string' ? input.firstName.trim() : '';
   const lastName = typeof input.lastName === 'string' ? input.lastName.trim() : '';
@@ -196,6 +204,7 @@ exports.DuplicateDepartmentNameError = DuplicateDepartmentNameError;
 exports.RequestCategoryValidationError = RequestCategoryValidationError;
 exports.DuplicateRequestCategoryNameError = DuplicateRequestCategoryNameError;
 exports.RequestCategoryDepartmentError = RequestCategoryDepartmentError;
+exports.RequestCategoryNotFoundError = RequestCategoryNotFoundError;
 
 exports.listStaff = async (managerId) => {
   const department = await usersModel.findManagerDepartment(managerId);
@@ -289,6 +298,22 @@ exports.createRequestCategory = async (adminId, input = {}) => {
   if (result.departmentMissing) throw new RequestCategoryDepartmentError(values);
   if (result.duplicateName) throw new DuplicateRequestCategoryNameError(values);
   return result;
+};
+
+exports.deactivateRequestCategory = async (adminId, categoryId) => {
+  if (typeof categoryId !== 'string' || !UUID_PATTERN.test(categoryId)) {
+    throw new RequestCategoryNotFoundError();
+  }
+  const deactivated = await usersModel.deactivateRequestCategory(adminId, categoryId);
+  if (!deactivated) throw new RequestCategoryNotFoundError();
+};
+
+exports.reactivateRequestCategory = async (adminId, categoryId) => {
+  if (typeof categoryId !== 'string' || !UUID_PATTERN.test(categoryId)) {
+    throw new RequestCategoryNotFoundError();
+  }
+  const reactivated = await usersModel.reactivateRequestCategory(adminId, categoryId);
+  if (!reactivated) throw new RequestCategoryNotFoundError();
 };
 
 exports.createManager = async (adminId, input) => {

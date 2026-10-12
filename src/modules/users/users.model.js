@@ -343,6 +343,50 @@ exports.createRequestCategory = (adminId, { name, description, departmentId }) =
     return { categoryId: category.categoryId };
   });
 
+exports.deactivateRequestCategory = (adminId, categoryId) =>
+  transaction(async (client) => {
+    const result = await client.query(
+      `UPDATE request_categories
+       SET is_active = false
+       WHERE category_id = $1 AND is_active = true
+       RETURNING category_id, department_id`,
+      [categoryId]
+    );
+    const category = result.rows[0];
+    if (!category) return false;
+
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'CATEGORY_MODIFIED',
+      targetType: 'CATEGORY',
+      targetId: category.category_id,
+      changedData: { isActive: false, departmentId: category.department_id },
+    });
+    return true;
+  });
+
+exports.reactivateRequestCategory = (adminId, categoryId) =>
+  transaction(async (client) => {
+    const result = await client.query(
+      `UPDATE request_categories
+       SET is_active = true
+       WHERE category_id = $1 AND is_active = false
+       RETURNING category_id, department_id`,
+      [categoryId]
+    );
+    const category = result.rows[0];
+    if (!category) return false;
+
+    await auditModel.recordAdminUserEvent(client, {
+      actorId: adminId,
+      actionType: 'CATEGORY_MODIFIED',
+      targetType: 'CATEGORY',
+      targetId: category.category_id,
+      changedData: { isActive: true, departmentId: category.department_id },
+    });
+    return true;
+  });
+
 exports.findUsersForAdmin = async () => {
   const result = await query(
     `SELECT u.user_id AS "userId", u.first_name AS "firstName",

@@ -93,7 +93,14 @@ const renderAdminCategories = async (
     errors,
     values,
     error,
-    success: req.query.status === 'created' ? 'Request category created.' : null,
+    success:
+      req.query.status === 'created'
+        ? 'Request category created.'
+        : req.query.status === 'deactivated'
+          ? 'Request category disabled.'
+          : req.query.status === 'activated'
+            ? 'Request category enabled.'
+            : null,
   });
 };
 
@@ -241,6 +248,36 @@ exports.createRequestCategory = async (req, res) => {
         values: error.values || {},
         statusCode: error.statusCode || 400,
       });
+    }
+    throw error;
+  }
+};
+
+exports.deactivateRequestCategory = async (req, res) => {
+  try {
+    await usersService.deactivateRequestCategory(
+      getAuthenticatedUserId(req),
+      req.params.categoryId
+    );
+    return res.redirect('/admin/categories?status=deactivated');
+  } catch (error) {
+    if (error instanceof usersService.RequestCategoryNotFoundError) {
+      return res.status(error.statusCode).send(error.message);
+    }
+    throw error;
+  }
+};
+
+exports.reactivateRequestCategory = async (req, res) => {
+  try {
+    await usersService.reactivateRequestCategory(
+      getAuthenticatedUserId(req),
+      req.params.categoryId
+    );
+    return res.redirect('/admin/categories?status=activated');
+  } catch (error) {
+    if (error instanceof usersService.RequestCategoryNotFoundError) {
+      return res.status(error.statusCode).send(error.message);
     }
     throw error;
   }
