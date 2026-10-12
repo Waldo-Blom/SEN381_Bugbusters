@@ -344,6 +344,8 @@ describe('manager staff routes', () => {
     expect(response.text).toContain('name="firstName"');
     expect(response.text).toContain('name="lastName"');
     expect(response.text).toContain('name="password"');
+    expect(response.text).toContain('data-password-toggle');
+    expect(response.text).toContain('/js/password-toggle.js');
     expect(response.text).toContain(
       '/manager/users/33333333-3333-4333-8333-333333333333/deactivate'
     );

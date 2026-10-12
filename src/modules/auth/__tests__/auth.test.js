@@ -10,6 +10,7 @@ const session = require('express-session');
 const request = require('supertest');
 const { query } = require('../../../config/database');
 const authService = require('../auth.service');
+const { validateRegistration } = require('../auth.schema');
 const authRoutes = require('../auth.routes');
 const {
   getAuthenticatedUser,
@@ -156,6 +157,54 @@ describe('Requester authentication', () => {
     expect(response.status).toBe(400);
     expect(response.text).toContain('Enter a first name');
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it('does not mention the bcrypt byte limit on the registration page', async () => {
+    const response = await request(app).get('/auth/register');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('data-password-toggle');
+    expect(response.text).not.toContain('72 bytes');
+    expect(response.text).not.toContain('No more than 72');
+    expect(response.text).toContain('At least 8 characters');
+    expect(response.text).toContain('Contains a number');
+    expect(response.text).toContain('Contains an uppercase letter');
+  });
+
+  it('accepts a valid registration password longer than 72 bytes', async () => {
+    const result = validateRegistration({
+      firstName: 'Amelia',
+      lastName: 'Carter',
+      email: 'amelia@example.com',
+      password: `${'A'.repeat(80)}1`,
+      terms: 'on',
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.values.password).toBe(`${'A'.repeat(80)}1`);
+  });
+
+  it('still requires registration passwords to have at least 8 characters', () => {
+    const result = validateRegistration({
+      firstName: 'Amelia',
+      lastName: 'Carter',
+      email: 'amelia@example.com',
+      password: 'Abc1',
+      terms: 'on',
+    });
+
+    expect(result.errors).toContain(
+      'Password must be at least 8 characters, include an uppercase letter and a number.'
+    );
+  });
+
+  it('renders the shared password visibility control on the login page', async () => {
+    const response = await request(app).get('/auth/login');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('data-password-toggle');
+    expect(response.text).toContain('aria-label="Show password"');
+    expect(response.text).toContain('/js/password-toggle.js');
   });
 
   it('shows a human-readable error when the email is already registered', async () => {
