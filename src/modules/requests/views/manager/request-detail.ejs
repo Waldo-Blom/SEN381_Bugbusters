@@ -119,22 +119,25 @@
       <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Assignment Controls</h3></div>
         <div class="px-5 py-4 space-y-3">
-          <label class="block text-sm font-medium text-slate-700">Assign / reassign to</label>
-          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
-            <option>Marcus Doyle — Public Works</option>
-            <option>Sarah Lin — Utilities</option>
-            <option>David Osei — Sanitation</option>
-            <option>Elena Vasquez — Parks</option>
-            <option>James Park — Transportation</option>
-          </select>
-          <label class="block text-sm font-medium text-slate-700">Set priority</label>
-          <select class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
-            <option <%= request.priority === 'Low'    ? 'selected' : '' %>>Low</option>
-            <option <%= request.priority === 'Medium' ? 'selected' : '' %>>Medium</option>
-            <option <%= request.priority === 'High'   ? 'selected' : '' %>>High</option>
-            <option <%= request.priority === 'Urgent' ? 'selected' : '' %>>Urgent</option>
-          </select>
-          <button class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Reassign</button>
+          <% const assignmentEnabled = ['Submitted', 'Assigned', 'In Progress'].includes(request.status); %>
+          <form method="POST" action="/manager/requests/<%= request.id %>/assign" class="space-y-3" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+            <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
+            <label for="assignment-staff" class="block text-sm font-medium text-slate-700">Assign / reassign to</label>
+            <select id="assignment-staff" name="staffId" required class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" <%= assignmentEnabled ? '' : 'disabled' %>>
+              <option value="">Select a staff member</option>
+              <% (typeof eligibleStaff !== 'undefined' ? eligibleStaff : []).forEach(function (staff) { %>
+                <option value="<%= staff.id %>" <%= staff.id === request.assignedStaffId ? 'disabled' : '' %>><%= staff.name %><%= staff.id === request.assignedStaffId ? ' (currently assigned)' : '' %></option>
+              <% }); %>
+            </select>
+            <label for="assignment-priority" class="block text-sm font-medium text-slate-700">Set priority</label>
+            <select id="assignment-priority" name="priority" class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
+              <% ['Low', 'Medium', 'High', 'Urgent'].forEach(function (priority) { %>
+                <option <%= request.priority === priority ? 'selected' : '' %>><%= priority %></option>
+              <% }); %>
+            </select>
+            <button type="submit" <%= assignmentEnabled && typeof eligibleStaff !== 'undefined' && eligibleStaff.some(staff => staff.id !== request.assignedStaffId) ? '' : 'disabled' %> class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"><%= request.assignedStaffId ? 'Reassign' : 'Assign' %></button>
+            <% if (!assignmentEnabled) { %><p class="text-xs text-slate-500">This request is no longer eligible for assignment.</p><% } %>
+          </form>
           <form method="POST" action="/manager/requests/<%= request.id %>/contact-access/<%= request.contactInformationApproved ? 'revoke' : 'authorise' %>" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
             <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
             <button type="submit" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><%= request.contactInformationApproved ? 'Revoke contact access' : 'Authorise contact access' %></button>

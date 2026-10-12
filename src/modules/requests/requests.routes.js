@@ -31,6 +31,7 @@ router.get('/staff/requests/:id', requireStaff, c.staffDetail);
 // manager
 router.get('/manager/requests', requireManager, c.allRequests);
 router.get('/manager/requests/:id', requireManager, c.managerDetail);
+router.post('/manager/requests/:id/assign', requireManager, requireCsrf, c.managerAssign);
 
 // workflow actions
 router.post('/staff/requests/:id/assign', requireStaff, c.assignRequest);

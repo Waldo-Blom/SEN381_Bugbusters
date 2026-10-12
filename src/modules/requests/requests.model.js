@@ -137,7 +137,8 @@ exports.findForManager = async (managerId, filters = {}) => {
                        (SELECT 1 FROM service_requests existing
                         WHERE existing.category_id = available.category_id))) options) AS categories,
             r.request_id, r.request_number, r.title, r.status, r.priority,
-            r.created_at, c.name AS category_name,
+            r.created_at, c.name AS category_name, r.assigned_staff_id,
+            NULLIF(concat_ws(' ', staff.first_name, staff.last_name), '') AS assigned_to_name,
             COALESCE(NULLIF(concat_ws(' ', citizen.first_name, citizen.last_name), ''),
                      NULLIF(concat_ws(' ', ext.first_name, ext.last_name), ''),
                      'Unknown') AS requester_name
@@ -150,6 +151,7 @@ exports.findForManager = async (managerId, filters = {}) => {
        AND ($4::text = '' OR r.title ILIKE $4 ESCAPE E'\\\\'
             OR r.request_number ILIKE $4 ESCAPE E'\\\\')
      LEFT JOIN users citizen ON citizen.user_id = r.requester_id
+     LEFT JOIN users staff ON staff.user_id = r.assigned_staff_id
      LEFT JOIN external_requesters ext ON ext.external_requester_id = r.external_requester_id
      WHERE d.manager_id = $1 AND d.is_active = true
        AND manager.is_active = true AND manager.user_type = 'MANAGER'
@@ -174,6 +176,8 @@ exports.findForManager = async (managerId, filters = {}) => {
         status: toTitleCase(row.status),
         priority: toTitleCase(row.priority),
         requesterName: row.requester_name,
+        assignedStaffId: row.assigned_staff_id || null,
+        assignedTo: row.assigned_to_name || 'Unassigned',
         submittedAt: formatDate(row.created_at),
       })),
   };
@@ -421,12 +425,20 @@ exports.findById = async (id, requesterId, staffId, managerId) => {
   // Fetch timeline
   const historySql = `
     SELECT 
-      h.status_history_id, h.new_status, h.changed_at,
+      h.status_history_id, h.new_status, h.changed_at, NULL::text as assignment_name,
       ${staffId ? "CASE WHEN u.user_type = 'REQUESTER' THEN 'Restricted' ELSE u.first_name || ' ' || u.last_name END" : "u.first_name || ' ' || u.last_name"} as actor_name
     FROM request_status_history h
     LEFT JOIN users u ON h.changed_by = u.user_id
     WHERE h.request_id = $1
-    ORDER BY h.changed_at ASC
+    UNION ALL
+    SELECT a.assignment_history_id, NULL::request_status, a.assigned_at,
+      staff.first_name || ' ' || staff.last_name as assignment_name,
+      manager.first_name || ' ' || manager.last_name as actor_name
+    FROM request_assignment_history a
+    LEFT JOIN users staff ON staff.user_id = a.assigned_to_staff_id
+    LEFT JOIN users manager ON manager.user_id = a.assigned_by_id
+    WHERE a.request_id = $1
+    ORDER BY changed_at ASC
   `;
   const [commentsResult, historyResult] = await Promise.all([
     query(commentsSql, [id]),
@@ -442,7 +454,9 @@ exports.findById = async (id, requesterId, staffId, managerId) => {
   request.timeline = historyResult.rows.map((row) => ({
     id: row.status_history_id,
     status: toTitleCase(row.new_status),
-    label: `Status changed to ${toTitleCase(row.new_status)}`,
+    label: row.assignment_name
+      ? `Assigned to ${row.assignment_name}`
+      : `Status changed to ${toTitleCase(row.new_status)}`,
     timestamp: formatDate(row.changed_at),
     actor: row.actor_name || 'System',
   }));
@@ -465,7 +479,12 @@ exports.updateStatus = async (id, newStatus, comment, userId = null, staffOnly =
     if (reqRes.rows.length === 0) throw new Error('Request not found');
     const oldDbStatus = reqRes.rows[0].status;
     if (staffOnly) {
-      requireStaffAccess(await exports.findAccessContext(id, userId, client), userId, true);
+      const requiresAssignment = newStatus !== 'Rejected';
+      requireStaffAccess(
+        await exports.findAccessContext(id, userId, client),
+        userId,
+        requiresAssignment
+      );
       if (!(ALLOWED_TRANSITIONS[toTitleCase(oldDbStatus)] || []).includes(newStatus)) {
         throw new Error(`Invalid transition from ${toTitleCase(oldDbStatus)} to ${newStatus}`);
       }
@@ -608,7 +627,14 @@ exports.searchStaffRequests = async ({
   }
 
   // Tab filtering (FR-203)
-  if (tab === 'available') {
+  if (tab === 'all') {
+    if (staffUserId) {
+      params.push(staffUserId);
+      conditions.push(`(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $${params.length})`);
+    } else {
+      conditions.push('r.assigned_staff_id IS NULL');
+    }
+  } else if (tab === 'available') {
     conditions.push(
       `(r.status = 'SUBMITTED' OR (r.status = 'ASSIGNED' AND r.assigned_staff_id IS NULL))`
     );

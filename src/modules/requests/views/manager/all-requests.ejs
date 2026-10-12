@@ -59,7 +59,7 @@
           <th class="px-4 py-3 font-semibold">Category</th>
           <th class="px-4 py-3 font-semibold">Status</th>
           <th class="px-4 py-3 font-semibold">Priority</th>
-          <th class="px-4 py-3 font-semibold">Requester</th>
+          <th class="px-4 py-3 font-semibold">Staff</th>
           <th class="px-4 py-3 font-semibold">Submitted</th>
         </tr>
       </thead>
@@ -82,7 +82,7 @@
               <td class="px-4 py-3">
                 <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"><%= r.priority %></span>
               </td>
-              <td class="px-4 py-3 text-slate-600"><%= r.requesterName %></td>
+              <td class="px-4 py-3 text-slate-600"><%= r.assignedTo || 'Unassigned' %></td>
               <td class="px-4 py-3 text-xs text-slate-500"><%= r.submittedAt %></td>
             </tr>
           <% }); %>

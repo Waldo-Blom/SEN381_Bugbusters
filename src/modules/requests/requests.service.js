@@ -94,7 +94,8 @@ class RequestWorkflowService {
         throw new RequestAccessError('Invalid request or staff identifier.', 400);
       }
       staffContext = await requestsModel.findAccessContext(requestId, userId);
-      requireStaffAccess(staffContext, userId, true);
+      const requiresAssignment = newStatus !== REQUEST_STATUSES.REJECTED;
+      requireStaffAccess(staffContext, userId, requiresAssignment);
     }
     const request = staffOnly
       ? { status: staffContext.status }

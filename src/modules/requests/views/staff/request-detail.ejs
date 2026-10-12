@@ -144,8 +144,8 @@
               <form method="POST" action="/staff/requests/<%= request.id %>/assign" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
                 <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">Assign to me</button>
               </form>
-              <form method="POST" action="/staff/requests/<%= request.id %>/reject">
-                <button type="submit" class="w-full rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100">Reject Request</button>
+              <form method="POST" action="/staff/requests/<%= request.id %>/reject" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+                <button type="submit" class="w-full rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">Reject Request</button>
               </form>
             </div>
           <% } else if (request.status === 'Assigned') { %>

@@ -25,10 +25,15 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
         departmentId,
       });
 
+      // Updated by Waldo for PR #108; see the PR for when and why these expectations changed.
       expect(db.query).toHaveBeenCalledWith(expect.stringContaining('c.department_id = $1'), [
         departmentId,
         staffUserId,
+        staffUserId,
       ]);
+      expect(db.query.mock.calls[0][0]).toContain(
+        '(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $3)'
+      );
       expect(db.query.mock.calls[0][0]).toContain('viewer.is_active = true');
     });
 
@@ -41,7 +46,10 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
         expect.stringContaining(
           'sa.staff_id = $1 AND sa.department_id = c.department_id AND sa.is_active = true'
         ),
-        [staffUserId]
+        [staffUserId, staffUserId]
+      );
+      expect(db.query.mock.calls[0][0]).toContain(
+        '(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $2)'
       );
       expect(db.query.mock.calls[0][0]).toContain('viewer.is_active = true');
     });
@@ -59,7 +67,10 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
         expect.stringContaining(
           'r.title ILIKE $3 OR r.request_number ILIKE $3 OR r.description ILIKE $3 OR r.location ILIKE $3'
         ),
-        [departmentId, staffUserId, '%Main Street%']
+        [departmentId, staffUserId, '%Main Street%', staffUserId]
+      );
+      expect(db.query.mock.calls[0][0]).toContain(
+        '(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $4)'
       );
     });
 
@@ -81,6 +92,14 @@ describe('FR-203 Staff Search, Filter and Sort', () => {
     });
 
     it('applies tab filtering for available, mine, overdue, and resolved tabs', async () => {
+      // all tab: requests assigned to this staff member plus unassigned requests
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'all' });
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $3)'),
+        [departmentId, staffUserId, staffUserId]
+      );
+
       // available tab
       db.query.mockResolvedValueOnce({ rows: [] });
       await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'available' });
