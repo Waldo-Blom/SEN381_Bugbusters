@@ -426,6 +426,37 @@ describe('Requester authentication', () => {
     expect((await agent.get('/protected')).status).toBe(200);
   });
 
+  it('uses the configured admin credentials and redirects to admin user management', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.ENABLE_DEMO_LOGINS = 'true';
+    process.env.ADMIN_EMAIL = 'local-admin@example.com';
+    process.env.ADMIN_PASSWORD = 'AdminPass1';
+    const passwordHash = await bcrypt.hash('AdminPass1', 4);
+    query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            user_id: 'admin-1',
+            email: 'local-admin@example.com',
+            first_name: 'Local',
+            last_name: 'Admin',
+            password_hash: passwordHash,
+            user_type: 'ADMIN',
+            department_id: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+    const agent = request.agent(app);
+
+    const response = await agent.post('/auth/login').send({ demoRole: 'admin' });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe('/admin/users');
+    expect(query.mock.calls[0][1]).toEqual(['local-admin@example.com']);
+    expect((await agent.get('/protected')).status).toBe(200);
+  });
+
   it('does not allow demo login outside local development and tests', async () => {
     process.env.NODE_ENV = 'production';
     process.env.ENABLE_DEMO_LOGINS = 'true';
