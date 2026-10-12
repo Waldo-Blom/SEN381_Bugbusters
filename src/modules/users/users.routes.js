@@ -29,6 +29,18 @@ router.post(
 );
 router.post('/admin/users/:userId/deactivate', requireRole('admin'), requireCsrf, c.deactivateUser);
 router.post('/admin/users/:userId/activate', requireRole('admin'), requireCsrf, c.reactivateUser);
-router.get('/requester/settings', c.settings);
+router.get('/requester/settings', requireRole('requester'), c.settings);
+router.post(
+  '/requester/settings/profile',
+  requireRole('requester'),
+  requireCsrf,
+  c.updateRequesterProfile
+);
+router.post(
+  '/requester/settings/notifications',
+  requireRole('requester'),
+  requireCsrf,
+  c.updateRequesterNotifications
+);
 
 module.exports = router;

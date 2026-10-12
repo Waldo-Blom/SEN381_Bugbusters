@@ -1,4 +1,5 @@
 const usersService = require('./users.service');
+const usersModel = require('./users.model');
 const { pageContext } = require('../../shared/views/pageContext');
 const { getAuthenticatedUserId } = require('../auth/auth.middleware');
 const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
@@ -333,12 +334,93 @@ exports.reactivateUser = async (req, res) => {
 };
 
 // requester: own profile settings
-exports.settings = (req, res) => {
-  res.render('users/views/requester/settings', {
+const renderRequesterSettings = async (
+  req,
+  res,
+  { error = null, success = null, profile = null } = {}
+) => {
+  const settings = await usersModel.findRequesterSettings(getAuthenticatedUserId(req));
+  if (!settings) return res.status(404).send('Requester account not found.');
+  const name = `${settings.firstName} ${settings.lastName}`;
+  const user = {
+    ...pageContext('requester', req).user,
+    ...settings,
+    name,
+    avatarInitials: `${settings.firstName[0] || ''}${settings.lastName[0] || ''}`.toUpperCase(),
+  };
+  return res.set('Cache-Control', 'no-store').render('users/views/requester/settings', {
     ...pageContext('requester', req),
+    user,
+    settings,
+    profile: profile || { ...settings, name },
     title: 'Settings',
     activeHref: '/requester/settings',
     pageTitle: 'Settings',
     pageSubtitle: 'Manage your profile and notifications',
+    csrfToken: getCsrfToken(req),
+    error,
+    success,
   });
+};
+
+exports.settings = async (req, res) =>
+  renderRequesterSettings(req, res, {
+    success:
+      req.query.profile === 'saved'
+        ? 'Profile updated.'
+        : req.query.notifications === 'saved'
+          ? 'Notification preferences updated.'
+          : null,
+  });
+
+exports.updateRequesterProfile = async (req, res) => {
+  const field = (key) => (typeof req.body[key] === 'string' ? req.body[key].trim() : '');
+  const firstName = field('firstName');
+  const lastName = field('lastName');
+  const email = field('email').toLowerCase();
+  const phone = field('phone');
+  const profile = {
+    firstName,
+    lastName,
+    email,
+    phone,
+    name: `${firstName} ${lastName}`.trim(),
+  };
+  if (
+    !firstName ||
+    !lastName ||
+    firstName.length > 100 ||
+    lastName.length > 100 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+    email.length > 255 ||
+    phone.length > 15
+  ) {
+    return renderRequesterSettings(req, res, {
+      error: 'Enter a valid name and email. Phone must fit its 15 character limit.',
+      profile,
+    });
+  }
+  try {
+    const updated = await usersModel.updateRequesterProfile(getAuthenticatedUserId(req), profile);
+    if (!updated) return res.status(404).send('Requester account not found.');
+    req.session.user.name = `${updated.firstName} ${updated.lastName}`;
+    req.session.user.email = updated.email;
+    req.session.user.avatarInitials = `${updated.firstName[0]}${updated.lastName[0]}`.toUpperCase();
+    return res.redirect('/requester/settings?profile=saved');
+  } catch (error) {
+    if (error.code === '23505') {
+      return renderRequesterSettings(req, res, {
+        error: 'That email address is already in use.',
+        profile,
+      });
+    }
+    throw error;
+  }
+};
+
+exports.updateRequesterNotifications = async (req, res) => {
+  await usersModel.updateRequesterNotifications(getAuthenticatedUserId(req), {
+    emailNotificationsEnabled: req.body.emailNotificationsEnabled === 'on',
+  });
+  return res.redirect('/requester/settings?notifications=saved');
 };
