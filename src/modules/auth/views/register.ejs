@@ -46,7 +46,7 @@
     <div class="relative">
       <input type="password" id="password" name="password" placeholder="Create a strong password" required minlength="8" autocomplete="new-password"
              class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-16 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-      <button type="button" id="toggle-password" aria-controls="password" aria-pressed="false"
+      <button type="button" data-password-toggle aria-controls="password" aria-pressed="false" aria-label="Show password"
               class="absolute inset-y-0 right-0 rounded-r-lg px-3 text-xs font-medium text-slate-500 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
         Show
       </button>
@@ -55,7 +55,6 @@
       <p>&bull; At least 8 characters</p>
       <p>&bull; Contains a number</p>
       <p>&bull; Contains an uppercase letter</p>
-      <p>&bull; No more than 72 bytes</p>
     </div>
   </div>
 
@@ -74,18 +73,5 @@
     <a href="/auth/login" class="font-semibold text-blue-600 hover:text-blue-700">Sign in</a>
   </p>
 </form>
-
-<script>
-  document.getElementById('toggle-password').addEventListener('click', (event) => {
-    const button = event.currentTarget;
-    const password = document.getElementById(button.getAttribute('aria-controls'));
-    const isVisible = password.type === 'text';
-
-    password.type = isVisible ? 'password' : 'text';
-    button.textContent = isVisible ? 'Show' : 'Hide';
-    button.setAttribute('aria-pressed', String(!isVisible));
-    button.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
-  });
-</script>
 
 <%- include('partials/auth-layout-foot') %>

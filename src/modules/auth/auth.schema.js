@@ -1,5 +1,4 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_BCRYPT_BYTES = 72;
 
 const validateRegistration = (body = {}) => {
   const firstName = typeof body.firstName === 'string' ? body.firstName.trim() : '';
@@ -25,17 +24,11 @@ const validateRegistration = (body = {}) => {
   if (!termsAccepted) {
     errors.push('You must accept the Terms of Service and Privacy Policy.');
   }
-  if (
-    password.length < 8 ||
-    !/[A-Z]/.test(password) ||
-    !/[0-9]/.test(password) ||
-    Buffer.byteLength(password, 'utf8') > MAX_BCRYPT_BYTES
-  ) {
+  if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
     errors.push(
-      'Password must be at least 8 characters, include an uppercase letter and a number, and be no more than 72 bytes.'
+      'Password must be at least 8 characters, include an uppercase letter and a number.'
     );
   }
-
   return {
     errors,
     values: { firstName, lastName, email, phone, password, termsAccepted },

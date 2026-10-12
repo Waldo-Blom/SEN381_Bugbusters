@@ -42,6 +42,17 @@ const requireRole = (
   };
 };
 
+const requireManager = (req, res, next) => {
+  const user = getAuthenticatedUser(req);
+  if (!user || !getAuthenticatedUserId(req)) {
+    return res.redirect('/auth/login');
+  }
+  if (!user.email || getAuthenticatedUserRole(req) !== 'management') {
+    return res.status(403).send('Only managers can access staff management.');
+  }
+  next();
+};
+
 // Use after requireRole when access must also be limited to one department.
 const requireDepartment = (departmentId) => (req, res, next) => {
   const user = getAuthenticatedUser(req);
@@ -60,5 +71,6 @@ module.exports = {
   getAuthenticatedUserRole,
   requireAuth,
   requireRole,
+  requireManager,
   requireDepartment,
 };

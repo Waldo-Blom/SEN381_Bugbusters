@@ -59,6 +59,15 @@ it('renders department-scoped lifecycle events without exposing raw audit detail
         actor_name: 'Assigned Staff',
         request_number: 'CC-0001',
       },
+      {
+        action_type: 'STAFF_REMOVED',
+        changed_data: { departmentId },
+        timestamp: '2026-10-11 15:00',
+        actor_name: 'Test Manager',
+        subject_name: 'Sam Staff',
+        subject_email: 'sam@example.com',
+        request_number: null,
+      },
     ],
   });
   const response = await request(createApp(manager)).get('/manager/reporting?page=2');
@@ -71,6 +80,9 @@ it('renders department-scoped lifecycle events without exposing raw audit detail
   expect(response.text).toContain('2026-10-11 14:30');
   expect(response.text).toContain('Assigned Staff');
   expect(response.text).toContain('CC-0001');
+  expect(response.text).toContain('Staff removed');
+  expect(response.text).toContain('Removed Sam Staff from this department');
+  expect(response.text).toContain('sam@example.com');
   expect(response.text).not.toContain('private comment text');
   expect(query).toHaveBeenCalledTimes(3);
   expect(query.mock.calls[1][1]).toEqual([managerId, departmentId, null]);
