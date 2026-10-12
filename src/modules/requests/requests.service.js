@@ -159,11 +159,6 @@ exports.checkStaffAccess = async (id, staffId, client) => {
   requireStaffAccess(context, staffId);
   return context;
 };
-exports.getForStaff = async (id, staffId) => {
-  if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
-  if (!isUuid(staffId)) throw new RequestAccessError('Invalid staff identifier.', 403);
-  return requestsModel.findById(id, undefined, staffId);
-};
 exports.listForManager = async (managerId, input = {}) => {
   if (!managerId) return null;
   const filters = {};
@@ -207,10 +202,19 @@ exports.submit = async (input, requesterId) =>
     actorType: 'REQUESTER',
     actorUserId: requesterId,
   });
+class StaffDepartmentAccessError extends Error {
+  constructor(message = 'You do not have permission to access requests for this department.') {
+    super(message);
+    this.name = 'StaffDepartmentAccessError';
+    this.statusCode = 403;
+  }
+}
+
 exports.createServiceRequest = createServiceRequest;
 exports.generateRequestNumber = generateRequestNumber;
 exports.RequestValidationError = RequestValidationError;
 exports.SubmissionUserNotFoundError = SubmissionUserNotFoundError;
+exports.StaffDepartmentAccessError = StaffDepartmentAccessError;
 exports.getById = async (id) => await requestsModel.findById(id);
 exports.getForRequester = async (id, requesterId) => {
   if (!requesterId) {
@@ -218,4 +222,21 @@ exports.getForRequester = async (id, requesterId) => {
   }
   return requestsModel.findById(id, requesterId);
 };
+exports.getForStaff = async (id, staffUserId) => {
+  if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
+  if (!isUuid(staffUserId)) throw new RequestAccessError('Invalid staff identifier.', 403);
+
+  const usersService = require('../users/users.service');
+  const access = await usersService.verifyStaffRequestAccess(staffUserId, id);
+  if (!access.allowed) {
+    if (access.reason === 'Request not found.') {
+      throw new RequestAccessError('Request not found.', 404);
+    }
+    throw new StaffDepartmentAccessError(access.reason);
+  }
+  return requestsModel.findById(id, undefined, staffUserId);
+};
+exports.searchStaffRequests = async (params) => requestsModel.searchStaffRequests(params);
+exports.listCategoriesByDepartment = async (departmentId) =>
+  requestsModel.findCategoriesByDepartment(departmentId);
 exports.workflow = workflowService;

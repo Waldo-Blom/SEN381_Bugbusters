@@ -1,5 +1,6 @@
 jest.mock('../../../config/database', () => ({ query: jest.fn(), pool: { connect: jest.fn() } }));
 
+// Updated by Waldo on 2026-10-12: expectations now match department-first authorization and staff-safe detail queries; prior mocks reflected the older access flow.
 const express = require('express');
 const supertest = require('supertest');
 const path = require('path');
@@ -44,19 +45,28 @@ app.use(routes);
 beforeEach(() => jest.resetAllMocks());
 
 it('returns HTTP 403 for cross-department request IDs without fetching comments or history', async () => {
-  db.query.mockResolvedValue({ rows: [{ ...context, staff_allowed: false }] });
+  db.query.mockResolvedValue({
+    rows: [
+      {
+        request_department_id: 'dept-water',
+        request_department_name: 'Water',
+        staff_department_id: null,
+      },
+    ],
+  });
   const response = await supertest(app).get(`/staff/requests/${requestId}`);
   expect(response.status).toBe(403);
   expect(db.query).toHaveBeenCalledTimes(1);
-  expect(db.query.mock.calls[0][0]).toContain('WHERE r.request_id = $1');
+  expect(db.query.mock.calls[0][0]).toContain('WHERE r.request_id = $2');
   expect(db.query.mock.calls[0][0]).toContain('sa.department_id = c.department_id');
+  expect(db.query.mock.calls[0][1]).toEqual([staffId, requestId]);
 });
 
 it('returns HTTP 404 for a missing request and HTTP 400 for malformed IDs', async () => {
   db.query.mockResolvedValue({ rows: [] });
   expect((await supertest(app).get(`/staff/requests/${requestId}`)).status).toBe(404);
   expect((await supertest(app).get('/staff/requests/invalid')).status).toBe(400);
-  expect(db.query).toHaveBeenCalledTimes(2);
+  expect(db.query).toHaveBeenCalledTimes(1);
 });
 
 it.each([
@@ -68,7 +78,23 @@ it.each([
   async (approved, assignee, visible) => {
     db.query
       .mockResolvedValueOnce({
-        rows: [{ ...row, assigned_staff_id: assignee, contact_information_approved: approved }],
+        rows: [
+          {
+            request_department_id: 'dept-water',
+            request_department_name: 'Water',
+            staff_department_id: 'dept-water',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            ...row,
+            staff_allowed: true,
+            assigned_staff_id: assignee,
+            contact_information_approved: approved,
+          },
+        ],
       })
       .mockResolvedValue({ rows: [] });
     const result = await service.getForStaff(requestId, staffId);
@@ -76,10 +102,10 @@ it.each([
     expect(result.canManageStatus).toBe(assignee === staffId);
     if (!visible)
       expect(JSON.stringify(result)).not.toMatch(/Private Citizen|private@example.com|0123456789/);
-    const sql = db.query.mock.calls[0][0];
+    const sql = db.query.mock.calls[1][0];
     expect(sql).toContain('r.contact_information_approved = true AND r.assigned_staff_id = $2');
     expect(sql).toContain('viewer.is_active = true');
-    expect(db.query.mock.calls[0][1]).toEqual([requestId, staffId]);
+    expect(db.query.mock.calls[1][1]).toEqual([requestId, staffId]);
   }
 );
 
