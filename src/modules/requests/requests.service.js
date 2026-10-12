@@ -123,7 +123,7 @@ class RequestWorkflowService {
       : await requestsModel.updateStatus(requestId, newStatus, comment, userId);
 
     // Fire side effects asynchronously (FR-104 email, FR-302 audit log)
-    eventBus.emit('RequestStatusChanged', {
+    eventBus.emitAuditEvent('RequestStatusChanged', {
       requestId,
       oldStatus,
       newStatus,

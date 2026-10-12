@@ -10,6 +10,7 @@ const path = require('path');
 const db = require('../../src/config/database');
 const requestsRoutes = require('../../src/modules/requests/requests.routes');
 const reportingRoutes = require('../../src/modules/reporting/reporting.routes');
+const auditModule = require('../../src/modules/audit');
 const describeDatabase = process.env.CONTACT_ACCESS_TEST_DATABASE_URL ? describe : describe.skip;
 jest.setTimeout(60000);
 
@@ -36,6 +37,8 @@ const inboxPath = '/manager/contact-access-requests';
 describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
   let client;
   let failAudit = false;
+  let failedAuditWrites = 0;
+  let unregisterAudit;
   const app = express();
   app.set('view engine', 'ejs');
   app.set('views', [
@@ -77,6 +80,27 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
         'SELECT contact_access_request_id FROM request_contact_access_requests LIMIT 1'
       )
     ).rows[0].contact_access_request_id;
+  const waitForAuditActions = async (expectedActions) => {
+    const sortedExpected = [...expectedActions].sort();
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const rows = (
+        await client.query('SELECT action_type FROM admin_audit_log ORDER BY created_at')
+      ).rows;
+      if (
+        JSON.stringify(rows.map((row) => row.action_type).sort()) === JSON.stringify(sortedExpected)
+      ) {
+        return rows;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(`Timed out waiting for audit actions: ${expectedActions.join(', ')}`);
+  };
+  const waitForFailedAuditWrite = async () => {
+    for (let attempt = 0; attempt < 50 && failedAuditWrites === 0; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(failedAuditWrites).toBeGreaterThan(0);
+  };
 
   beforeAll(async () => {
     client = new Client({ connectionString: process.env.CONTACT_ACCESS_TEST_DATABASE_URL });
@@ -144,8 +168,10 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
     db.query.mockImplementation((sql, params) => client.query(sql, params));
     db.pool.connect.mockResolvedValue({
       query: (sql, params) => {
-        if (failAudit && sql.includes('INSERT INTO admin_audit_log'))
+        if (failAudit && sql.includes('INSERT INTO admin_audit_log')) {
+          failedAuditWrites++;
           throw new Error('Audit write failed');
+        }
         const commands = {
           BEGIN: 'SAVEPOINT contact_write',
           COMMIT: 'RELEASE SAVEPOINT contact_write',
@@ -155,9 +181,11 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
       },
       release: () => {},
     });
+    unregisterAudit = auditModule.initialize();
   });
 
   afterAll(async () => {
+    if (unregisterAudit) unregisterAudit();
     if (client) {
       try {
         await client.query('ROLLBACK');
@@ -168,6 +196,7 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
   });
   beforeEach(async () => {
     failAudit = false;
+    failedAuditWrites = 0;
     await client.query('TRUNCATE pg_temp.request_contact_access_requests, pg_temp.admin_audit_log');
     await client.query(
       `UPDATE service_requests SET assigned_staff_id = $1, contact_information_approved = false,
@@ -214,11 +243,24 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
       (await client.query('SELECT count(*)::int AS count FROM request_contact_access_requests'))
         .rows[0].count
     ).toBe(1);
-    expect(
-      (await client.query('SELECT action_type FROM admin_audit_log ORDER BY created_at')).rows.map(
-        (r) => r.action_type
-      )
-    ).toEqual(['CONTACT_ACCESS_REQUESTED', 'CONTACT_ACCESS_APPROVED']);
+    await waitForAuditActions(['CONTACT_ACCESS_REQUESTED', 'CONTACT_ACCESS_APPROVED']);
+  });
+
+  it('records request lifecycle transitions for manager review', async () => {
+    const staffAgent = supertest.agent(app);
+    const token = await tokenFor(staffAgent, staff, staffPath);
+    expect((await post(staffAgent, staff, `${staffPath}/start-progress`, token)).status).toBe(302);
+
+    await waitForAuditActions(['STATUS_CHANGED']);
+    const statusAudit = await client.query(
+      `SELECT changed_data FROM admin_audit_log WHERE action_type = 'STATUS_CHANGED'`
+    );
+    expect(statusAudit.rows[0].changed_data).toMatchObject({
+      oldStatus: 'ASSIGNED',
+      newStatus: 'IN_PROGRESS',
+    });
+    const history = await client.query('SELECT new_status FROM request_status_history');
+    expect(history.rows.map((row) => row.new_status)).toContain('IN_PROGRESS');
   });
 
   it('rejects access, shows the denial message, removes the button, and blocks resubmission', async () => {
@@ -247,6 +289,7 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
     expect(denied.text).toContain('denied by management');
     expect(denied.text).not.toMatch(/Request contact access|private@example.com|Private Citizen/);
     expect((await post(staffAgent, staff, `${staffPath}/contact-access`, token)).status).toBe(403);
+    await waitForAuditActions(['CONTACT_ACCESS_REQUESTED', 'CONTACT_ACCESS_REJECTED']);
     const saved = await client.query(
       'SELECT contact_information_approved, contact_approved_by, contact_approved_at FROM service_requests'
     );
@@ -272,10 +315,8 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
     expect((await get(supertest.agent(app), staff, staffPath)).text).not.toContain(
       'private@example.com'
     );
-    const events = await client.query(
-      'SELECT action_type FROM admin_audit_log ORDER BY created_at'
-    );
-    expect(events.rows.map((r) => r.action_type)).toEqual([
+    const events = await waitForAuditActions(['CONTACT_ACCESS_APPROVED', 'CONTACT_ACCESS_REVOKED']);
+    expect(events.map((row) => row.action_type).sort()).toEqual([
       'CONTACT_ACCESS_APPROVED',
       'CONTACT_ACCESS_REVOKED',
     ]);
@@ -317,45 +358,52 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
     expect(
       (await post(agent, manager, `${inboxPath}/${await pendingId()}/approve`, managerToken)).status
     ).toBe(409);
+    await waitForAuditActions(['CONTACT_ACCESS_REQUESTED']);
     expect((await get(staffAgent, staff, staffPath)).text).not.toContain('private@example.com');
   });
 
-  it('rolls back approval when the audit write fails', async () => {
+  it('completes contact authorisation when the asynchronous audit write fails', async () => {
     const agent = supertest.agent(app);
     const token = await tokenFor(agent, manager, managerPath);
     failAudit = true;
     expect(
       (await post(agent, manager, `${managerPath}/contact-access/authorise`, token)).status
-    ).toBe(500);
+    ).toBe(302);
+    await waitForFailedAuditWrite();
     expect(
       (await client.query('SELECT contact_information_approved FROM service_requests')).rows[0]
         .contact_information_approved
-    ).toBe(false);
+    ).toBe(true);
     expect(
       (await client.query('SELECT count(*)::int AS count FROM admin_audit_log')).rows[0].count
     ).toBe(0);
   });
 
-  it('rolls back a pending review and approval together when the audit fails', async () => {
+  it('completes a contact review when the asynchronous audit write fails', async () => {
     const staffAgent = supertest.agent(app);
     const staffToken = await tokenFor(staffAgent, staff, staffPath);
     await post(staffAgent, staff, `${staffPath}/contact-access`, staffToken);
+    await waitForAuditActions(['CONTACT_ACCESS_REQUESTED']);
     const agent = supertest.agent(app);
     const token = await tokenFor(agent, manager, inboxPath);
     failAudit = true;
     expect(
       (await post(agent, manager, `${inboxPath}/${await pendingId()}/approve`, token)).status
-    ).toBe(500);
+    ).toBe(302);
+    await waitForFailedAuditWrite();
     const request = await client.query(
       'SELECT status, reviewed_by, reviewed_at FROM request_contact_access_requests'
     );
-    expect(request.rows[0]).toEqual({ status: 'PENDING', reviewed_by: null, reviewed_at: null });
+    expect(request.rows[0]).toMatchObject({ status: 'APPROVED', reviewed_by: manager });
+    expect(request.rows[0].reviewed_at).not.toBeNull();
     expect(
       (await client.query('SELECT contact_information_approved FROM service_requests')).rows[0]
         .contact_information_approved
-    ).toBe(false);
+    ).toBe(true);
     expect(
-      (await client.query('SELECT count(*)::int AS count FROM admin_audit_log')).rows[0].count
-    ).toBe(1);
+      (await client.query('SELECT action_type FROM admin_audit_log')).rows.map(
+        (row) => row.action_type
+      )
+    ).toEqual(['CONTACT_ACCESS_REQUESTED']);
   });
 });
