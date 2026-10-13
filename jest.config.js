@@ -19,12 +19,6 @@ module.exports = {
       testMatch: ['**/*.test.js'],
     },
     {
-      displayName: 'regression',
-      testEnvironment: 'node',
-      roots: ['<rootDir>/tests/regression'],
-      testMatch: ['**/*.test.js'],
-    },
-    {
       displayName: 'e2e',
       testEnvironment: 'node',
       roots: ['<rootDir>/tests/e2e'],

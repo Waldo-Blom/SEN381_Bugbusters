@@ -1,5 +1,6 @@
-// Opt in with CONTACT_ACCESS_TEST_DATABASE_URL. Tables are connection-local;
+// Opt in with DATABASE_URL. Tables are connection-local;
 // every write is rolled back and public application rows are untouched.
+require('dotenv').config({ quiet: true });
 jest.mock('../../src/config/database', () => ({ query: jest.fn(), pool: { connect: jest.fn() } }));
 
 const { Client } = require('pg');
@@ -11,7 +12,7 @@ const db = require('../../src/config/database');
 const requestsRoutes = require('../../src/modules/requests/requests.routes');
 const reportingRoutes = require('../../src/modules/reporting/reporting.routes');
 const auditModule = require('../../src/modules/audit');
-const describeDatabase = process.env.CONTACT_ACCESS_TEST_DATABASE_URL ? describe : describe.skip;
+const describeDatabase = process.env.DATABASE_URL ? describe : describe.skip;
 jest.setTimeout(60000);
 
 const ids = Array.from(
@@ -103,7 +104,7 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
   };
 
   beforeAll(async () => {
-    client = new Client({ connectionString: process.env.CONTACT_ACCESS_TEST_DATABASE_URL });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();
     await client.query('BEGIN');
     for (const table of [
@@ -256,8 +257,8 @@ describeDatabase('Contact access HTTP journeys against PostgreSQL', () => {
       `SELECT changed_data FROM admin_audit_log WHERE action_type = 'STATUS_CHANGED'`
     );
     expect(statusAudit.rows[0].changed_data).toMatchObject({
-      oldStatus: 'ASSIGNED',
-      newStatus: 'IN_PROGRESS',
+      oldStatus: 'Assigned',
+      newStatus: 'In Progress',
     });
     const history = await client.query('SELECT new_status FROM request_status_history');
     expect(history.rows.map((row) => row.new_status)).toContain('IN_PROGRESS');

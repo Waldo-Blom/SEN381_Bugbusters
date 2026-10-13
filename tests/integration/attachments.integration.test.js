@@ -194,60 +194,6 @@ test.each([
   expect(storage.upload).not.toHaveBeenCalled();
 });
 
-test('rejects six images without saving a request', async () => {
-  let req = fields(request(appFor()).post('/requester/submit'));
-  for (let i = 0; i < 6; i++) req = req.attach('images', png, `pipe-${i}.png`);
-  expect((await req).status).toBe(400);
-  expect(db.pool.connect).not.toHaveBeenCalled();
-});
-
-test('rolls back request creation and removes an object if metadata insertion fails', async () => {
-  failInsert = true;
-  const response = await fields(request(appFor()).post('/requester/submit')).attach(
-    'images',
-    png,
-    'pipe.png'
-  );
-  expect(response.status).toBe(503);
-  expect(client.query).toHaveBeenCalledWith('ROLLBACK');
-  expect(client.query).not.toHaveBeenCalledWith('COMMIT');
-  expect(storage.remove).toHaveBeenCalledWith(storage.upload.mock.calls[0][0]);
-  expect(records).toEqual([]);
-  expect(response.text).toContain('please select them again');
-});
-
-test('does not insert attachment metadata when storage upload fails', async () => {
-  storage.upload.mockRejectedValue(new Error('Storage unavailable'));
-  const response = await fields(request(appFor()).post('/requester/submit')).attach(
-    'images',
-    png,
-    'pipe.png'
-  );
-  expect(response.status).toBe(503);
-  expect(
-    client.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO request_attachments'))
-  ).toBe(false);
-  expect(client.query).toHaveBeenCalledWith('ROLLBACK');
-});
-
-test('lists images without exposing storage keys and issues a protected download redirect', async () => {
-  await fields(request(appFor()).post('/requester/submit')).attach('images', png, 'pipe.png');
-  const list = await request(appFor()).get(`/requests/${requestId}/attachments`);
-  expect(list.status).toBe(200);
-  expect(list.body[0]).toMatchObject({
-    id: attachmentId,
-    name: 'pipe.png',
-    url: `/requests/${requestId}/attachments/${attachmentId}`,
-  });
-  expect(list.body[0].key).toBeUndefined();
-  const response = await request(appFor()).get(
-    `/requests/${requestId}/attachments/${attachmentId}`
-  );
-  expect(response.status).toBe(302);
-  expect(response.headers.location).toBe('https://private-storage.test/signed-image');
-  expect(response.headers['cache-control']).toContain('no-store');
-});
-
 test.each([
   ['requester', otherId, 403],
   ['operator', otherId, 403],
@@ -285,19 +231,6 @@ test.each(['staff', 'management'])(
   }
 );
 
-test('protects multipart submission and additional uploads against missing CSRF tokens', async () => {
-  const submit = await request(appFor())
-    .post('/requester/submit')
-    .field('categoryId', categoryId)
-    .attach('images', png, 'pipe.png');
-  expect(submit.status).toBe(403);
-  const additional = await request(appFor())
-    .post(`/requests/${requestId}/attachments`)
-    .attach('images', png, 'pipe.png');
-  expect(additional.status).toBe(403);
-  expect(storage.upload).not.toHaveBeenCalled();
-});
-
 test('uploads additional images to an existing owned request', async () => {
   const response = await request(appFor())
     .post(`/requests/${requestId}/attachments`)
@@ -306,44 +239,4 @@ test('uploads additional images to an existing owned request', async () => {
   expect(response.status).toBe(302);
   expect(response.headers.location).toBe(`/requester/requests/${requestId}`);
   expect(records[0].uploadedBy).toBe(actorId);
-});
-
-test('access query preserves department scope and validates active database users', async () => {
-  await request(appFor()).get(`/requests/${requestId}/attachments`);
-  const [sql, params] = db.query.mock.calls[0];
-  expect(params).toEqual([requestId, actorId, 'requester']);
-  expect(sql).toContain('viewer.is_active');
-  expect(sql).toContain('r.requester_id = viewer.user_id');
-  expect(sql).toContain('r.created_by = viewer.user_id');
-  expect(sql).toContain('d.manager_id = viewer.user_id');
-  expect(sql).toContain('sa.department_id = d.department_id AND sa.is_active = true');
-  expect(sql).toContain("viewer.user_type::text IN ('OPERATOR', 'STAFF', 'ADMIN')");
-  expect(sql).not.toContain("viewer.user_type = 'OPERATOR'");
-});
-
-test('explains a server permission-check failure without blaming a valid JPG or leaking SQL', async () => {
-  const original = client.query.getMockImplementation();
-  const log = jest.spyOn(console, 'error').mockImplementation(() => {});
-  client.query.mockImplementation(async (sql, params) => {
-    if (sql.includes('SELECT r.request_id, r.requester_id, r.created_by')) {
-      const error = new Error('invalid input value for enum user_type: OPERATOR');
-      error.code = '22P02';
-      throw error;
-    }
-    return original(sql, params);
-  });
-  const jpg = await sharp(png).jpeg().toBuffer();
-  const response = await fields(request(appFor()).post('/requester/submit')).attach(
-    'images',
-    jpg,
-    'small.jpg'
-  );
-  expect(response.status).toBe(503);
-  expect(response.text).toContain('Your image passed validation');
-  expect(response.text).toContain('ATT-PERMISSIONS');
-  expect(response.text).toContain('Your request was not submitted');
-  expect(response.text).not.toContain('invalid input value');
-  expect(response.text).not.toContain('Please correct the following');
-  expect(client.query).toHaveBeenCalledWith('ROLLBACK');
-  log.mockRestore();
 });

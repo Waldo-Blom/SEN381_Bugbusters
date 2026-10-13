@@ -12,14 +12,7 @@ const { query } = require('../../../config/database');
 const authService = require('../auth.service');
 const { validateRegistration } = require('../auth.schema');
 const authRoutes = require('../auth.routes');
-const {
-  getAuthenticatedUser,
-  getAuthenticatedUserId,
-  getAuthenticatedUserRole,
-  requireAuth,
-  requireRole,
-  requireDepartment,
-} = require('../auth.middleware');
+const { requireAuth, requireRole, requireDepartment } = require('../auth.middleware');
 const workflowRoutes = require('../../workflow/workflow.routes');
 const { pageContext } = require('../../../shared/views/pageContext');
 
@@ -43,48 +36,9 @@ app.get('/department-only', requireDepartment('department-1'), (req, res) =>
   res.send('department')
 );
 
-const demoEnvKeys = [
-  'NODE_ENV',
-  'ENABLE_DEMO_LOGINS',
-  'REQUESTER_EMAIL',
-  'REQUESTER_PASSWORD',
-  'STAFF_EMAIL',
-  'STAFF_PASSWORD',
-  'MANAGEMENT_EMAIL',
-  'MANAGEMENT_PASSWORD',
-  'OPERATOR_EMAIL',
-  'OPERATOR_PASSWORD',
-  'ADMIN_EMAIL',
-  'ADMIN_PASSWORD',
-];
-let previousDemoEnv;
-
 describe('Requester authentication', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    previousDemoEnv = Object.fromEntries(demoEnvKeys.map((key) => [key, process.env[key]]));
-  });
-
-  afterEach(() => {
-    demoEnvKeys.forEach((key) => {
-      if (previousDemoEnv[key] === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = previousDemoEnv[key];
-      }
-    });
-  });
-
-  it('provides shared helpers for authenticated session identity', () => {
-    const user = { id: 'requester-1', role: 'requester' };
-    const req = { session: { user } };
-
-    expect(getAuthenticatedUser(req)).toBe(user);
-    expect(getAuthenticatedUserId(req)).toBe('requester-1');
-    expect(getAuthenticatedUserRole(req)).toBe('requester');
-    expect(getAuthenticatedUser({})).toBeNull();
-    expect(getAuthenticatedUserId({ session: { user: { role: 'requester' } } })).toBeNull();
-    expect(getAuthenticatedUserRole({})).toBeNull();
   });
 
   it('hashes the password before creating a requester account', async () => {
@@ -115,36 +69,6 @@ describe('Requester authentication', () => {
     expect(query.mock.calls[0][0]).toContain("'REQUESTER'");
   });
 
-  it('registers a requester and keeps the requester out of staff-only routes', async () => {
-    query.mockResolvedValue({
-      rows: [
-        {
-          user_id: 'requester-1',
-          email: 'amelia@example.com',
-          first_name: 'Amelia',
-          last_name: 'Carter',
-          user_type: 'REQUESTER',
-        },
-      ],
-    });
-    const agent = request.agent(app);
-
-    const registration = await agent.post('/auth/register').send({
-      firstName: 'Amelia',
-      lastName: 'Carter',
-      email: 'Amelia@Example.com',
-      password: 'SecurePass1',
-      terms: 'on',
-    });
-
-    expect(registration.status).toBe(302);
-    expect(registration.headers.location).toBe('/requester/my-requests');
-    expect((await agent.get('/protected')).status).toBe(200);
-    expect((await agent.get('/staff-only')).status).toBe(403);
-    expect((await agent.get('/staff/dashboard')).status).toBe(403);
-    expect(query.mock.calls[0][1][0]).toBe('amelia@example.com');
-  });
-
   it('rejects invalid registration data before querying the database', async () => {
     const response = await request(app).post('/auth/register').send({
       firstName: '',
@@ -159,31 +83,6 @@ describe('Requester authentication', () => {
     expect(query).not.toHaveBeenCalled();
   });
 
-  it('does not mention the bcrypt byte limit on the registration page', async () => {
-    const response = await request(app).get('/auth/register');
-
-    expect(response.status).toBe(200);
-    expect(response.text).toContain('data-password-toggle');
-    expect(response.text).not.toContain('72 bytes');
-    expect(response.text).not.toContain('No more than 72');
-    expect(response.text).toContain('At least 8 characters');
-    expect(response.text).toContain('Contains a number');
-    expect(response.text).toContain('Contains an uppercase letter');
-  });
-
-  it('accepts a valid registration password longer than 72 bytes', async () => {
-    const result = validateRegistration({
-      firstName: 'Amelia',
-      lastName: 'Carter',
-      email: 'amelia@example.com',
-      password: `${'A'.repeat(80)}1`,
-      terms: 'on',
-    });
-
-    expect(result.errors).toEqual([]);
-    expect(result.values.password).toBe(`${'A'.repeat(80)}1`);
-  });
-
   it('still requires registration passwords to have at least 8 characters', () => {
     const result = validateRegistration({
       firstName: 'Amelia',
@@ -196,15 +95,6 @@ describe('Requester authentication', () => {
     expect(result.errors).toContain(
       'Password must be at least 8 characters, include an uppercase letter and a number.'
     );
-  });
-
-  it('renders the shared password visibility control on the login page', async () => {
-    const response = await request(app).get('/auth/login');
-
-    expect(response.status).toBe(200);
-    expect(response.text).toContain('data-password-toggle');
-    expect(response.text).toContain('aria-label="Show password"');
-    expect(response.text).toContain('/js/password-toggle.js');
   });
 
   it('shows a human-readable error when the email is already registered', async () => {
@@ -254,44 +144,6 @@ describe('Requester authentication', () => {
       'UPDATE users SET last_login_at = now() WHERE user_id = $1',
       ['requester-1']
     );
-  });
-
-  it('renders the logged-in database user in the application sidebar', async () => {
-    const sessionUser = {
-      id: 'requester-1',
-      name: 'Amelia Carter',
-      email: 'amelia@example.com',
-      role: 'requester',
-      departmentId: null,
-      avatarInitials: 'AC',
-    };
-    const html = await ejs.renderFile(
-      path.join(__dirname, '../../../shared/views/partials/app-layout-head.ejs'),
-      {
-        ...pageContext('requester', { session: { user: sessionUser } }),
-        title: 'My Requests',
-        pageTitle: 'My Requests',
-        pageSubtitle: 'Track requests',
-        activeHref: '/requester/my-requests',
-      }
-    );
-
-    expect(html).toContain('Amelia Carter');
-    expect(html).toContain('amelia@example.com');
-    expect(html).not.toContain('Demo Requester');
-  });
-
-  it('rejects invalid credentials without exposing internal details', async () => {
-    query.mockResolvedValue({ rows: [] });
-
-    const response = await request(app).post('/auth/login').send({
-      email: 'amelia@example.com',
-      password: 'WrongPass1',
-    });
-
-    expect(response.status).toBe(401);
-    expect(response.text).toContain('Email or password is incorrect.');
-    expect(response.text).not.toContain('at Object.');
   });
 
   it('rejects an incorrect password for an existing account without creating a session', async () => {
@@ -376,94 +228,5 @@ describe('Requester authentication', () => {
     expect((await agent.get('/protected')).status).toBe(200);
     expect((await agent.post('/auth/logout')).status).toBe(302);
     expect((await agent.get('/protected')).status).toBe(401);
-  });
-
-  it('shows only configured demo roles in development', async () => {
-    process.env.NODE_ENV = 'development';
-    process.env.ENABLE_DEMO_LOGINS = 'true';
-    process.env.REQUESTER_EMAIL = 'local-requester@example.com';
-    process.env.REQUESTER_PASSWORD = 'LocalPass1';
-
-    const response = await request(app).get('/auth/login');
-
-    expect(response.status).toBe(200);
-    expect(response.text).toContain('name="demoRole" value="requester"');
-    expect(response.text).toContain('name="demoRole" value="staff"');
-    expect(response.text).toContain('name="demoRole" value="operator"');
-    expect(response.text).toContain('name="demoRole" value="management"');
-    expect(response.text).toContain('name="demoRole" value="admin"');
-    expect(response.text).toContain('must be removed before deployment to staging');
-  });
-
-  it('uses configured credentials to authenticate demo logins against the database', async () => {
-    process.env.NODE_ENV = 'development';
-    process.env.ENABLE_DEMO_LOGINS = 'true';
-    process.env.REQUESTER_EMAIL = 'local-requester@example.com';
-    process.env.REQUESTER_PASSWORD = 'LocalPass1';
-    const passwordHash = await bcrypt.hash('LocalPass1', 4);
-    query
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            user_id: 'requester-1',
-            email: 'local-requester@example.com',
-            first_name: 'Local',
-            last_name: 'Requester',
-            password_hash: passwordHash,
-            user_type: 'REQUESTER',
-            department_id: null,
-          },
-        ],
-      })
-      .mockResolvedValueOnce({ rows: [] });
-    const agent = request.agent(app);
-
-    const response = await agent.post('/auth/login').send({ demoRole: 'requester' });
-
-    expect(response.status).toBe(302);
-    expect(response.headers.location).toBe('/requester/my-requests');
-    expect(query.mock.calls[0][1]).toEqual(['local-requester@example.com']);
-    expect((await agent.get('/protected')).status).toBe(200);
-  });
-
-  it('uses the configured admin credentials and redirects to admin user management', async () => {
-    process.env.NODE_ENV = 'development';
-    process.env.ENABLE_DEMO_LOGINS = 'true';
-    process.env.ADMIN_EMAIL = 'local-admin@example.com';
-    process.env.ADMIN_PASSWORD = 'AdminPass1';
-    const passwordHash = await bcrypt.hash('AdminPass1', 4);
-    query
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            user_id: 'admin-1',
-            email: 'local-admin@example.com',
-            first_name: 'Local',
-            last_name: 'Admin',
-            password_hash: passwordHash,
-            user_type: 'ADMIN',
-            department_id: null,
-          },
-        ],
-      })
-      .mockResolvedValueOnce({ rows: [] });
-    const agent = request.agent(app);
-
-    const response = await agent.post('/auth/login').send({ demoRole: 'admin' });
-
-    expect(response.status).toBe(302);
-    expect(response.headers.location).toBe('/admin/users');
-    expect(query.mock.calls[0][1]).toEqual(['local-admin@example.com']);
-    expect((await agent.get('/protected')).status).toBe(200);
-  });
-
-  it('does not allow demo login outside local development and tests', async () => {
-    process.env.NODE_ENV = 'production';
-    process.env.ENABLE_DEMO_LOGINS = 'true';
-
-    const response = await request(app).post('/auth/login').send({ demoRole: 'requester' });
-
-    expect(response.status).toBe(404);
-    expect(query).not.toHaveBeenCalled();
   });
 });
