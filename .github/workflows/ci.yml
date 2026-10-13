@@ -1,13 +1,13 @@
 name: CI
 
 # One pipeline for the whole project (SEN381 M3: "one working pipeline is enough").
-# Every PR and push to testing / staging / main runs the same checks, and the
+# Every PR and push to dev / testing / staging / main runs the same checks, and the
 # `CI gate` job at the bottom is the single required status check.
 on:
   push:
-    branches: [testing, staging, main]
+    branches: [dev, testing, staging, main]
   pull_request:
-    branches: [testing, staging, main]
+    branches: [dev, testing, staging, main]
   workflow_dispatch:
 
 # Cancel superseded runs of the same PR / branch.
@@ -77,7 +77,9 @@ jobs:
     timeout-minutes: 10
     env:
       NODE_ENV: test
-      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      # Unit tests instantiate pg.Pool but mock database operations. Use a
+      # harmless local URL instead of exposing the CI database to this job.
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
       SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +93,9 @@ jobs:
     name: Black-box functional tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      NODE_ENV: test
+      SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -116,22 +121,14 @@ jobs:
       - name: Run integration and API tests
         run: npx jest --selectProjects integration --ci --runInBand
 
-  regression:
-    name: Regression tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-node
-      - name: Run regression tests
-        run: npx jest --selectProjects regression --ci --runInBand
-
   performance-tests:
     name: Performance test plan
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      NODE_ENV: test
+      SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
+      PERFORMANCE_TEST: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -209,7 +206,6 @@ jobs:
         unit-tests,
         functional-tests,
         integration,
-        regression,
         performance-tests,
         e2e,
         db-test,

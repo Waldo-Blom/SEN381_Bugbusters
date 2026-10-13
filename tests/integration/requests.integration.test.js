@@ -20,7 +20,8 @@ const useTransaction = (status, assignedStaffId = null) => {
       if (sql.includes('SELECT status, assigned_staff_id')) {
         return { rows: [{ status: stored.status, assigned_staff_id: stored.assignedStaffId }] };
       }
-      if (sql.includes('SELECT status FROM service_requests')) return { rows: [{ status: stored.status }] };
+      if (sql.includes('SELECT status FROM service_requests'))
+        return { rows: [{ status: stored.status }] };
       if (sql.includes('UPDATE service_requests') && sql.includes('assigned_staff_id')) {
         stored.assignedStaffId = params[0];
         stored.status = params[2];
@@ -30,8 +31,16 @@ const useTransaction = (status, assignedStaffId = null) => {
       if (sql.includes('INSERT INTO request_assignment_history')) assignmentHistory.push(params);
       if (sql.includes('INSERT INTO request_status_history')) history.push(params);
       if (sql.includes('SELECT r.assigned_staff_id')) {
-        return { rows: [{ assigned_staff_id: stored.assignedStaffId, status: stored.status,
-          contact_information_approved: false, staff_allowed: true }] };
+        return {
+          rows: [
+            {
+              assigned_staff_id: stored.assignedStaffId,
+              status: stored.status,
+              contact_information_approved: false,
+              staff_allowed: true,
+            },
+          ],
+        };
       }
       return { rows: [] };
     }),
@@ -49,8 +58,16 @@ describe('Request workflow integration', () => {
 
   it('FR-201 assigns an unassigned request and persists assignment and status history', async () => {
     const { client, stored, history, assignmentHistory } = useTransaction('SUBMITTED');
-    db.query.mockResolvedValue({ rows: [{ status: 'SUBMITTED', request_department_id: 'roads',
-      request_department_name: 'Roads', staff_department_id: 'roads' }] });
+    db.query.mockResolvedValue({
+      rows: [
+        {
+          status: 'SUBMITTED',
+          request_department_id: 'roads',
+          request_department_name: 'Roads',
+          staff_department_id: 'roads',
+        },
+      ],
+    });
     jest.spyOn(requestsService, 'checkStaffAccess').mockResolvedValue({ allowed: true });
     const result = await workflowService.assignToSelf(requestId, staffId);
     expect(result).toMatchObject({ status: 'ASSIGNED', assignedStaffId: staffId });
@@ -62,7 +79,9 @@ describe('Request workflow integration', () => {
 
   it('FR-202 persists an allowed transition and its lifecycle history', async () => {
     const { client, stored, history } = useTransaction('ASSIGNED', staffId);
-    jest.spyOn(requestsModel, 'findById').mockResolvedValue({ id: requestId, status: 'In Progress' });
+    jest
+      .spyOn(requestsModel, 'findById')
+      .mockResolvedValue({ id: requestId, status: 'In Progress' });
     db.query.mockResolvedValue({ rows: [{ request_id: requestId }] });
     const result = await requestsModel.updateStatus(requestId, 'In Progress', null, staffId);
     expect(stored.status).toBe('IN_PROGRESS');
@@ -74,9 +93,13 @@ describe('Request workflow integration', () => {
 
   it('FR-204 rejects resolution without a comment before persistence or history writes', async () => {
     const service = requestsService.workflow;
-    jest.spyOn(requestsModel, 'findById').mockResolvedValue({ id: requestId, status: 'In Progress' });
+    jest
+      .spyOn(requestsModel, 'findById')
+      .mockResolvedValue({ id: requestId, status: 'In Progress' });
     const update = jest.spyOn(requestsModel, 'updateStatus');
-    await expect(service.transitionRequest(requestId, 'Resolved', staffId, '')).rejects.toMatchObject({
+    await expect(
+      service.transitionRequest(requestId, 'Resolved', staffId, '')
+    ).rejects.toMatchObject({
       statusCode: 400,
       message: 'A resolution comment is required to resolve a request.',
     });

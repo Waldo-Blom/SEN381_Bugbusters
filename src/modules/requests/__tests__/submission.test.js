@@ -15,6 +15,7 @@ jest.mock('../../auth/auth.service', () => ({
   authenticate: jest.fn(),
 }));
 jest.mock('../requests.contact-access.model', () => ({ findContext: jest.fn() }));
+jest.mock('../requests.assignment', () => ({ listEligible: jest.fn() }));
 
 const request = require('supertest');
 const app = require('../../../app');
@@ -374,6 +375,7 @@ describe('Operator-assisted submissions', () => {
       require('../requests.contact-access.model').findContext.mockResolvedValue({
         manager_allowed: true,
       });
+      require('../requests.assignment').listEligible.mockResolvedValue([]);
       requestsModel.findCategories.mockResolvedValue([category]);
       requestsModel.findActiveCategory.mockResolvedValue(category);
       requestsModel.searchExternalRequesters.mockResolvedValue([]);
