@@ -1,9 +1,9 @@
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const { normalizeEmail, isValidEmail } = require('../../shared/validation/input');
 
 const validateRegistration = (body = {}) => {
   const firstName = typeof body.firstName === 'string' ? body.firstName.trim() : '';
   const lastName = typeof body.lastName === 'string' ? body.lastName.trim() : '';
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const email = normalizeEmail(body.email);
   const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
   const password = typeof body.password === 'string' ? body.password : '';
   const termsAccepted = body.terms === 'on' || body.terms === 'true';
@@ -15,7 +15,7 @@ const validateRegistration = (body = {}) => {
   if (!lastName || lastName.length > 100) {
     errors.push('Enter a last name (up to 100 characters).');
   }
-  if (!email || email.length > 255 || !EMAIL_PATTERN.test(email)) {
+  if (!isValidEmail(email)) {
     errors.push('Enter a valid email address.');
   }
   if (phone.length > 15) {
@@ -36,11 +36,11 @@ const validateRegistration = (body = {}) => {
 };
 
 const validateLogin = (body = {}) => {
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const email = normalizeEmail(body.email);
   const password = typeof body.password === 'string' ? body.password : '';
   const errors = [];
 
-  if (!email || email.length > 255 || !EMAIL_PATTERN.test(email)) {
+  if (!isValidEmail(email)) {
     errors.push('Enter a valid email address.');
   }
   if (!password) {

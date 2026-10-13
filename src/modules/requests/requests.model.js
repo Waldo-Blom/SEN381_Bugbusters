@@ -1,6 +1,7 @@
 const { query, pool } = require('../../config/database');
-const { requireStaffAccess } = require('./requests.access');
+const { RequestAccessError, requireStaffAccess } = require('./requests.access');
 const { ALLOWED_TRANSITIONS } = require('./requests.constants');
+const { withTransaction } = require('../../shared/database/transaction');
 
 const staffMembership = `EXISTS (
   SELECT 1 FROM staff_assignments sa JOIN users viewer ON viewer.user_id = sa.staff_id
@@ -242,9 +243,7 @@ exports.findExternalRequesterById = async (id) => {
 };
 
 exports.create = async (input, generateRequestNumber, beforeCommit) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+  return withTransaction(pool, async (client) => {
     const year = new Date().getFullYear();
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
       `service-request-number:${year}`,
@@ -298,14 +297,8 @@ exports.create = async (input, generateRequestNumber, beforeCommit) => {
     );
 
     if (beforeCommit) await beforeCommit(client, requestResult.rows[0]);
-    await client.query('COMMIT');
     return requestResult.rows[0];
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 };
 
 exports.findByRequesterId = async (userId, filters = {}) => {
@@ -492,16 +485,13 @@ exports.findById = async (id, requesterId, staffId, managerId) => {
 exports.updateStatus = async (id, newStatus, comment, userId = null, staffOnly = false) => {
   const dbStatus = newStatus.toUpperCase().replace(' ', '_');
 
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
+  await withTransaction(pool, async (client) => {
     // Check current status using FOR UPDATE
     const reqRes = await client.query(
       'SELECT status FROM service_requests WHERE request_id = $1 FOR UPDATE',
       [id]
     );
-    if (reqRes.rows.length === 0) throw new Error('Request not found');
+    if (reqRes.rows.length === 0) throw new RequestAccessError('Request not found.', 404);
     const oldDbStatus = reqRes.rows[0].status;
     if (staffOnly) {
       const requiresAssignment = newStatus !== 'Rejected';
@@ -511,13 +501,16 @@ exports.updateStatus = async (id, newStatus, comment, userId = null, staffOnly =
         requiresAssignment
       );
       if (!(ALLOWED_TRANSITIONS[toTitleCase(oldDbStatus)] || []).includes(newStatus)) {
-        throw new Error(`Invalid transition from ${toTitleCase(oldDbStatus)} to ${newStatus}`);
+        throw new RequestAccessError(
+          `Invalid transition from ${toTitleCase(oldDbStatus)} to ${newStatus}`,
+          400
+        );
       }
     }
 
     // Concurrency / idempotency guard: reject duplicate transition if already at target status
     if (oldDbStatus === dbStatus) {
-      throw new Error(`Request is already ${toTitleCase(oldDbStatus)}`);
+      throw new RequestAccessError(`Request is already ${toTitleCase(oldDbStatus)}.`, 409);
     }
 
     // Use the database clock for every timestamp in this transaction. Passing
@@ -563,16 +556,8 @@ exports.updateStatus = async (id, newStatus, comment, userId = null, staffOnly =
         [id, actorUserId, comment]
       );
     }
-
-    await client.query('COMMIT');
-
-    return exports.findById(id, undefined, staffOnly ? userId : undefined);
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
+  return exports.findById(id, undefined, staffOnly ? userId : undefined);
 };
 
 /**

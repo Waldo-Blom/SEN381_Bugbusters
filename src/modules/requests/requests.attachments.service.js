@@ -6,6 +6,7 @@ const { isUuid } = require('./requests.schema');
 const { RequestAccessError } = require('./requests.access');
 const { prepareImages, MAX_IMAGES, AttachmentError } = require('./requests.attachments.validation');
 const { failure } = require('./requests.attachments.errors');
+const { withTransaction } = require('../../shared/database/transaction');
 
 const access = async (requestId, userId, client, lock, uploading = false, role) => {
   if (!isUuid(requestId) || !isUuid(userId))
@@ -58,20 +59,14 @@ exports.add = async (requestId, userId, files, role) => {
   const images = await prepareImages(files);
   if (!images.length) throw new AttachmentError('Select at least one image.');
   const uploadedKeys = [];
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    await exports.persist(client, requestId, userId, images, uploadedKeys, role);
-    await client.query('COMMIT');
+    await withTransaction(
+      pool,
+      (client) => exports.persist(client, requestId, userId, images, uploadedKeys, role),
+      { onRollback: () => exports.cleanup(uploadedKeys) }
+    );
   } catch (error) {
-    try {
-      await client.query('ROLLBACK');
-    } finally {
-      await exports.cleanup(uploadedKeys);
-    }
     throw error.statusCode ? error : failure('request', error);
-  } finally {
-    client.release();
   }
 };
 
@@ -102,18 +97,13 @@ exports.remove = async (requestId, userId, attachmentIds, role) => {
   if (!validIds.length) return [];
 
   await access(requestId, userId, undefined, false, true, role);
-  const client = await pool.connect();
-  const deleted = [];
+  let deleted;
   try {
-    await client.query('BEGIN');
-    const rows = await model.deleteByIds(client, requestId, validIds);
-    await client.query('COMMIT');
-    deleted.push(...rows);
+    deleted = await withTransaction(pool, (client) =>
+      model.deleteByIds(client, requestId, validIds)
+    );
   } catch (error) {
-    await client.query('ROLLBACK');
     throw error.statusCode ? error : failure('metadata', error);
-  } finally {
-    client.release();
   }
 
   if (deleted.length) {

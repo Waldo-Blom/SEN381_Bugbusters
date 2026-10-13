@@ -82,7 +82,7 @@
             <p class="text-sm text-slate-400">No staff comments yet.</p>
           <% } %>
 
-          <form method="POST" action="/staff/requests/<%= request.id %>/comments" class="mt-4 border-t border-slate-100 pt-4" onsubmit="this.querySelector('button[class]').disabled = true;">
+          <form method="POST" action="/staff/requests/<%= request.id %>/comments" class="mt-4 border-t border-slate-100 pt-4">
             <textarea name="comment" rows="3" required placeholder="Add a comment or resolution note..."
                       class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"></textarea>
             <div class="mt-2 flex justify-end">
@@ -126,7 +126,7 @@
             <span class="text-xs text-amber-700"><%= request.contactAccessStatus === 'REJECTED' ? 'Your request for contact access was denied by management.' : request.contactAccessStatus === 'PENDING' ? 'Your contact access request is awaiting management approval.' : request.contactAccessStatus === 'CANCELLED' ? 'Contact access is no longer authorised.' : 'Requester contact information requires management approval.' %></span>
           </div>
           <% if (request.canManageStatus && !['PENDING', 'REJECTED'].includes(request.contactAccessStatus)) { %>
-          <form method="POST" action="/staff/requests/<%= request.id %>/contact-access" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+          <form method="POST" action="/staff/requests/<%= request.id %>/contact-access">
             <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
             <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Request contact access</button>
           </form>
@@ -141,10 +141,10 @@
           
           <% if (request.status === 'Submitted') { %>
             <div class="space-y-3">
-              <form method="POST" action="/staff/requests/<%= request.id %>/assign" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+              <form method="POST" action="/staff/requests/<%= request.id %>/assign">
                 <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">Assign to me</button>
               </form>
-              <form method="POST" action="/staff/requests/<%= request.id %>/reject" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+              <form method="POST" action="/staff/requests/<%= request.id %>/reject">
                 <button type="submit" class="w-full rounded-lg bg-red-50 border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">Reject Request</button>
               </form>
             </div>
@@ -153,7 +153,7 @@
               <button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Start Progress</button>
             </form>
           <% } else if (request.status === 'In Progress') { %>
-            <form method="POST" action="/staff/requests/<%= request.id %>/resolve" class="space-y-3" onsubmit="this.querySelector('button[type=submit]').disabled = true;">
+            <form method="POST" action="/staff/requests/<%= request.id %>/resolve" class="space-y-3">
               <label class="block text-sm font-medium text-slate-700">Resolution Comment</label>
               <textarea name="comment" rows="3" required placeholder="A comment is required to resolve..."
                         class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"></textarea>

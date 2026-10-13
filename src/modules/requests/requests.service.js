@@ -8,6 +8,7 @@ class RequestValidationError extends Error {
   constructor(errors) {
     super('Please correct the request details.');
     this.name = 'RequestValidationError';
+    this.statusCode = 400;
     this.errors = errors;
   }
 }
@@ -16,6 +17,7 @@ class SubmissionUserNotFoundError extends Error {
   constructor() {
     super('No active database user is available for this action.');
     this.name = 'SubmissionUserNotFoundError';
+    this.statusCode = 403;
   }
 }
 
@@ -126,7 +128,7 @@ class RequestWorkflowService {
       ? { status: staffContext.status }
       : await requestsModel.findById(requestId);
     if (!request) {
-      throw new Error('Request not found');
+      throw new RequestAccessError('Request not found.', 404);
     }
 
     const currentStatus = request.status || REQUEST_STATUSES.SUBMITTED;
@@ -134,12 +136,12 @@ class RequestWorkflowService {
     // Validate transition
     const validNextStates = ALLOWED_TRANSITIONS[currentStatus] || [];
     if (!validNextStates.includes(newStatus)) {
-      throw new Error(`Invalid transition from ${currentStatus} to ${newStatus}`);
+      throw new RequestAccessError(`Invalid transition from ${currentStatus} to ${newStatus}`, 400);
     }
 
     // FR-204 and FR-206 resolution requires a comment
     if (newStatus === REQUEST_STATUSES.RESOLVED && !comment) {
-      throw new Error('A resolution comment is required to resolve a request.');
+      throw new RequestAccessError('A resolution comment is required to resolve a request.', 400);
     }
 
     // Update state in real implementation this needs to be a DB transaction

@@ -2,11 +2,12 @@ const reportingService = require('./reporting.service');
 const { pageContext } = require('../../shared/views/pageContext');
 const { getAuthenticatedUserId } = require('../auth/auth.middleware');
 const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
+const { sendHttpError } = require('../../shared/middleware/error.middleware');
 
 exports.dashboard = async (req, res) => {
   const data = await reportingService.getDashboardData(getAuthenticatedUserId(req));
   if (!data) {
-    return res.status(403).send('You do not manage an active department.');
+    return sendHttpError(req, res, 403, 'You do not manage an active department.');
   }
   res.render('reporting/views/manager/dashboard', {
     ...pageContext('manager', req),
@@ -23,7 +24,7 @@ exports.reporting = async (req, res) => {
   const reportingModel = require('./reporting.model');
   const department = await reportingModel.findManagedDepartment(managerId);
   if (!department) {
-    return res.status(403).send('You do not manage an active department.');
+    return sendHttpError(req, res, 403, 'You do not manage an active department.');
   }
   const requestedPage = Number(req.query.page);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
@@ -49,7 +50,7 @@ exports.reporting = async (req, res) => {
 exports.contactAccessRequests = async (req, res) => {
   const data = await reportingService.getContactAccessInbox(getAuthenticatedUserId(req));
   if (!data) {
-    return res.status(403).send('You do not manage an active department.');
+    return sendHttpError(req, res, 403, 'You do not manage an active department.');
   }
   res.set('Cache-Control', 'no-store');
   res.render('reporting/views/manager/contact-access-requests', {

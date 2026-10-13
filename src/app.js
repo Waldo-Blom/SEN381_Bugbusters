@@ -7,6 +7,8 @@ const registerModules = require('./modules');
 const { query } = require('./config/database');
 const sessionConfig = require('./config/session');
 const { getAuthenticatedUser } = require('./modules/auth/auth.middleware');
+const { sanitizeRequest } = require('./shared/middleware/validate.middleware');
+const { notFoundHandler, errorHandler } = require('./shared/middleware/error.middleware');
 
 const app = express();
 
@@ -19,6 +21,7 @@ app.set('views', [path.join(__dirname, 'modules'), path.join(__dirname, 'shared/
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(sanitizeRequest);
 
 // Load the server-side session from the cookie's session ID before handling routes.
 app.use(session(sessionConfig));
@@ -48,14 +51,8 @@ app.get('/health', async (req, res) => {
 //   throw new Error('Deliberate test error — this is expected');
 // });
 
-// 404 & Error handlers
-app.use((req, res) => res.status(404).render('errors/404', { title: 'Not Found' }));
-
-// Express only treats a handler as an error handler if it declares four arguments.
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).render('errors/500', { title: 'Server Error' });
-});
+// Keep these last so every module route uses the same not-found and error responses.
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;

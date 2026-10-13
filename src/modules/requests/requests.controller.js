@@ -3,6 +3,7 @@ const { REQUEST_STATUSES } = require('./requests.constants');
 const { pageContext } = require('../../shared/views/pageContext');
 const { getAuthenticatedUserId, getAuthenticatedUserRole } = require('../auth/auth.middleware');
 const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
+const { sendHttpError } = require('../../shared/middleware/error.middleware');
 const { AttachmentError } = require('./requests.attachments.validation');
 
 // ---- requester ----
@@ -27,6 +28,26 @@ const submissionView = async (req, res, role, options = {}) => {
     ...options,
     categories,
   });
+};
+
+const handleSubmissionError = async (req, res, next, error, role) => {
+  if (
+    !(error instanceof requestsService.RequestValidationError) &&
+    !(error instanceof AttachmentError)
+  ) {
+    return false;
+  }
+
+  try {
+    await submissionView(req, res.status(error.statusCode || 400), role, {
+      errors: error.errors,
+      attachmentSaveFailed: error instanceof AttachmentError && error.statusCode >= 500,
+      values: req.body,
+    });
+  } catch (renderError) {
+    next(renderError);
+  }
+  return true;
 };
 
 exports.submitPage = async (req, res, next) => {
@@ -100,26 +121,7 @@ exports.submitRequest = async (req, res, next) => {
     if (req.session) {
       delete req.session.lastSubmission;
     }
-    if (
-      error instanceof requestsService.RequestValidationError ||
-      error instanceof AttachmentError
-    ) {
-      try {
-        await submissionView(req, res.status(error.statusCode || 400), 'requester', {
-          errors: error.errors,
-          attachmentSaveFailed: error instanceof AttachmentError && error.statusCode >= 500,
-          values: req.body,
-        });
-      } catch (renderError) {
-        next(renderError);
-      }
-      return;
-    }
-    if (error instanceof requestsService.SubmissionUserNotFoundError) {
-      res.status(403).send(error.message);
-      return;
-    }
-
+    if (await handleSubmissionError(req, res, next, error, 'requester')) return;
     next(error);
   }
 };
@@ -159,25 +161,7 @@ exports.operatorSubmitRequest = async (req, res, next) => {
     if (req.session) {
       delete req.session.lastOperatorSubmission;
     }
-    if (
-      error instanceof requestsService.RequestValidationError ||
-      error instanceof AttachmentError
-    ) {
-      try {
-        await submissionView(req, res.status(error.statusCode || 400), 'operator', {
-          errors: error.errors,
-          attachmentSaveFailed: error instanceof AttachmentError && error.statusCode >= 500,
-          values: req.body,
-        });
-      } catch (renderError) {
-        next(renderError);
-      }
-      return;
-    }
-    if (error instanceof requestsService.SubmissionUserNotFoundError) {
-      res.status(403).send(error.message);
-      return;
-    }
+    if (await handleSubmissionError(req, res, next, error, 'operator')) return;
     next(error);
   }
 };
@@ -226,7 +210,7 @@ exports.requesterDetail = async (req, res, next) => {
       getAuthenticatedUserId(req)
     );
     if (!request) {
-      return res.status(404).render('errors/404', { title: 'Not Found' });
+      return sendHttpError(req, res, 404, 'This request could not be found.');
     }
     res.render('requests/views/requester/request-detail', {
       ...pageContext('requester', req),
@@ -247,7 +231,7 @@ exports.editRequestPage = async (req, res, next) => {
     const requesterId = getAuthenticatedUserId(req);
     const request = await requestsService.getEditableForRequester(req.params.id, requesterId);
     if (!request) {
-      return res.status(404).render('errors/404', { title: 'Not Found' });
+      return sendHttpError(req, res, 404, 'This request could not be found.');
     }
     const categories = await requestsService.listCategories();
     const attachmentsService = require('./requests.attachments.service');
@@ -282,10 +266,10 @@ exports.editRequestPage = async (req, res, next) => {
     });
   } catch (error) {
     if (error.statusCode === 400 || error.name === 'RequestNotEditableError') {
-      return res.status(400).send(error.message);
+      return sendHttpError(req, res, 400, error.message);
     }
     if (error.statusCode === 404) {
-      return res.status(404).render('errors/404', { title: 'Not Found' });
+      return sendHttpError(req, res, 404, error.message);
     }
     next(error);
   }
@@ -345,7 +329,7 @@ exports.updateRequest = async (req, res, next) => {
       }
     }
     if (error.statusCode) {
-      return res.status(error.statusCode).send(error.message);
+      return sendHttpError(req, res, error.statusCode, error.message);
     }
     next(error);
   }
@@ -396,7 +380,7 @@ exports.staffDetail = async (req, res, next) => {
     const staffUserId = getAuthenticatedUserId(req);
     const request = await requestsService.getForStaff(req.params.id, staffUserId);
     if (!request) {
-      return res.status(404).render('errors/404', { title: 'Request Details' });
+      return sendHttpError(req, res, 404, 'This request could not be found.');
     }
     // Contact details may be revealed after approval, so never cache this page.
     res.set('Cache-Control', 'no-store');
@@ -411,9 +395,9 @@ exports.staffDetail = async (req, res, next) => {
     });
   } catch (error) {
     if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
-      return res.status(403).send(error.message);
+      return sendHttpError(req, res, 403, error.message);
     }
-    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
     next(error);
   }
 };
@@ -425,11 +409,11 @@ exports.allRequests = async (req, res) => {
     data = await requestsService.listForManager(getAuthenticatedUserId(req), req.query);
   } catch (error) {
     if (error instanceof requestsService.RequestValidationError) {
-      return res.status(400).send(Object.values(error.errors).join(' '));
+      return sendHttpError(req, res, 400, Object.values(error.errors).join(' '));
     }
     throw error;
   }
-  if (!data) return res.status(403).send('You do not manage an active department.');
+  if (!data) return sendHttpError(req, res, 403, 'You do not manage an active department.');
   res.render('requests/views/manager/all-requests', {
     ...pageContext('manager', req),
     title: 'All Requests',
@@ -457,7 +441,7 @@ exports.managerDetail = async (req, res, next) => {
       contactAccessCsrfToken: getCsrfToken(req),
     });
   } catch (error) {
-    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
     next(error);
   }
 };
@@ -467,7 +451,7 @@ const contactAction = async (req, res, next, operation, destination) => {
     await operation();
     res.redirect(destination);
   } catch (error) {
-    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
     next(error);
   }
 };
@@ -553,10 +537,7 @@ exports.revokeContactAccess = (req, res, next) =>
     `/manager/requests/${req.params.id}`
   );
 
-const errorStatus = (error) =>
-  error.statusCode || (error.name === 'StaffDepartmentAccessError' ? 403 : 400);
-
-const transitionRequest = async (req, res, status, redirectPath) => {
+const transitionRequest = async (req, res, next, status, redirectPath) => {
   try {
     await requestsService.workflow.transitionRequest(
       req.params.id,
@@ -567,36 +548,36 @@ const transitionRequest = async (req, res, status, redirectPath) => {
     );
     res.redirect(redirectPath(req.params.id));
   } catch (error) {
-    res.status(errorStatus(error)).send(error.message);
+    next(error);
   }
 };
 
-exports.assignRequest = async (req, res) => {
+exports.assignRequest = async (req, res, next) => {
   try {
     const request = await requestsService.getForStaff(req.params.id, getAuthenticatedUserId(req));
     if (!request.canAssign)
-      return res.status(403).send('This request is not available for assignment.');
+      return sendHttpError(req, res, 403, 'This request is not available for assignment.');
     await require('../workflow/workflow.service').assignToSelf(
       req.params.id,
       getAuthenticatedUserId(req)
     );
     res.redirect(`/staff/requests/${req.params.id}`);
   } catch (error) {
-    res.status(errorStatus(error)).send(error.message);
+    next(error);
   }
 };
 
-exports.startProgress = (req, res) =>
-  transitionRequest(req, res, REQUEST_STATUSES.IN_PROGRESS, (id) => `/staff/requests/${id}`);
+exports.startProgress = (req, res, next) =>
+  transitionRequest(req, res, next, REQUEST_STATUSES.IN_PROGRESS, (id) => `/staff/requests/${id}`);
 
-exports.resolveRequest = (req, res) =>
-  transitionRequest(req, res, REQUEST_STATUSES.RESOLVED, (id) => `/staff/requests/${id}`);
+exports.resolveRequest = (req, res, next) =>
+  transitionRequest(req, res, next, REQUEST_STATUSES.RESOLVED, (id) => `/staff/requests/${id}`);
 
-exports.rejectRequest = (req, res) =>
-  transitionRequest(req, res, REQUEST_STATUSES.REJECTED, (id) => `/staff/requests/${id}`);
+exports.rejectRequest = (req, res, next) =>
+  transitionRequest(req, res, next, REQUEST_STATUSES.REJECTED, (id) => `/staff/requests/${id}`);
 
-exports.closeRequest = (req, res) =>
-  transitionRequest(req, res, REQUEST_STATUSES.CLOSED, (id) => `/manager/requests/${id}`);
+exports.closeRequest = (req, res, next) =>
+  transitionRequest(req, res, next, REQUEST_STATUSES.CLOSED, (id) => `/manager/requests/${id}`);
 
 exports.addStaffComment = async (req, res, next) => {
   try {
@@ -609,9 +590,9 @@ exports.addStaffComment = async (req, res, next) => {
     res.redirect(`/staff/requests/${req.params.id}`);
   } catch (error) {
     if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
-      return res.status(403).send(error.message);
+      return sendHttpError(req, res, 403, error.message);
     }
-    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
     next(error);
   }
 };
@@ -626,7 +607,7 @@ exports.addManagerComment = async (req, res, next) => {
     await requestsService.addManagerComment(req.params.id, managerUserId, comment);
     res.redirect(`/manager/requests/${req.params.id}`);
   } catch (error) {
-    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
     next(error);
   }
 };
