@@ -41,6 +41,27 @@ describe('Requester authentication', () => {
     jest.clearAllMocks();
   });
 
+  it('authenticates persistent operator accounts without demo login', async () => {
+    const password = 'OperatorPass1!';
+    query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            user_id: 'operator-1',
+            email: 'operator@example.com',
+            first_name: 'Demo',
+            last_name: 'Operator',
+            user_type: 'OPERATOR',
+            password_hash: await bcrypt.hash(password, 4),
+            department_id: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+    const user = await authService.authenticate('operator@example.com', password);
+    expect(user).toMatchObject({ id: 'operator-1', role: 'operator', departmentId: null });
+  });
+
   it('hashes the password before creating a requester account', async () => {
     query.mockResolvedValue({
       rows: [
