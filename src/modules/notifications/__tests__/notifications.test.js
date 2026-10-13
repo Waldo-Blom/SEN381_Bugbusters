@@ -25,7 +25,6 @@ const emailService = require('../email.service');
 const notificationsListener = require('../notifications.listener');
 const requestsModel = require('../../requests/requests.model');
 const requestsService = require('../../requests/requests.service');
-const { getEmailProvider, getEmailTransportOptions } = require('../../../config/env');
 const realNodemailer = jest.requireActual('nodemailer');
 
 const sendMail = jest.fn();
@@ -69,7 +68,6 @@ describe('request status email notifications', () => {
     delete process.env.EMAIL_FROM;
     jest.restoreAllMocks();
   });
-
 
   // Opt in with RUN_ETHEREAL_TEST=true to send a real test email and print its preview link.
   const etherealTest = process.env.RUN_ETHEREAL_TEST === 'true' ? test : test.skip;

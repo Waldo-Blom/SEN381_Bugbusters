@@ -3,7 +3,7 @@ jest.mock('../../../config/database', () => ({
   pool: { connect: jest.fn() },
 }));
 
-const { query, pool } = require('../../../config/database');
+const { pool } = require('../../../config/database');
 const eventBus = require('../../../shared/events/eventBus');
 const auditModel = require('../audit.model');
 const auditListener = require('../audit.listener');

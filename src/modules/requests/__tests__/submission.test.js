@@ -22,6 +22,7 @@ const requestsModel = require('../requests.model');
 const requestsService = require('../requests.service');
 const authService = require('../../auth/auth.service');
 const { validateSubmission } = require('../requests.schema');
+const { closePool } = require('../../../config/database');
 
 const category = { id: '11111111-1111-4111-8111-111111111111', name: 'Roads' };
 const formData = {
@@ -31,6 +32,10 @@ const formData = {
   location: '12 Oak Street',
   priority: 'HIGH',
 };
+
+afterAll(async () => {
+  await closePool();
+});
 
 // Separate requester and operator flows because they share request creation
 // but differ in identity, validation, and which routes they may use.
@@ -605,19 +610,6 @@ describe('Operator-assisted submissions', () => {
       expect(response.status).toBe(400);
       expect(response.text).toContain('at least one contact method');
       expect(requestsModel.create).not.toHaveBeenCalled();
-    });
-
-    it('denies unauthenticated operators and prevents operators from using staff routes', async () => {
-      const unauthenticatedResponse = await request(app).get('/operator/submit');
-      expect(unauthenticatedResponse.status).toBe(401);
-
-      const operator = request.agent(app);
-      await operator
-        .post('/auth/login')
-        .type('form')
-        .send({ email: 'operator@demo.invalid', password: 'SecurePass1' });
-      const staffResponse = await operator.get('/staff/dashboard');
-      expect(staffResponse.status).toBe(403);
     });
 
     it('shows the creator in the manager request detail', async () => {

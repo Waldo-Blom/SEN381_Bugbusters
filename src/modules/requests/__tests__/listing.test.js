@@ -28,7 +28,6 @@ describe('Requester history and staff comments', () => {
           [requesterId, '%Pothole%']
         );
       });
-
     });
 
     describe('requestsModel.getRequesterSummaryCounts (FR-103)', () => {
@@ -88,8 +87,8 @@ describe('Requester history and staff comments', () => {
         );
         expect(comment.comment_id).toBe('comm-1');
       });
-});
-});
+    });
+  });
 });
 
 describe('Manager department request list', () => {
@@ -179,104 +178,102 @@ describe('Staff request search and filtering', () => {
       jest.clearAllMocks();
     });
 
+    it('applies text search filter across title, reference, description, and location', async () => {
+      db.query.mockResolvedValueOnce({ rows: [] });
 
-      it('applies text search filter across title, reference, description, and location', async () => {
-        db.query.mockResolvedValueOnce({ rows: [] });
-
-        await requestsModel.searchStaffRequests({
-          staffUserId,
-          departmentId,
-          q: 'Main Street',
-        });
-
-        expect(db.query).toHaveBeenCalledWith(
-          expect.stringContaining(
-            'r.title ILIKE $3 OR r.request_number ILIKE $3 OR r.description ILIKE $3 OR r.location ILIKE $3'
-          ),
-          [departmentId, staffUserId, '%Main Street%', staffUserId]
-        );
-        expect(db.query.mock.calls[0][0]).toContain(
-          '(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $4)'
-        );
+      await requestsModel.searchStaffRequests({
+        staffUserId,
+        departmentId,
+        q: 'Main Street',
       });
 
-      it('filters by status, category, and priority', async () => {
-        db.query.mockResolvedValueOnce({ rows: [] });
-
-        await requestsModel.searchStaffRequests({
-          staffUserId,
-          departmentId,
-          status: 'In Progress',
-          category: 'Pothole',
-          priority: 'High',
-        });
-
-        expect(db.query).toHaveBeenCalledWith(
-          expect.stringMatching(/r\.status::text = \$3/),
-          expect.arrayContaining([departmentId, 'IN_PROGRESS', 'Pothole', 'HIGH'])
-        );
-      });
-
-      it('applies tab filtering for available, mine, overdue, and resolved tabs', async () => {
-        // The default tab includes the member's work and requests still available to claim.
-        db.query.mockResolvedValueOnce({ rows: [] });
-        await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'all' });
-        expect(db.query).toHaveBeenCalledWith(
-          expect.stringContaining('(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $3)'),
-          [departmentId, staffUserId, staffUserId]
-        );
-
-        // available tab
-        db.query.mockResolvedValueOnce({ rows: [] });
-        await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'available' });
-        expect(db.query).toHaveBeenCalledWith(
-          expect.stringContaining(
-            "r.status = 'SUBMITTED' OR (r.status = 'ASSIGNED' AND r.assigned_staff_id IS NULL)"
-          ),
-          expect.any(Array)
-        );
-
-        // mine tab
-        db.query.mockResolvedValueOnce({ rows: [] });
-        await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'mine' });
-        expect(db.query).toHaveBeenCalledWith(
-          expect.stringContaining('r.assigned_staff_id = $'),
-          expect.arrayContaining([departmentId, staffUserId])
-        );
-
-        // overdue tab
-        db.query.mockResolvedValueOnce({ rows: [] });
-        await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'overdue' });
-        expect(db.query).toHaveBeenCalledWith(
-          expect.stringContaining('r.overdue_flag = true'),
-          expect.any(Array)
-        );
-
-        // resolved tab
-        db.query.mockResolvedValueOnce({ rows: [] });
-        await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'resolved' });
-        expect(db.query).toHaveBeenCalledWith(
-          expect.stringContaining("r.status = 'RESOLVED'"),
-          expect.any(Array)
-        );
-      });
-
-      it('applies sorting options for priority, date_asc, and status', async () => {
-        // sort by priority
-        db.query.mockResolvedValueOnce({ rows: [] });
-        await requestsModel.searchStaffRequests({ staffUserId, departmentId, sort: 'priority' });
-        expect(db.query.mock.calls[0][0]).toContain('CASE r.priority');
-
-        // sort by date ascending
-        db.query.mockResolvedValueOnce({ rows: [] });
-        await requestsModel.searchStaffRequests({ staffUserId, departmentId, sort: 'date_asc' });
-        expect(db.query.mock.calls[1][0]).toContain('ORDER BY r.created_at ASC');
-
-        // sort by status
-        db.query.mockResolvedValueOnce({ rows: [] });
-        await requestsModel.searchStaffRequests({ staffUserId, departmentId, sort: 'status' });
-        expect(db.query.mock.calls[2][0]).toContain('ORDER BY r.status::text ASC');
-      });
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'r.title ILIKE $3 OR r.request_number ILIKE $3 OR r.description ILIKE $3 OR r.location ILIKE $3'
+        ),
+        [departmentId, staffUserId, '%Main Street%', staffUserId]
+      );
+      expect(db.query.mock.calls[0][0]).toContain(
+        '(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $4)'
+      );
     });
 
+    it('filters by status, category, and priority', async () => {
+      db.query.mockResolvedValueOnce({ rows: [] });
+
+      await requestsModel.searchStaffRequests({
+        staffUserId,
+        departmentId,
+        status: 'In Progress',
+        category: 'Pothole',
+        priority: 'High',
+      });
+
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringMatching(/r\.status::text = \$3/),
+        expect.arrayContaining([departmentId, 'IN_PROGRESS', 'Pothole', 'HIGH'])
+      );
+    });
+
+    it('applies tab filtering for available, mine, overdue, and resolved tabs', async () => {
+      // The default tab includes the member's work and requests still available to claim.
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'all' });
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('(r.assigned_staff_id IS NULL OR r.assigned_staff_id = $3)'),
+        [departmentId, staffUserId, staffUserId]
+      );
+
+      // available tab
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'available' });
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "r.status = 'SUBMITTED' OR (r.status = 'ASSIGNED' AND r.assigned_staff_id IS NULL)"
+        ),
+        expect.any(Array)
+      );
+
+      // mine tab
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'mine' });
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('r.assigned_staff_id = $'),
+        expect.arrayContaining([departmentId, staffUserId])
+      );
+
+      // overdue tab
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'overdue' });
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('r.overdue_flag = true'),
+        expect.any(Array)
+      );
+
+      // resolved tab
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, tab: 'resolved' });
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining("r.status = 'RESOLVED'"),
+        expect.any(Array)
+      );
+    });
+
+    it('applies sorting options for priority, date_asc, and status', async () => {
+      // sort by priority
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, sort: 'priority' });
+      expect(db.query.mock.calls[0][0]).toContain('CASE r.priority');
+
+      // sort by date ascending
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, sort: 'date_asc' });
+      expect(db.query.mock.calls[1][0]).toContain('ORDER BY r.created_at ASC');
+
+      // sort by status
+      db.query.mockResolvedValueOnce({ rows: [] });
+      await requestsModel.searchStaffRequests({ staffUserId, departmentId, sort: 'status' });
+      expect(db.query.mock.calls[2][0]).toContain('ORDER BY r.status::text ASC');
+    });
+  });
 });

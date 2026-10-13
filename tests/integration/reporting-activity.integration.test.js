@@ -1,17 +1,18 @@
-// Opt in with REPORTING_TEST_DATABASE_URL. Fixtures are temporary and rolled back.
+// Opt in with DATABASE_URL. Fixtures are temporary and rolled back.
+require('dotenv').config({ quiet: true });
 jest.mock('../../src/config/database', () => ({ query: jest.fn() }));
 
 const { Client } = require('pg');
 const db = require('../../src/config/database');
 const model = require('../../src/modules/reporting/reporting.model');
-const describeDatabase = process.env.REPORTING_TEST_DATABASE_URL ? describe : describe.skip;
+const describeDatabase = process.env.DATABASE_URL ? describe : describe.skip;
 const manager = '11111111-1111-4111-8111-111111111111';
 const staff = '22222222-2222-4222-8222-222222222222';
 
 describeDatabase('Reporting activity against PostgreSQL', () => {
   let client;
   beforeAll(async () => {
-    client = new Client({ connectionString: process.env.REPORTING_TEST_DATABASE_URL });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();
     await client.query('BEGIN');
     await client.query(`

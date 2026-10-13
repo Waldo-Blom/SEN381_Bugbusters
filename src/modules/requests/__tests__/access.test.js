@@ -37,7 +37,6 @@ describe('Contact access', () => {
     await expect(service.getForManager(id, actor)).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  
   it('creates a session CSRF token and only accepts a matching form token', () => {
     const req = { session: {}, body: {} };
     const token = getCsrfToken(req);
@@ -127,7 +126,6 @@ describe('Department access', () => {
           [staffUserId]
         );
       });
-
     });
 
     describe('requestsService.getForStaff', () => {
@@ -192,7 +190,6 @@ describe('Staff request access and privacy', () => {
 
   beforeEach(() => jest.resetAllMocks());
 
- 
   it('returns HTTP 404 for a missing request and HTTP 400 for malformed IDs', async () => {
     db.query.mockResolvedValue({ rows: [] });
     expect((await supertest(app).get(`/staff/requests/${requestId}`)).status).toBe(404);

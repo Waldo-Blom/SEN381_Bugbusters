@@ -100,11 +100,13 @@ describe('Administrator user management', () => {
         throw new Error(`Unexpected query: ${sql}`);
       });
 
-      await expect(usersService.createDepartment(adminId, { name: 'Roads' })).rejects.toMatchObject({
-        name: 'DuplicateDepartmentNameError',
-        statusCode: 409,
-        errors: { name: 'A department with this name already exists.' },
-      });
+      await expect(usersService.createDepartment(adminId, { name: 'Roads' })).rejects.toMatchObject(
+        {
+          name: 'DuplicateDepartmentNameError',
+          statusCode: 409,
+          errors: { name: 'A department with this name already exists.' },
+        }
+      );
     });
 
     it('validates request category details and department before database access', async () => {
@@ -227,10 +229,11 @@ describe('Administrator user management', () => {
       expect(
         client.query.mock.calls.some(([sql]) => sql.includes('UPDATE users SET is_active = false'))
       ).toBe(true);
-      expect(client.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM users'))).toBe(false);
+      expect(client.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM users'))).toBe(
+        false
+      );
     });
   });
-
 });
 
 describe('Manager and staff user management', () => {
@@ -354,13 +357,12 @@ describe('Manager and staff user management', () => {
         expect.stringContaining('d.manager_id = $1 AND d.department_id = $2'),
         [managerId, departmentId]
       );
-      expect(db.query.mock.calls[0][0]).toContain('(staff.is_active AND sa.is_active) AS "isActive"');
+      expect(db.query.mock.calls[0][0]).toContain(
+        '(staff.is_active AND sa.is_active) AS "isActive"'
+      );
       expect(db.query.mock.calls[0][0]).toContain('DISTINCT ON (staff.user_id)');
       expect(db.query.mock.calls[0][0]).toContain("staff.user_type = 'STAFF'");
     });
-
-  
-  
 
     it('reactivates the assignment and records the change in the audit trail', async () => {
       const client = makeClient(async (sql) => {
