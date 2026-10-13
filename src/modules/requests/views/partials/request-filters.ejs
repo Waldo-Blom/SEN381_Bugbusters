@@ -1,0 +1,73 @@
+<%
+  const activeFilters = typeof filters !== 'undefined' ? filters : {};
+  const activeCategories = typeof categories !== 'undefined' ? categories : [];
+  const currentPath = typeof activeHref !== 'undefined' ? activeHref : '/staff/search';
+%>
+<form method="GET" action="<%= currentPath %>" class="rounded-xl border border-slate-200 bg-white shadow-sm">
+  <div class="space-y-4 px-5 py-4">
+    <div class="flex gap-2">
+      <div class="relative flex-1">
+        <input type="text" name="q" aria-label="Search requests"
+               value="<%= activeFilters.q || '' %>"
+               placeholder="Search by title, reference, description, or location..."
+               class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+      </div>
+      <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+        Search
+      </button>
+      <% if (activeFilters.q || (activeFilters.status && activeFilters.status !== 'All') || (activeFilters.category && activeFilters.category !== 'All') || (activeFilters.priority && activeFilters.priority !== 'All') || (activeFilters.sort && activeFilters.sort !== 'date')) { %>
+        <a href="<%= currentPath %>" class="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center">
+          Reset
+        </a>
+      <% } %>
+    </div>
+
+    <input type="hidden" name="tab" value="<%= activeFilters.tab || 'all' %>" />
+
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="space-y-1.5">
+        <label class="block text-sm font-medium text-slate-700">Status</label>
+        <select name="status" onchange="this.form.submit()" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+          <option value="All" <%= (!activeFilters.status || activeFilters.status === 'All') ? 'selected' : '' %>>All Statuses</option>
+          <option value="Submitted" <%= activeFilters.status === 'Submitted' ? 'selected' : '' %>>Submitted</option>
+          <option value="Assigned" <%= activeFilters.status === 'Assigned' ? 'selected' : '' %>>Assigned</option>
+          <option value="In Progress" <%= activeFilters.status === 'In Progress' ? 'selected' : '' %>>In Progress</option>
+          <option value="Resolved" <%= activeFilters.status === 'Resolved' ? 'selected' : '' %>>Resolved</option>
+          <option value="Closed" <%= activeFilters.status === 'Closed' ? 'selected' : '' %>>Closed</option>
+          <option value="Rejected" <%= activeFilters.status === 'Rejected' ? 'selected' : '' %>>Rejected</option>
+        </select>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-sm font-medium text-slate-700">Category</label>
+        <select name="category" onchange="this.form.submit()" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+          <option value="All" <%= (!activeFilters.category || activeFilters.category === 'All') ? 'selected' : '' %>>All Categories</option>
+          <% activeCategories.forEach(function (c) { %>
+            <option value="<%= c.name %>" <%= activeFilters.category === c.name ? 'selected' : '' %>><%= c.name %></option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-sm font-medium text-slate-700">Priority</label>
+        <select name="priority" onchange="this.form.submit()" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+          <option value="All" <%= (!activeFilters.priority || activeFilters.priority === 'All') ? 'selected' : '' %>>All Priorities</option>
+          <option value="Low" <%= activeFilters.priority === 'Low' ? 'selected' : '' %>>Low</option>
+          <option value="Medium" <%= activeFilters.priority === 'Medium' ? 'selected' : '' %>>Medium</option>
+          <option value="High" <%= activeFilters.priority === 'High' ? 'selected' : '' %>>High</option>
+          <option value="Urgent" <%= activeFilters.priority === 'Urgent' ? 'selected' : '' %>>Urgent</option>
+        </select>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-sm font-medium text-slate-700">Sort by</label>
+        <select name="sort" onchange="this.form.submit()" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+          <option value="date" <%= (!activeFilters.sort || activeFilters.sort === 'date') ? 'selected' : '' %>>Newest First</option>
+          <option value="date_asc" <%= activeFilters.sort === 'date_asc' ? 'selected' : '' %>>Oldest First</option>
+          <option value="priority" <%= activeFilters.sort === 'priority' ? 'selected' : '' %>>Priority (Urgent First)</option>
+          <option value="status" <%= activeFilters.sort === 'status' ? 'selected' : '' %>>Status</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</form>

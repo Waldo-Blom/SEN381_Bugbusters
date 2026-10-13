@@ -1,0 +1,248 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="space-y-5">
+  <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</span>
+    <span class="text-sm font-medium text-slate-800"><%= department.name %></span>
+  </div>
+
+  <% if (success) { %>
+    <p role="status" class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"><%= success %></p>
+  <% } %>
+
+  <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="font-semibold text-slate-800">Add a staff member</h2>
+    <p class="mt-1 text-sm text-slate-500">New staff will be assigned to <%= department.name %>.</p>
+    <form action="/manager/users" method="POST" class="mt-4 grid gap-4 sm:grid-cols-2" novalidate>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="space-y-1.5">
+        <label for="firstName" class="block text-sm font-medium text-slate-700">First name</label>
+        <input id="firstName" name="firstName" type="text" value="<%= values.firstName || '' %>" required maxlength="100" autocomplete="given-name"
+               aria-invalid="<%= errors.firstName ? 'true' : 'false' %>"
+               class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+        <% if (errors.firstName) { %><p class="text-sm text-red-700"><%= errors.firstName %></p><% } %>
+      </div>
+
+      <div class="space-y-1.5">
+        <label for="lastName" class="block text-sm font-medium text-slate-700">Last name</label>
+        <input id="lastName" name="lastName" type="text" value="<%= values.lastName || '' %>" required maxlength="100" autocomplete="family-name"
+               aria-invalid="<%= errors.lastName ? 'true' : 'false' %>"
+               class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+        <% if (errors.lastName) { %><p class="text-sm text-red-700"><%= errors.lastName %></p><% } %>
+      </div>
+
+      <div class="space-y-1.5">
+        <label for="email" class="block text-sm font-medium text-slate-700">Email</label>
+        <input id="email" name="email" type="email" value="<%= values.email || '' %>" required maxlength="255" autocomplete="email"
+               aria-invalid="<%= errors.email ? 'true' : 'false' %>"
+               class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+        <% if (errors.email) { %><p class="text-sm text-red-700"><%= errors.email %></p><% } %>
+      </div>
+
+      <div class="space-y-1.5">
+        <label for="phone" class="block text-sm font-medium text-slate-700">Phone <span class="font-normal text-slate-500">(optional)</span></label>
+        <input id="phone" name="phone" type="tel" value="<%= values.phone || '' %>" maxlength="15" autocomplete="tel"
+               aria-invalid="<%= errors.phone ? 'true' : 'false' %>"
+               class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+        <% if (errors.phone) { %><p class="text-sm text-red-700"><%= errors.phone %></p><% } %>
+      </div>
+
+      <div class="space-y-1.5 sm:col-span-2">
+        <label for="password" class="block text-sm font-medium text-slate-700">Initial password</label>
+        <div class="relative">
+          <input id="password" name="password" type="password" required autocomplete="new-password"
+                 aria-invalid="<%= errors.password ? 'true' : 'false' %>"
+                 class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-16 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          <button type="button" data-password-toggle aria-controls="password" aria-pressed="false" aria-label="Show password"
+                  class="absolute inset-y-0 right-0 rounded-r-lg px-3 text-xs font-medium text-slate-500 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+            Show
+          </button>
+        </div>
+        <% if (errors.password) { %><p class="text-sm text-red-700"><%= errors.password %></p><% } %>
+        <p class="text-xs text-slate-500">At least 8 characters, with an uppercase letter and a number.</p>
+      </div>
+
+      <div class="sm:col-span-2 flex justify-end">
+        <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+          Create staff member
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th scope="col" class="px-4 py-3 font-semibold">Name</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Email</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Status</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% const activeStaff = staffUsers.filter(function (staff) { return staff.isActive; }); %>
+        <% if (activeStaff.length === 0) { %>
+          <tr>
+            <td colspan="4" class="px-4 py-8 text-center text-sm text-slate-500">
+              No active staff members are assigned to <%= department.name %> yet.
+            </td>
+          </tr>
+        <% } else { %>
+          <% activeStaff.forEach(function (staff) { %>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-800"><%= staff.firstName %> <%= staff.lastName %></td>
+              <td class="px-4 py-3 text-slate-600"><%= staff.email %></td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+                  Active
+                </span>
+              </td>
+              <td class="px-4 py-3">
+                <form action="/manager/users/<%= staff.userId %>/deactivate" method="POST"
+                      data-confirm-action
+                      data-confirm-title="Deactivate staff member?"
+                      data-confirm-message="They will no longer be able to log in or access department requests."
+                      data-confirm-button="Deactivate"
+                      data-confirm-style="danger">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <button type="submit" class="text-sm font-semibold text-red-700 hover:text-red-800">Deactivate</button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        <% } %>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-4 py-3">
+      <h2 class="font-semibold text-slate-800">Deactivated staff</h2>
+      <p class="mt-1 text-xs text-slate-500">Re-enabling a staff member creates a new assignment and preserves the previous assignment history.</p>
+    </div>
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th scope="col" class="px-4 py-3 font-semibold">Name</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Email</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Status</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% const inactiveStaff = staffUsers.filter(function (staff) { return !staff.isActive; }); %>
+        <% if (inactiveStaff.length === 0) { %>
+          <tr>
+            <td colspan="4" class="px-4 py-8 text-center text-sm text-slate-500">
+              No deactivated staff members.
+            </td>
+          </tr>
+        <% } else { %>
+          <% inactiveStaff.forEach(function (staff) { %>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-800"><%= staff.firstName %> <%= staff.lastName %></td>
+              <td class="px-4 py-3 text-slate-600"><%= staff.email %></td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  Deactivated
+                </span>
+              </td>
+              <td class="px-4 py-3">
+                <form action="/manager/users/<%= staff.userId %>/activate" method="POST"
+                      data-confirm-action
+                      data-confirm-title="Re-enable staff member?"
+                      data-confirm-message="This will restore their login and access to this department."
+                      data-confirm-button="Re-enable"
+                      data-confirm-style="primary">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <button type="submit" class="text-sm font-semibold text-blue-700 hover:text-blue-800">Enable</button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        <% } %>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<dialog id="staff-confirm-dialog" aria-labelledby="staff-confirm-title"
+        class="fixed left-1/2 top-1/2 m-0 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-950/50">
+  <div class="p-6">
+    <div class="flex items-start gap-4">
+      <div id="staff-confirm-icon" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600" aria-hidden="true">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3l-7.5-13.1a2 2 0 0 0-3.4 0Z" />
+        </svg>
+      </div>
+      <div>
+        <h2 id="staff-confirm-title" class="text-lg font-semibold text-slate-900">Confirm action</h2>
+        <p id="staff-confirm-message" class="mt-2 text-sm leading-6 text-slate-600"></p>
+      </div>
+    </div>
+    <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <button type="button" data-confirm-cancel
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+        Cancel
+      </button>
+      <button type="button" id="staff-confirm-submit"
+              class="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/40">
+        Confirm
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  (() => {
+    const dialog = document.getElementById('staff-confirm-dialog');
+    const title = document.getElementById('staff-confirm-title');
+    const message = document.getElementById('staff-confirm-message');
+    const confirmButton = document.getElementById('staff-confirm-submit');
+    const confirmIcon = document.getElementById('staff-confirm-icon');
+    let pendingForm = null;
+
+    document.addEventListener('submit', (event) => {
+      const form = event.target.closest('form[data-confirm-action]');
+      if (!form || !dialog || typeof dialog.showModal !== 'function') return;
+
+      event.preventDefault();
+      pendingForm = form;
+      title.textContent = form.dataset.confirmTitle;
+      message.textContent = form.dataset.confirmMessage;
+      confirmButton.textContent = form.dataset.confirmButton;
+
+      const danger = form.dataset.confirmStyle === 'danger';
+      confirmButton.className = danger
+        ? 'rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/40'
+        : 'rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40';
+      confirmIcon.className = danger
+        ? 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600'
+        : 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600';
+      dialog.showModal();
+      document.querySelector('[data-confirm-cancel]').focus();
+    });
+
+    document.querySelector('[data-confirm-cancel]').addEventListener('click', () => {
+      pendingForm = null;
+      dialog.close();
+    });
+
+    dialog.addEventListener('cancel', () => {
+      pendingForm = null;
+    });
+
+    confirmButton.addEventListener('click', () => {
+      const form = pendingForm;
+      pendingForm = null;
+      dialog.close();
+      if (form) form.submit();
+    });
+  })();
+</script>
+
+<%- include('partials/app-layout-foot') %>

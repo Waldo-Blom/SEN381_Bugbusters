@@ -1,0 +1,79 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="space-y-5">
+
+  <!-- Department banner -->
+  <div class="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2.5">
+    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</span>
+    <span class="text-sm font-medium text-slate-800"><%= department.name %></span>
+  </div>
+
+  <!-- Metric cards -->
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Open Requests</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= stats.open %></p>
+      <p class="mt-1 text-xs font-medium text-slate-500">Submitted, assigned or in progress</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Overdue</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= stats.overdue %></p>
+      <p class="mt-1 text-xs font-medium text-slate-500">Open requests past their deadline</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Resolved</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= stats.resolved %></p>
+      <p class="mt-1 text-xs font-medium text-slate-500">Awaiting closure</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs text-slate-500">Closed</p>
+      <p class="mt-1 text-2xl font-bold text-slate-900"><%= stats.closed %></p>
+      <p class="mt-1 text-xs font-medium text-slate-500">Currently closed</p>
+    </div>
+  </div>
+
+  <!-- SLA metrics -->
+  <div class="grid gap-5 lg:grid-cols-3">
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Avg. Response Time</h3></div>
+      <div class="px-5 py-4"><p class="text-3xl font-bold text-slate-900"><%= stats.avgResponseHours === null ? 'Not available' : stats.avgResponseHours %><% if (stats.avgResponseHours !== null) { %><span class="text-base font-normal text-slate-400"> hrs</span><% } %></p>
+        <p class="mt-1 text-xs font-medium text-slate-500">Submission to first assignment; all time</p></div>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Resolution Rate</h3></div>
+      <div class="px-5 py-4"><p class="text-3xl font-bold text-slate-900"><%= stats.resolutionRate === null ? 'Not available' : stats.resolutionRate %><% if (stats.resolutionRate !== null) { %><span class="text-base font-normal text-slate-400">%</span><% } %></p>
+        <p class="mt-1 text-xs font-medium text-slate-500">Resolved or closed; excludes rejected; all time</p></div>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">SLA Compliance</h3></div>
+      <div class="px-5 py-4"><p class="text-3xl font-bold text-slate-900"><%= stats.slaCompliance === null ? 'Not available' : stats.slaCompliance %><% if (stats.slaCompliance !== null) { %><span class="text-base font-normal text-slate-400">%</span><% } %></p>
+        <p class="mt-1 text-xs font-medium text-slate-500">Resolved by deadline; <%= stats.slaTotal %> completed requests with timing data</p></div>
+    </div>
+  </div>
+
+  <!-- Recent activity -->
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Recent Activity</h3></div>
+    <div class="divide-y divide-slate-100">
+      <% if (recentActivity.length === 0) { %>
+        <div class="px-5 py-6 text-center text-sm text-slate-400">No recent activity.</div>
+      <% } else { %>
+        <% recentActivity.forEach(function (r) { %>
+          <a href="/manager/requests/<%= r.id %>" class="flex w-full items-center gap-4 px-5 py-3.5 text-left hover:bg-slate-50 transition-colors">
+            <div class="flex-1 min-w-0">
+              <p class="truncate text-sm font-medium text-slate-800"><%= r.title %></p>
+              <p class="mt-1 text-sm text-slate-600"><%= r.label %></p>
+              <p class="text-xs text-slate-400"><%= r.reference %> &middot; <%= r.category %> &middot; <%= r.timestamp %> &middot; <%= r.actor %></p>
+            </div>
+            <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"><%= r.status %></span>
+            <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"><%= r.priority %></span>
+          </a>
+        <% }); %>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/app-layout-foot') %>

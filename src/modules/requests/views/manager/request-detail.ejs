@@ -1,0 +1,195 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="space-y-5">
+
+  <a href="/manager/requests" class="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
+    &larr; Back to list
+  </a>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="px-5 py-4 space-y-4">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span class="font-mono text-xs text-slate-400"><%= request.reference %></span>
+          <h2 class="mt-1 text-xl font-bold text-slate-900"><%= request.title %></h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"><%= request.status %></span>
+          <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"><%= request.priority %></span>
+        </div>
+      </div>
+
+      <%
+        const stages = ['Submitted','Assigned','In Progress','Resolved','Closed'];
+        const currentIdx = stages.indexOf(request.status);
+      %>
+      <div class="rounded-xl bg-slate-50 px-4 py-5">
+        <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Progress</span>
+        <div class="mt-3 flex items-center gap-2">
+          <% stages.forEach(function (s, i) { %>
+            <div class="flex items-center gap-2 flex-1">
+              <div class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold
+                <%= i <= currentIdx ? (i === currentIdx ? 'bg-blue-600 text-white ring-4 ring-blue-100' : 'bg-blue-100 text-blue-700') : 'bg-slate-100 text-slate-400' %>">
+                <%= i + 1 %>
+              </div>
+              <% if (i < stages.length - 1) { %>
+                <div class="h-0.5 flex-1 rounded-full <%= i < currentIdx ? 'bg-blue-300' : 'bg-slate-200' %>"></div>
+              <% } %>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid gap-5 lg:grid-cols-3">
+
+    <div class="space-y-5 lg:col-span-2">
+      <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Description</h3></div>
+        <div class="px-5 py-4">
+          <p class="text-sm leading-relaxed text-slate-600"><%= request.description %></p>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Staff Comments</h3></div>
+        <div class="px-5 py-4 space-y-4">
+          <% if (request.comments && request.comments.length > 0) { %>
+            <% request.comments.forEach(function (c) { %>
+              <div class="flex gap-3">
+                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-semibold shrink-0">
+                  <%= (c.author || 'Staff').trim().split(/\s+/).map(function (n) { return n[0]; }).join('') %>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold text-slate-800"><%= c.author %></span>
+                    <span class="text-xs text-slate-400"><%= c.authorRole %></span>
+                  </div>
+                  <span class="text-xs text-slate-400"><%= c.timestamp %></span>
+                  <p class="mt-1.5 text-sm text-slate-600"><%= c.text %></p>
+                </div>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <p class="text-sm text-slate-400">No staff comments yet.</p>
+          <% } %>
+
+          <form method="POST" action="/manager/requests/<%= request.id %>/comments" class="mt-4 border-t border-slate-100 pt-4">
+            <textarea name="comment" rows="3" required placeholder="Add a comment or resolution note..."
+                      class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"></textarea>
+            <div class="mt-2 flex justify-end">
+              <button class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700">Post comment</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-5">
+      <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Request Info</h3></div>
+        <div class="px-5 py-4 space-y-3.5 text-sm">
+          <div><p class="text-xs text-slate-400">Category</p><p class="font-medium text-slate-700"><%= request.category %></p></div>
+          <div><p class="text-xs text-slate-400">Department</p><p class="font-medium text-slate-700"><%= request.department %></p></div>
+          <div><p class="text-xs text-slate-400">Location</p><p class="font-medium text-slate-700"><%= request.location %></p></div>
+          <div><p class="text-xs text-slate-400">Submitted</p><p class="font-medium text-slate-700"><%= request.submittedAt %></p></div>
+          <div><p class="text-xs text-slate-400">Created by</p><p class="font-medium text-slate-700"><%= request.createdBy || request.requesterName %></p></div>
+          <div><p class="text-xs text-slate-400">Last updated</p><p class="font-medium text-slate-700"><%= request.updatedAt %></p></div>
+          <% if (request.assignedTo) { %>
+            <div><p class="text-xs text-slate-400">Assigned to</p><p class="font-medium text-slate-700"><%= request.assignedTo %></p></div>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Requester Details</h3></div>
+        <div class="px-5 py-4 space-y-3.5 text-sm">
+          <div class="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
+            <span class="text-xs text-amber-700">Contact info is visible only because access has been authorised.</span>
+          </div>
+          <div><p class="text-xs text-slate-400">Name</p><p class="font-medium text-slate-700"><%= request.requesterName %></p></div>
+          <div><p class="text-xs text-slate-400">Email</p><p class="font-medium text-slate-700"><%= request.requesterEmail || 'Not provided' %></p></div>
+          <div><p class="text-xs text-slate-400">Phone</p><p class="font-medium text-slate-700"><%= request.requesterPhone || 'Not provided' %></p></div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Assignment Controls</h3></div>
+        <div class="px-5 py-4 space-y-3">
+          <% const assignmentEnabled = ['Submitted', 'Assigned', 'In Progress'].includes(request.status); %>
+          <form method="POST" action="/manager/requests/<%= request.id %>/assign" class="space-y-3">
+            <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
+            <label for="assignment-staff" class="block text-sm font-medium text-slate-700">Assign / reassign to</label>
+            <select id="assignment-staff" name="staffId" required class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" <%= assignmentEnabled ? '' : 'disabled' %>>
+              <option value="">Select a staff member</option>
+              <% (typeof eligibleStaff !== 'undefined' ? eligibleStaff : []).forEach(function (staff) { %>
+                <option value="<%= staff.id %>" <%= staff.id === request.assignedStaffId ? 'disabled' : '' %>><%= staff.name %><%= staff.id === request.assignedStaffId ? ' (currently assigned)' : '' %></option>
+              <% }); %>
+            </select>
+            <label for="assignment-priority" class="block text-sm font-medium text-slate-700">Set priority</label>
+            <select id="assignment-priority" name="priority" class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
+              <% ['Low', 'Medium', 'High', 'Urgent'].forEach(function (priority) { %>
+                <option <%= request.priority === priority ? 'selected' : '' %>><%= priority %></option>
+              <% }); %>
+            </select>
+            <button type="submit" <%= assignmentEnabled && typeof eligibleStaff !== 'undefined' && eligibleStaff.some(staff => staff.id !== request.assignedStaffId) ? '' : 'disabled' %> class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"><%= request.assignedStaffId ? 'Reassign' : 'Assign' %></button>
+            <% if (!assignmentEnabled) { %><p class="text-xs text-slate-500">This request is no longer eligible for assignment.</p><% } %>
+          </form>
+          <form method="POST" action="/manager/requests/<%= request.id %>/contact-access/<%= request.contactInformationApproved ? 'revoke' : 'authorise' %>">
+            <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
+            <button type="submit" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><%= request.contactInformationApproved ? 'Revoke contact access' : 'Authorise contact access' %></button>
+          </form>
+          
+          <hr class="my-4 border-slate-100" />
+          
+          <!-- Close Form (FR-206) -->
+          <% if (request.status === 'Resolved') { %>
+            <form method="POST" action="/manager/requests/<%= request.id %>/close">
+              <button type="submit" class="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700">Close Request</button>
+            </form>
+          <% } else if (request.status === 'Closed') { %>
+            <div class="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-center text-sm text-slate-500">
+              This request is fully CLOSED.
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-semibold text-slate-800">Status Timeline</h3></div>
+    <div class="px-5 py-4 space-y-0">
+      <% request.timeline.forEach(function (ev, idx) { %>
+        <% const isLast = idx === request.timeline.length - 1; %>
+        <div class="flex gap-4">
+          <div class="flex flex-col items-center">
+            <div class="flex h-9 w-9 items-center justify-center rounded-full border-2 <%= idx === 0 ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-slate-300 bg-white text-slate-500' %>">
+              <span class="h-2 w-2 rounded-full bg-current"></span>
+            </div>
+            <% if (!isLast) { %><div class="w-0.5 flex-1 bg-slate-200" style="min-height:2rem"></div><% } %>
+          </div>
+          <div class="flex-1 <%= isLast ? '' : 'pb-6' %>">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-slate-800"><%= ev.label %></p>
+                <p class="mt-0.5 text-xs text-slate-500"><%= ev.timestamp %> &middot; <%= ev.actor %></p>
+              </div>
+            </div>
+            <% if (ev.comment) { %>
+              <div class="mt-2 rounded-lg bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600 border border-slate-100"><%= ev.comment %></div>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+
+</div>
+
+<%- include('../partials/attachments', { request }) %>
+<script src="/js/request-images.js"></script>
+<%- include('partials/app-layout-foot') %>

@@ -1,0 +1,63 @@
+<%- include('../../../../shared/views/partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="mx-auto max-w-2xl space-y-5">
+
+  <% if (error) { %><p role="alert" class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700"><%= error %></p><% } %>
+  <% if (success) { %><p role="status" class="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700"><%= success %></p><% } %>
+
+  <!-- Profile -->
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4"><h2 class="text-base font-bold text-slate-900">Profile</h2></div>
+    <form action="/requester/settings/profile" method="POST" class="px-5 py-4 space-y-5">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="flex items-center gap-4">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold"><%= user.avatarInitials %></div>
+        <div>
+          <p class="font-semibold text-slate-800"><%= user.name %></p>
+          <p class="text-sm text-slate-500"><%= user.email %></p>
+        </div>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="space-y-1.5"><label for="firstName" class="block text-sm font-medium text-slate-700">First name</label>
+          <input id="firstName" name="firstName" type="text" required maxlength="100" value="<%= profile.firstName %>" class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" /></div>
+        <div class="space-y-1.5"><label for="lastName" class="block text-sm font-medium text-slate-700">Last name</label>
+          <input id="lastName" name="lastName" type="text" required maxlength="100" value="<%= profile.lastName %>" class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" /></div>
+        <div class="space-y-1.5"><label for="email" class="block text-sm font-medium text-slate-700">Email</label>
+          <input id="email" name="email" type="email" required maxlength="255" value="<%= profile.email %>" class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" /></div>
+        <div class="space-y-1.5"><label for="phone" class="block text-sm font-medium text-slate-700">Phone</label>
+          <input id="phone" name="phone" type="tel" maxlength="15" value="<%= profile.phone || '' %>" class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm" /></div>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700">Save profile</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Notifications -->
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4"><h2 class="text-base font-bold text-slate-900">Notification Preferences</h2></div>
+    <form action="/requester/settings/notifications" method="POST" class="px-5 py-4 space-y-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="flex items-center justify-between gap-4">
+        <div><p class="text-sm font-medium text-slate-700">Email notifications</p><p class="text-xs text-slate-500">Receive updates about your requests via email</p></div>
+        <input aria-label="Email notifications" name="emailNotificationsEnabled" type="checkbox" role="switch" <%= settings.emailNotificationsEnabled ? 'checked' : '' %> class="h-5 w-5 accent-blue-600" />
+      </div>
+      <div class="border-t border-slate-100"></div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700">Save preferences</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="flex justify-center pt-2">
+    <form action="/auth/logout" method="POST">
+      <button type="submit" class="rounded-lg px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Sign out of CivicConnect</button>
+    </form>
+  </div>
+</div>
+
+<%- include('../../../../shared/views/partials/app-layout-foot') %>

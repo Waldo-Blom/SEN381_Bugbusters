@@ -1,0 +1,73 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="space-y-5">
+  <div class="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2.5">
+    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</span>
+    <span class="text-sm font-medium text-slate-800"><%= department.name %></span>
+  </div>
+
+  <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-100 px-5 py-4">
+      <h3 class="font-semibold text-slate-800">Incoming Contact Access Requests</h3>
+      <% if (!contactAccessRequestsEnabled) { %>
+        <p class="mt-1 text-xs text-slate-500">Staff contact access requests and review actions will be available soon.</p>
+      <% } %>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+          <tr>
+            <th scope="col" class="px-5 py-3 font-medium">Request</th>
+            <th scope="col" class="px-5 py-3 font-medium">Staff Member</th>
+            <th scope="col" class="px-5 py-3 font-medium">Reason</th>
+            <th scope="col" class="px-5 py-3 font-medium">Requested</th>
+            <th scope="col" class="px-5 py-3 font-medium">Status</th>
+            <th scope="col" class="px-5 py-3 font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <% if (contactAccessRequests.length === 0) { %>
+            <tr>
+              <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400">
+                <%= contactAccessRequestsEnabled ? 'No contact access requests to review.' : 'Incoming staff requests will appear here when contact access requests are enabled.' %>
+              </td>
+            </tr>
+          <% } else { %>
+            <% contactAccessRequests.forEach(function (entry) { %>
+              <tr>
+                <td class="px-5 py-4">
+                  <a href="/manager/requests/<%= entry.requestId %>" class="font-medium text-blue-600 hover:text-blue-700"><%= entry.reference %></a>
+                  <p class="mt-1 text-xs text-slate-500"><%= entry.title %></p>
+                </td>
+                <td class="px-5 py-4 text-slate-700"><%= entry.staffName %></td>
+                <td class="px-5 py-4 text-slate-600"><%= entry.reason %></td>
+                <td class="px-5 py-4 text-xs text-slate-500"><%= entry.requestedAt %></td>
+                <td class="px-5 py-4 text-slate-600"><%= entry.status %></td>
+                <td class="px-5 py-4">
+                  <% if (entry.canReview) { %>
+                    <div class="flex items-center gap-2">
+                      <form method="POST" action="/manager/contact-access-requests/<%= entry.id %>/approve">
+                        <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
+                        <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Approve</button>
+                      </form>
+                      <form method="POST" action="/manager/contact-access-requests/<%= entry.id %>/reject">
+                        <input type="hidden" name="_csrf" value="<%= typeof contactAccessCsrfToken === 'string' ? contactAccessCsrfToken : '' %>" />
+                        <button type="submit" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Reject</button>
+                      </form>
+                    </div>
+                  <% } else { %>
+                    <span class="text-xs text-slate-500"><%= entry.status === 'Pending' ? 'Staff assignment changed' : 'Reviewed' %></span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/app-layout-foot') %>

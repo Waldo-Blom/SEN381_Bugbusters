@@ -1,0 +1,613 @@
+const requestsService = require('./requests.service');
+const { REQUEST_STATUSES } = require('./requests.constants');
+const { pageContext } = require('../../shared/views/pageContext');
+const { getAuthenticatedUserId, getAuthenticatedUserRole } = require('../auth/auth.middleware');
+const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
+const { sendHttpError } = require('../../shared/middleware/error.middleware');
+const { AttachmentError } = require('./requests.attachments.validation');
+
+// ---- requester ----
+const submissionView = async (req, res, role, options = {}) => {
+  const isOperator = role === 'operator';
+  const submitPath = isOperator ? '/operator/submit' : '/requester/submit';
+  const categories = await requestsService.listCategories();
+  res.render('requests/views/requester/submit', {
+    ...pageContext(role, req),
+    title: isOperator ? 'Log a Request' : 'Submit a Request',
+    activeHref: submitPath,
+    pageTitle: isOperator ? 'Log a Request' : 'Submit a Request',
+    pageSubtitle: isOperator
+      ? 'Log a community member’s request'
+      : 'Report an issue in your community',
+    errors: {},
+    values: {},
+    isOperator,
+    formAction: submitPath,
+    successReference: null,
+    uploadCsrfToken: getCsrfToken(req),
+    ...options,
+    categories,
+  });
+};
+
+const handleSubmissionError = async (req, res, next, error, role) => {
+  if (
+    !(error instanceof requestsService.RequestValidationError) &&
+    !(error instanceof AttachmentError)
+  ) {
+    return false;
+  }
+
+  try {
+    await submissionView(req, res.status(error.statusCode || 400), role, {
+      errors: error.errors,
+      attachmentSaveFailed: error instanceof AttachmentError && error.statusCode >= 500,
+      values: req.body,
+    });
+  } catch (renderError) {
+    next(renderError);
+  }
+  return true;
+};
+
+exports.submitPage = async (req, res, next) => {
+  try {
+    await submissionView(req, res, 'requester');
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.operatorSubmitPage = async (req, res, next) => {
+  try {
+    await submissionView(req, res, 'operator', {
+      successReference: req.query.submitted || null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.operatorLoggedRequests = async (req, res, next) => {
+  try {
+    const requests = await requestsService.listCreatedByOperator(getAuthenticatedUserId(req));
+    res.render('requests/views/operator/logged-requests', {
+      ...pageContext('operator', req),
+      title: 'Logged Requests',
+      activeHref: '/operator/requests',
+      pageTitle: 'Logged Requests',
+      pageSubtitle: 'Requests you have recorded on behalf of community members',
+      requests,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.searchExternalRequesters = async (req, res, next) => {
+  const searchTerm = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (searchTerm.length < 2) {
+    return res.json([]);
+  }
+
+  try {
+    const requesters = await requestsService.searchExternalRequesters(searchTerm);
+    res.json(requesters);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.submitRequest = async (req, res, next) => {
+  try {
+    if (req.attachmentError) throw req.attachmentError;
+    const userId = getAuthenticatedUserId(req);
+    const submissionKey = `${userId}:${req.body?.categoryId}:${req.body?.title}:${req.body?.location}`;
+    const now = Date.now();
+    if (
+      req.session?.lastSubmission &&
+      req.session.lastSubmission.key === submissionKey &&
+      now - req.session.lastSubmission.time < 3000
+    ) {
+      return res.redirect('/requester/my-requests');
+    }
+    if (req.session) {
+      req.session.lastSubmission = { key: submissionKey, time: now };
+    }
+
+    await requestsService.submit(req.body, userId, req.files || []);
+    res.redirect('/requester/my-requests');
+  } catch (error) {
+    if (req.session) {
+      delete req.session.lastSubmission;
+    }
+    if (await handleSubmissionError(req, res, next, error, 'requester')) return;
+    next(error);
+  }
+};
+
+exports.operatorSubmitRequest = async (req, res, next) => {
+  try {
+    if (req.attachmentError) throw req.attachmentError;
+    const operatorId = getAuthenticatedUserId(req);
+    const submissionKey = `${operatorId}:${req.body?.categoryId}:${req.body?.title}:${req.body?.location}:${req.body?.externalRequesterId || ''}`;
+    const now = Date.now();
+    if (
+      req.session?.lastOperatorSubmission &&
+      req.session.lastOperatorSubmission.key === submissionKey &&
+      now - req.session.lastOperatorSubmission.time < 3000
+    ) {
+      const ref = req.session.lastOperatorSubmission.reference;
+      return res.redirect(
+        ref ? `/operator/submit?submitted=${encodeURIComponent(ref)}` : '/operator/requests'
+      );
+    }
+
+    const created = await requestsService.createServiceRequest({
+      input: req.body,
+      actorType: 'OPERATOR',
+      actorUserId: operatorId,
+      files: req.files || [],
+    });
+    if (req.session) {
+      req.session.lastOperatorSubmission = {
+        key: submissionKey,
+        time: now,
+        reference: created.reference,
+      };
+    }
+    res.redirect(`/operator/submit?submitted=${encodeURIComponent(created.reference)}`);
+  } catch (error) {
+    if (req.session) {
+      delete req.session.lastOperatorSubmission;
+    }
+    if (await handleSubmissionError(req, res, next, error, 'operator')) return;
+    next(error);
+  }
+};
+
+exports.myRequests = async (req, res, next) => {
+  try {
+    const requesterId = getAuthenticatedUserId(req);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const status = typeof req.query.status === 'string' ? req.query.status.trim() : 'All';
+    const hasFilter = Boolean(q || (status && status.toLowerCase() !== 'all'));
+    const filters = { q, status };
+
+    const requests = await requestsService.listForRequester(
+      requesterId,
+      hasFilter ? filters : undefined
+    );
+
+    let summaryCounts = null;
+    if (typeof requestsService.getRequesterSummaryCounts === 'function') {
+      try {
+        summaryCounts = await requestsService.getRequesterSummaryCounts(requesterId);
+      } catch {
+        summaryCounts = null;
+      }
+    }
+
+    res.render('requests/views/requester/my-requests', {
+      ...pageContext('requester', req),
+      title: 'My Requests',
+      activeHref: '/requester/my-requests',
+      pageTitle: 'My Requests',
+      pageSubtitle: 'Track the status of your submissions',
+      requests,
+      filters,
+      summaryCounts,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.requesterDetail = async (req, res, next) => {
+  try {
+    const request = await requestsService.getForRequester(
+      req.params.id,
+      getAuthenticatedUserId(req)
+    );
+    if (!request) {
+      return sendHttpError(req, res, 404, 'This request could not be found.');
+    }
+    res.render('requests/views/requester/request-detail', {
+      ...pageContext('requester', req),
+      title: 'Request Details',
+      activeHref: '/requester/my-requests',
+      pageTitle: 'Request Details',
+      pageSubtitle: 'Full request information and timeline',
+      request,
+      attachmentCsrfToken: getCsrfToken(req),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.editRequestPage = async (req, res, next) => {
+  try {
+    const requesterId = getAuthenticatedUserId(req);
+    const request = await requestsService.getEditableForRequester(req.params.id, requesterId);
+    if (!request) {
+      return sendHttpError(req, res, 404, 'This request could not be found.');
+    }
+    const categories = await requestsService.listCategories();
+    const attachmentsService = require('./requests.attachments.service');
+    let existingAttachments = [];
+    try {
+      const atts = await attachmentsService.list(req.params.id, requesterId, 'requester');
+      existingAttachments = atts.map((att) => ({
+        ...att,
+        url: `/requests/${request.id}/attachments/${att.id}`,
+      }));
+    } catch {
+      existingAttachments = [];
+    }
+    res.render('requests/views/requester/edit', {
+      ...pageContext('requester', req),
+      title: 'Edit Request',
+      activeHref: '/requester/my-requests',
+      pageTitle: 'Edit Request',
+      pageSubtitle: `Update details for ${request.reference}`,
+      request,
+      categories,
+      existingAttachments,
+      values: {
+        categoryId: request.categoryId,
+        title: request.title,
+        description: request.description,
+        location: request.location,
+        priority: request.priority ? request.priority.toUpperCase() : 'MEDIUM',
+      },
+      errors: {},
+      uploadCsrfToken: getCsrfToken(req),
+    });
+  } catch (error) {
+    if (error.statusCode === 400 || error.name === 'RequestNotEditableError') {
+      return sendHttpError(req, res, 400, error.message);
+    }
+    if (error.statusCode === 404) {
+      return sendHttpError(req, res, 404, error.message);
+    }
+    next(error);
+  }
+};
+
+exports.updateRequest = async (req, res, next) => {
+  try {
+    const requesterId = getAuthenticatedUserId(req);
+    await requestsService.updateRequesterRequest({
+      requestId: req.params.id,
+      requesterId,
+      input: req.body,
+      files: req.files,
+    });
+    res.redirect(`/requester/requests/${req.params.id}`);
+  } catch (error) {
+    if (
+      error instanceof requestsService.RequestValidationError ||
+      error instanceof AttachmentError
+    ) {
+      try {
+        const categories = await requestsService.listCategories();
+        const request = await requestsService.getForRequester(
+          req.params.id,
+          getAuthenticatedUserId(req)
+        );
+        const attachmentsService = require('./requests.attachments.service');
+        let existingAttachments = [];
+        try {
+          const atts = await attachmentsService.list(
+            req.params.id,
+            getAuthenticatedUserId(req),
+            'requester'
+          );
+          existingAttachments = atts.map((att) => ({
+            ...att,
+            url: `/requests/${req.params.id}/attachments/${att.id}`,
+          }));
+        } catch {
+          existingAttachments = [];
+        }
+        return res.status(error.statusCode || 400).render('requests/views/requester/edit', {
+          ...pageContext('requester', req),
+          title: 'Edit Request',
+          activeHref: '/requester/my-requests',
+          pageTitle: 'Edit Request',
+          pageSubtitle: `Update details for ${request?.reference || ''}`,
+          request: request || { id: req.params.id },
+          categories,
+          existingAttachments,
+          values: req.body,
+          errors: error.errors || { attachment: error.message },
+          uploadCsrfToken: getCsrfToken(req),
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    if (error.statusCode) {
+      return sendHttpError(req, res, error.statusCode, error.message);
+    }
+    next(error);
+  }
+};
+
+// ---- staff ----
+// FR-203 search/filter/sort, kept from the department-access branch.
+exports.staffSearch = async (req, res) => {
+  const staffUserId = getAuthenticatedUserId(req);
+  const usersService = require('../users/users.service');
+  const staffDept = await usersService.getStaffDepartment(staffUserId);
+  const departmentId = staffDept?.departmentId || null;
+
+  const filters = {
+    q: req.query.q || '',
+    status: req.query.status || 'All',
+    category: req.query.category || 'All',
+    priority: req.query.priority || 'All',
+    sort: req.query.sort || 'date',
+    tab: req.query.tab || 'all',
+  };
+
+  const requests = await requestsService.searchStaffRequests({
+    staffUserId,
+    departmentId,
+    ...filters,
+  });
+
+  const categories = await requestsService.listCategoriesByDepartment(departmentId);
+
+  res.render('requests/views/staff/search', {
+    ...pageContext('staff', req),
+    title: 'Search & Filter',
+    activeHref: '/staff/search',
+    pageTitle: 'Search & Filter',
+    pageSubtitle: staffDept
+      ? `Showing requests for ${staffDept.departmentName} Department`
+      : 'Find requests across all categories',
+    requests,
+    filters,
+    categories,
+    departmentName: staffDept?.departmentName || '',
+  });
+};
+
+exports.staffDetail = async (req, res, next) => {
+  try {
+    const staffUserId = getAuthenticatedUserId(req);
+    const request = await requestsService.getForStaff(req.params.id, staffUserId);
+    if (!request) {
+      return sendHttpError(req, res, 404, 'This request could not be found.');
+    }
+    // Contact details may be revealed after approval, so never cache this page.
+    res.set('Cache-Control', 'no-store');
+    res.render('requests/views/staff/request-detail', {
+      ...pageContext('staff', req),
+      title: 'Request Details',
+      activeHref: '/staff/dashboard',
+      pageTitle: 'Request Details',
+      pageSubtitle: 'Manage and resolve this request',
+      request,
+      contactAccessCsrfToken: getCsrfToken(req),
+    });
+  } catch (error) {
+    if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
+      return sendHttpError(req, res, 403, error.message);
+    }
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
+    next(error);
+  }
+};
+
+// ---- manager ----
+exports.allRequests = async (req, res) => {
+  let data;
+  try {
+    data = await requestsService.listForManager(getAuthenticatedUserId(req), req.query);
+  } catch (error) {
+    if (error instanceof requestsService.RequestValidationError) {
+      return sendHttpError(req, res, 400, Object.values(error.errors).join(' '));
+    }
+    throw error;
+  }
+  if (!data) return sendHttpError(req, res, 403, 'You do not manage an active department.');
+  res.render('requests/views/manager/all-requests', {
+    ...pageContext('manager', req),
+    title: 'All Requests',
+    activeHref: '/manager/requests',
+    pageTitle: 'All Requests',
+    pageSubtitle: 'Requests for your department',
+    ...data,
+  });
+};
+
+exports.managerDetail = async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.render('requests/views/manager/request-detail', {
+      ...pageContext('manager', req),
+      title: 'Request Details',
+      activeHref: '/manager/requests',
+      pageTitle: 'Request Details',
+      pageSubtitle: 'Manager view with assignment controls',
+      request: await requestsService.getForManager(req.params.id, getAuthenticatedUserId(req)),
+      eligibleStaff: await require('./requests.assignment').listEligible(
+        req.params.id,
+        getAuthenticatedUserId(req)
+      ),
+      contactAccessCsrfToken: getCsrfToken(req),
+    });
+  } catch (error) {
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
+    next(error);
+  }
+};
+
+const contactAction = async (req, res, next, operation, destination) => {
+  try {
+    await operation();
+    res.redirect(destination);
+  } catch (error) {
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
+    next(error);
+  }
+};
+
+exports.managerAssign = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      require('./requests.assignment').assign(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        req.body?.staffId,
+        req.body?.priority
+      ),
+    `/manager/requests/${req.params.id}`
+  );
+
+exports.requestContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.requestAccess(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        req.body?.reason
+      ),
+    `/staff/requests/${req.params.id}`
+  );
+exports.approveContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.reviewAccess(
+        req.params.accessId,
+        getAuthenticatedUserId(req),
+        true
+      ),
+    '/manager/contact-access-requests'
+  );
+exports.rejectContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.reviewAccess(
+        req.params.accessId,
+        getAuthenticatedUserId(req),
+        false
+      ),
+    '/manager/contact-access-requests'
+  );
+exports.authoriseContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.changeApproval(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        true
+      ),
+    `/manager/requests/${req.params.id}`
+  );
+exports.revokeContactAccess = (req, res, next) =>
+  contactAction(
+    req,
+    res,
+    next,
+    () =>
+      requestsService.contactAccess.changeApproval(
+        req.params.id,
+        getAuthenticatedUserId(req),
+        false
+      ),
+    `/manager/requests/${req.params.id}`
+  );
+
+const transitionRequest = async (req, res, next, status, redirectPath) => {
+  try {
+    await requestsService.workflow.transitionRequest(
+      req.params.id,
+      status,
+      getAuthenticatedUserId(req),
+      req.body?.comment || null,
+      getAuthenticatedUserRole(req) === 'staff'
+    );
+    res.redirect(redirectPath(req.params.id));
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.assignRequest = async (req, res, next) => {
+  try {
+    const request = await requestsService.getForStaff(req.params.id, getAuthenticatedUserId(req));
+    if (!request.canAssign)
+      return sendHttpError(req, res, 403, 'This request is not available for assignment.');
+    await require('../workflow/workflow.service').assignToSelf(
+      req.params.id,
+      getAuthenticatedUserId(req)
+    );
+    res.redirect(`/staff/requests/${req.params.id}`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.startProgress = (req, res, next) =>
+  transitionRequest(req, res, next, REQUEST_STATUSES.IN_PROGRESS, (id) => `/staff/requests/${id}`);
+
+exports.resolveRequest = (req, res, next) =>
+  transitionRequest(req, res, next, REQUEST_STATUSES.RESOLVED, (id) => `/staff/requests/${id}`);
+
+exports.rejectRequest = (req, res, next) =>
+  transitionRequest(req, res, next, REQUEST_STATUSES.REJECTED, (id) => `/staff/requests/${id}`);
+
+exports.closeRequest = (req, res, next) =>
+  transitionRequest(req, res, next, REQUEST_STATUSES.CLOSED, (id) => `/manager/requests/${id}`);
+
+exports.addStaffComment = async (req, res, next) => {
+  try {
+    const staffUserId = getAuthenticatedUserId(req);
+    const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : '';
+    if (!comment) {
+      return res.redirect(`/staff/requests/${req.params.id}`);
+    }
+    await requestsService.addStaffComment(req.params.id, staffUserId, comment);
+    res.redirect(`/staff/requests/${req.params.id}`);
+  } catch (error) {
+    if (error.statusCode === 403 || error.name === 'StaffDepartmentAccessError') {
+      return sendHttpError(req, res, 403, error.message);
+    }
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
+    next(error);
+  }
+};
+
+exports.addManagerComment = async (req, res, next) => {
+  try {
+    const managerUserId = getAuthenticatedUserId(req);
+    const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : '';
+    if (!comment) {
+      return res.redirect(`/manager/requests/${req.params.id}`);
+    }
+    await requestsService.addManagerComment(req.params.id, managerUserId, comment);
+    res.redirect(`/manager/requests/${req.params.id}`);
+  } catch (error) {
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
+    next(error);
+  }
+};

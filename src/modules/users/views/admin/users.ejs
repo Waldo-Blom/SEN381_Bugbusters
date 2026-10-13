@@ -1,0 +1,76 @@
+<%- include('partials/app-layout-head', {
+  title, user, navItems, activeHref, roleLabel, pageTitle, pageSubtitle
+}) %>
+
+<div class="space-y-5">
+  <% if (error) { %>
+    <p role="alert" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><%= error %></p>
+  <% } %>
+  <% if (success) { %>
+    <p role="status" class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"><%= success %></p>
+  <% } %>
+
+  <section class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 class="font-semibold text-slate-800">Administration</h2>
+      <p class="mt-1 text-sm text-slate-500">Create manager accounts or manage users across all departments.</p>
+    </div>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <a href="/admin/users/create" class="inline-flex justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+        Create manager
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="mb-3 font-semibold text-slate-800">Managers and staff</h2>
+  <section class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th scope="col" class="px-4 py-3 font-semibold">Name</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Email</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Role</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Department</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Status</th>
+          <th scope="col" class="px-4 py-3 font-semibold">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% if (users.length === 0) { %>
+          <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No manager or staff accounts have been created.</td></tr>
+        <% } else { %>
+          <% users.forEach(function (account) { %>
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-800"><%= account.firstName %> <%= account.lastName %></td>
+              <td class="px-4 py-3 text-slate-600"><%= account.email %></td>
+              <td class="px-4 py-3 text-slate-600"><%= account.userType === 'MANAGER' ? 'Manager' : 'Staff' %></td>
+              <td class="px-4 py-3 text-slate-600"><%= account.departmentName || 'Not assigned' %></td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium <%= account.isActive ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-600' %>">
+                  <%= account.isActive ? 'Active' : 'Deactivated' %>
+                </span>
+              </td>
+              <td class="px-4 py-3">
+                <% if (account.isActive) { %>
+                  <form action="/admin/users/<%= account.userId %>/deactivate" method="POST">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <button type="submit" class="text-sm font-semibold text-red-700 hover:text-red-800">Deactivate</button>
+                  </form>
+                <% } else { %>
+                  <form action="/admin/users/<%= account.userId %>/activate" method="POST">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <button type="submit" class="text-sm font-semibold text-blue-700 hover:text-blue-800">Re-enable</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        <% } %>
+      </tbody>
+    </table>
+  </section>
+  </section>
+</div>
+
+<%- include('partials/app-layout-foot') %>

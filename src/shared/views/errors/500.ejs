@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= statusCode || 500 %> | CivicConnect</title>
+  <link rel="stylesheet" href="/styles/500.css" />
+</head>
+<body>
+
+  <div class="container">
+    <img src="https://i.imgur.com/qIufhof.png" alt="Server error illustration" />
+
+    <p class="status-code">Error <%= statusCode || 500 %></p>
+    <h1><%= heading || 'Something went wrong' %></h1>
+
+    <p><%= message || 'Something went wrong while processing your request. Please try again later.' %></p>
+
+    <% if (statusCode === 401) { %>
+      <a class="action" href="/auth/login">Sign in</a>
+    <% } else { %>
+      <a class="action" href="/">Return to home</a>
+    <% } %>
+  </div>
+
+</body>
+</html>
