@@ -60,3 +60,13 @@ exports.find = async (requestId, attachmentId) => {
   );
   return result.rows[0] || null;
 };
+exports.deleteByIds = async (client, requestId, attachmentIds) => {
+  if (!attachmentIds || !attachmentIds.length) return [];
+  const result = await client.query(
+    `DELETE FROM request_attachments
+     WHERE request_id = $1 AND attachment_id = ANY($2::uuid[])
+     RETURNING attachment_id AS id, file_path`,
+    [requestId, attachmentIds]
+  );
+  return result.rows;
+};

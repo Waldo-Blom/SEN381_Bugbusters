@@ -242,6 +242,115 @@ exports.requesterDetail = async (req, res, next) => {
   }
 };
 
+exports.editRequestPage = async (req, res, next) => {
+  try {
+    const requesterId = getAuthenticatedUserId(req);
+    const request = await requestsService.getEditableForRequester(req.params.id, requesterId);
+    if (!request) {
+      return res.status(404).render('errors/404', { title: 'Not Found' });
+    }
+    const categories = await requestsService.listCategories();
+    const attachmentsService = require('./requests.attachments.service');
+    let existingAttachments = [];
+    try {
+      const atts = await attachmentsService.list(req.params.id, requesterId, 'requester');
+      existingAttachments = atts.map((att) => ({
+        ...att,
+        url: `/requests/${request.id}/attachments/${att.id}`,
+      }));
+    } catch {
+      existingAttachments = [];
+    }
+    res.render('requests/views/requester/edit', {
+      ...pageContext('requester', req),
+      title: 'Edit Request',
+      activeHref: '/requester/my-requests',
+      pageTitle: 'Edit Request',
+      pageSubtitle: `Update details for ${request.reference}`,
+      request,
+      categories,
+      existingAttachments,
+      values: {
+        categoryId: request.categoryId,
+        title: request.title,
+        description: request.description,
+        location: request.location,
+        priority: request.priority ? request.priority.toUpperCase() : 'MEDIUM',
+      },
+      errors: {},
+      uploadCsrfToken: getCsrfToken(req),
+    });
+  } catch (error) {
+    if (error.statusCode === 400 || error.name === 'RequestNotEditableError') {
+      return res.status(400).send(error.message);
+    }
+    if (error.statusCode === 404) {
+      return res.status(404).render('errors/404', { title: 'Not Found' });
+    }
+    next(error);
+  }
+};
+
+exports.updateRequest = async (req, res, next) => {
+  try {
+    const requesterId = getAuthenticatedUserId(req);
+    await requestsService.updateRequesterRequest({
+      requestId: req.params.id,
+      requesterId,
+      input: req.body,
+      files: req.files,
+    });
+    res.redirect(`/requester/requests/${req.params.id}`);
+  } catch (error) {
+    if (
+      error instanceof requestsService.RequestValidationError ||
+      error instanceof AttachmentError
+    ) {
+      try {
+        const categories = await requestsService.listCategories();
+        const request = await requestsService.getForRequester(
+          req.params.id,
+          getAuthenticatedUserId(req)
+        );
+        const attachmentsService = require('./requests.attachments.service');
+        let existingAttachments = [];
+        try {
+          const atts = await attachmentsService.list(
+            req.params.id,
+            getAuthenticatedUserId(req),
+            'requester'
+          );
+          existingAttachments = atts.map((att) => ({
+            ...att,
+            url: `/requests/${req.params.id}/attachments/${att.id}`,
+          }));
+        } catch {
+          existingAttachments = [];
+        }
+        return res.status(error.statusCode || 400).render('requests/views/requester/edit', {
+          ...pageContext('requester', req),
+          title: 'Edit Request',
+          activeHref: '/requester/my-requests',
+          pageTitle: 'Edit Request',
+          pageSubtitle: `Update details for ${request?.reference || ''}`,
+          request: request || { id: req.params.id },
+          categories,
+          existingAttachments,
+          values: req.body,
+          errors: error.errors || { attachment: error.message },
+          uploadCsrfToken: getCsrfToken(req),
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    if (error.statusCode) {
+      return res.status(error.statusCode).send(error.message);
+    }
+    next(error);
+  }
+};
+
 // ---- staff ----
 // FR-203 search/filter/sort, kept from the department-access branch.
 exports.staffSearch = async (req, res) => {

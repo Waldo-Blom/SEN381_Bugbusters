@@ -370,6 +370,30 @@ exports.addComment = async (requestId, userId, content, commentType = 'NOTE') =>
   return result.rows[0];
 };
 
+exports.updateRequesterRequest = async (requestId, requesterId, input) => {
+  const result = await query(
+    `UPDATE service_requests
+     SET title = $1,
+         description = $2,
+         category_id = $3,
+         location = $4,
+         priority = $5::priority,
+         updated_at = LOCALTIMESTAMP
+     WHERE request_id = $6 AND requester_id = $7 AND status = 'SUBMITTED'
+     RETURNING request_id, request_number, status, updated_at`,
+    [
+      input.title,
+      input.description,
+      input.categoryId,
+      input.location,
+      input.priority,
+      requestId,
+      requesterId,
+    ]
+  );
+  return result.rows[0] || null;
+};
+
 exports.findByCreatorId = async (userId) => {
   const sql = `${requestsSelect()}
     WHERE r.created_by = $1

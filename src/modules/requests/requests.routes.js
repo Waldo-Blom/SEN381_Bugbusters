@@ -23,6 +23,14 @@ router.get('/requester/submit', requireRequester, c.submitPage);
 router.post('/requester/submit', requireRequester, parseImages, requireUploadCsrf, c.submitRequest);
 router.get('/requester/my-requests', requireRequester, c.myRequests);
 router.get('/requester/requests/:id', requireRequester, c.requesterDetail);
+router.get('/requester/requests/:id/edit', requireRequester, c.editRequestPage);
+router.post(
+  '/requester/requests/:id/edit',
+  requireRequester,
+  parseImages,
+  requireUploadCsrf,
+  c.updateRequest
+);
 
 // operators are limited to creating requests on behalf of external requesters
 router.get('/operator/submit', requireOperator, c.operatorSubmitPage);

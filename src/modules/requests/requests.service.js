@@ -248,17 +248,99 @@ class StaffDepartmentAccessError extends Error {
   }
 }
 
+class RequestNotEditableError extends Error {
+  constructor(message = 'Only submitted requests can be edited.') {
+    super(message);
+    this.name = 'RequestNotEditableError';
+    this.statusCode = 400;
+  }
+}
+
 exports.createServiceRequest = createServiceRequest;
 exports.generateRequestNumber = generateRequestNumber;
 exports.RequestValidationError = RequestValidationError;
 exports.SubmissionUserNotFoundError = SubmissionUserNotFoundError;
 exports.StaffDepartmentAccessError = StaffDepartmentAccessError;
+exports.RequestNotEditableError = RequestNotEditableError;
 exports.getById = async (id) => await requestsModel.findById(id);
 exports.getForRequester = async (id, requesterId) => {
   if (!requesterId) {
     throw new SubmissionUserNotFoundError();
   }
   return requestsModel.findById(id, requesterId);
+};
+exports.getEditableForRequester = async (id, requesterId) => {
+  if (!requesterId) throw new SubmissionUserNotFoundError();
+  if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
+
+  const request = await requestsModel.findById(id, requesterId);
+  if (!request) return null;
+  if (request.status !== 'Submitted') {
+    throw new RequestNotEditableError('Only submitted requests can be edited.');
+  }
+  return request;
+};
+exports.updateRequesterRequest = async ({ requestId, requesterId, input, files = [] }) => {
+  if (!requesterId) throw new SubmissionUserNotFoundError();
+  if (!isUuid(requestId)) throw new RequestAccessError('Invalid request identifier.', 400);
+
+  const existing = await requestsModel.findById(requestId, requesterId);
+  if (!existing) {
+    throw new RequestAccessError('Request not found.', 404);
+  }
+  if (existing.status !== 'Submitted') {
+    throw new RequestNotEditableError('Only submitted requests can be edited.');
+  }
+
+  const submission = validateSubmission(input);
+  if (Object.keys(submission.errors).length > 0) {
+    throw new RequestValidationError(submission.errors);
+  }
+
+  const category = await requestsModel.findActiveCategory(submission.value.categoryId);
+  if (!category) {
+    throw new RequestValidationError({
+      categoryId: 'Please select an available category.',
+    });
+  }
+
+  const attachments = require('./requests.attachments.service');
+
+  let removeAttachmentIds = [];
+  if (input && input.removeAttachmentIds) {
+    if (Array.isArray(input.removeAttachmentIds)) {
+      removeAttachmentIds = input.removeAttachmentIds;
+    } else if (typeof input.removeAttachmentIds === 'string') {
+      removeAttachmentIds = [input.removeAttachmentIds];
+    }
+  }
+
+  if (removeAttachmentIds.length > 0) {
+    await attachments.remove(requestId, requesterId, removeAttachmentIds, 'requester');
+  }
+
+  if (files && files.length > 0) {
+    await attachments.add(requestId, requesterId, files, 'requester');
+  }
+
+  const updated = await requestsModel.updateRequesterRequest(
+    requestId,
+    requesterId,
+    submission.value
+  );
+  if (!updated) {
+    throw new RequestNotEditableError(
+      'Unable to update request. It may have already been assigned or updated.'
+    );
+  }
+
+  eventBus.emitAuditEvent('RequestDetailsUpdated', {
+    requestId,
+    requesterId,
+    timestamp: new Date(),
+  });
+
+  return updated;
 };
 exports.getForStaff = async (id, staffUserId) => {
   if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
