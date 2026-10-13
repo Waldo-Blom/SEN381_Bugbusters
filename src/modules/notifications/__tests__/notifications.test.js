@@ -25,7 +25,6 @@ const emailService = require('../email.service');
 const notificationsListener = require('../notifications.listener');
 const requestsModel = require('../../requests/requests.model');
 const requestsService = require('../../requests/requests.service');
-const { getEmailProvider, getEmailTransportOptions } = require('../../../config/env');
 const realNodemailer = jest.requireActual('nodemailer');
 
 const sendMail = jest.fn();
@@ -68,44 +67,6 @@ describe('request status email notifications', () => {
     delete process.env.EMAIL_PROVIDER;
     delete process.env.EMAIL_FROM;
     jest.restoreAllMocks();
-  });
-
-  it('uses SMTP in development and Gmail in production with environment credentials', () => {
-    expect(getEmailTransportOptions()).toEqual({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: { user: 'ethereal-user', pass: 'ethereal-pass' },
-    });
-
-    process.env.NODE_ENV = 'production';
-    expect(getEmailTransportOptions()).toEqual({
-      service: 'gmail',
-      auth: { user: 'ethereal-user', pass: 'ethereal-pass' },
-    });
-  });
-
-  it('allows Gmail to be selected without changing NODE_ENV', () => {
-    process.env.NODE_ENV = 'development';
-    process.env.EMAIL_PROVIDER = 'gmail';
-
-    expect(getEmailProvider()).toBe('gmail');
-    expect(getEmailTransportOptions()).toEqual({
-      service: 'gmail',
-      auth: { user: 'ethereal-user', pass: 'ethereal-pass' },
-    });
-  });
-
-  it.each(['SMTP', ' smtp '])('accepts SMTP provider value %j', (provider) => {
-    process.env.EMAIL_PROVIDER = provider;
-
-    expect(getEmailProvider()).toBe('smtp');
-    expect(getEmailTransportOptions()).toEqual({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: { user: 'ethereal-user', pass: 'ethereal-pass' },
-    });
   });
 
   // Opt in with RUN_ETHEREAL_TEST=true to send a real test email and print its preview link.

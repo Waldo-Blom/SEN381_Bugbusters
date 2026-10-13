@@ -1,5 +1,6 @@
-// Opt in with REPORTING_TEST_DATABASE_URL. Only connection-local temporary
+// Opt in with DATABASE_URL. Only connection-local temporary
 // tables are written; the transaction is rolled back and public tables untouched.
+require('dotenv').config({ quiet: true });
 jest.mock('../../src/config/database', () => ({ query: jest.fn(), pool: { connect: jest.fn() } }));
 
 const { Client } = require('pg');
@@ -9,12 +10,12 @@ const requestsModel = require('../../src/modules/requests/requests.model');
 
 jest.setTimeout(30000);
 
-const describeDatabase = process.env.REPORTING_TEST_DATABASE_URL ? describe : describe.skip;
+const describeDatabase = process.env.DATABASE_URL ? describe : describe.skip;
 
 describeDatabase('Reporting aggregates against PostgreSQL', () => {
   let client;
   beforeAll(async () => {
-    client = new Client({ connectionString: process.env.REPORTING_TEST_DATABASE_URL });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();
     await client.query('BEGIN');
     await client.query(`

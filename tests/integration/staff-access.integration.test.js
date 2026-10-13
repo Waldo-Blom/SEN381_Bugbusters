@@ -1,5 +1,6 @@
-// Opt in with STAFF_ACCESS_TEST_DATABASE_URL. All writes use connection-local
+// Opt in with DATABASE_URL. All writes use connection-local
 // temporary tables copied from the real schema; public request data is untouched.
+require('dotenv').config({ quiet: true });
 jest.mock('../../src/config/database', () => ({ query: jest.fn(), pool: { connect: jest.fn() } }));
 
 const { Client } = require('pg');
@@ -12,7 +13,7 @@ const workflow = require('../../src/modules/workflow/workflow.service');
 const routes = require('../../src/modules/requests/requests.routes');
 
 jest.setTimeout(30000);
-const databaseTests = process.env.STAFF_ACCESS_TEST_DATABASE_URL ? describe : describe.skip;
+const databaseTests = process.env.DATABASE_URL ? describe : describe.skip;
 const ids = Array.from(
   { length: 8 },
   (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`
@@ -53,7 +54,7 @@ databaseTests('Staff request access against PostgreSQL', () => {
   app.use((error, req, res, next) => res.status(error.statusCode || 500).send(error.message));
 
   beforeAll(async () => {
-    client = new Client({ connectionString: process.env.STAFF_ACCESS_TEST_DATABASE_URL });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();
     await client.query('BEGIN');
     for (const table of [
