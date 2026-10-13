@@ -1,3 +1,4 @@
+/* eslint-env browser */
 (() => {
   const toggle = document.querySelector('[data-mobile-nav-toggle]');
   const menu = document.querySelector('[data-mobile-nav]');

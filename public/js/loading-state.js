@@ -1,3 +1,4 @@
+/* eslint-env browser */
 (() => {
   const progress = document.querySelector('[data-page-loading]');
   const status = document.querySelector('[data-page-loading-status]');
