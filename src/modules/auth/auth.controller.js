@@ -20,7 +20,7 @@ const demoRoles = [
 ];
 
 const isDemoLoginEnabled = () =>
-  ['development', 'test'].includes(process.env.NODE_ENV) &&
+  ['development', 'test', 'staging'].includes(process.env.NODE_ENV) &&
   process.env.ENABLE_DEMO_LOGINS === 'true';
 
 const getDemoRolesForEnvironment = () => (isDemoLoginEnabled() ? demoRoles : []);
