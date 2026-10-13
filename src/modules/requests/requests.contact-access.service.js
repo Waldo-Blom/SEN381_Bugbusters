@@ -1,6 +1,7 @@
 const model = require('./requests.contact-access.model');
 const { isUuid } = require('./requests.schema');
 const { RequestAccessError } = require('./requests.access');
+const { formatDate } = require('../../shared/datetime');
 
 const validateIds = (id, actorId) => {
   if (!isUuid(id) || !isUuid(actorId))
@@ -47,9 +48,7 @@ exports.listInbox = async (managerId, departmentId) => {
     title: row.title,
     staffName: row.staff_name,
     reason: row.reason,
-    requestedAt: new Date(row.requested_at).toLocaleString('en-ZA', {
-      timeZone: 'Africa/Johannesburg',
-    }),
+    requestedAt: formatDate(row.requested_at),
     status: row.status.charAt(0) + row.status.slice(1).toLowerCase(),
     canReview: row.can_review === true,
   }));

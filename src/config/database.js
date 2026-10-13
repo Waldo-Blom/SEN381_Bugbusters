@@ -1,4 +1,5 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+const { parseDatabaseTimestamp } = require('../shared/datetime');
 require('dotenv').config();
 
 if (!process.env.DATABASE_URL) {
@@ -8,6 +9,13 @@ if (!process.env.DATABASE_URL) {
 // Shared PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Interpret legacy UTC timestamps consistently on every deployment host.
+  types: {
+    getTypeParser: (oid, format) =>
+      oid === 1114 && format !== 'binary'
+        ? parseDatabaseTimestamp
+        : types.getTypeParser(oid, format),
+  },
   max: 5,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
