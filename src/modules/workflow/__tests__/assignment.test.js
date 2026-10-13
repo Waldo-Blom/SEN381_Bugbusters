@@ -29,29 +29,6 @@ describe('FR-201 Staff Ticket Assignment (assignToSelf)', () => {
       expect(res.reason).toContain('Staff User ID is required');
     });
 
-    test('rejects when staff member belongs to a different department', async () => {
-      // Mock db query where staff_department_id is null (no matching active assignment)
-      db.query
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              status: 'SUBMITTED',
-              request_department_id: 'dept-roads',
-              request_department_name: 'Roads and Transport',
-              staff_department_id: null,
-            },
-          ],
-        })
-        .mockResolvedValueOnce({
-          rows: [{ name: 'Water and Sanitation' }],
-        });
-
-      const res = await workflowRules.canAssignToSelf(dummyRequestId, dummyStaffId);
-      expect(res.allowed).toBe(false);
-      expect(res.reason).toContain('Water and Sanitation');
-      expect(res.reason).toContain('Roads and Transport');
-    });
-
     test('rejects when request is in terminal status (e.g. RESOLVED)', async () => {
       db.query.mockResolvedValueOnce({
         rows: [

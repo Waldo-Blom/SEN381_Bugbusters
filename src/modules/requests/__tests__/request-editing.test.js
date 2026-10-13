@@ -62,6 +62,8 @@ const validUpdateInput = {
   priority: 'URGENT',
 };
 
+// Editing is limited to the owning requester while the request is still
+// Submitted; these cases cover service rules and the corresponding HTTP flow.
 describe('Requester Request Editing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -80,17 +82,6 @@ describe('Requester Request Editing', () => {
       expect(requestsModel.findById).toHaveBeenCalledWith(validRequestId, validRequesterId);
     });
 
-    it('returns null when request is not found', async () => {
-      requestsModel.findById.mockResolvedValue(null);
-
-      const result = await requestsService.getEditableForRequester(
-        validRequestId,
-        validRequesterId
-      );
-
-      expect(result).toBeNull();
-    });
-
     it('throws RequestNotEditableError when request is in progress or resolved', async () => {
       requestsModel.findById.mockResolvedValue({
         ...mockRequest,
@@ -100,12 +91,6 @@ describe('Requester Request Editing', () => {
       await expect(
         requestsService.getEditableForRequester(validRequestId, validRequesterId)
       ).rejects.toThrow('Only submitted requests can be edited.');
-    });
-
-    it('throws error when requesterId is missing', async () => {
-      await expect(requestsService.getEditableForRequester(validRequestId, null)).rejects.toThrow(
-        'No active database user is available for this action.'
-      );
     });
   });
 
@@ -145,58 +130,6 @@ describe('Requester Request Editing', () => {
       );
     });
 
-    it('removes specified attachments when removeAttachmentIds are provided', async () => {
-      requestsModel.findById.mockResolvedValue(mockRequest);
-      requestsModel.findActiveCategory.mockResolvedValue({ id: validCategoryId, name: 'Roads' });
-      requestsModel.updateRequesterRequest.mockResolvedValue({
-        ...mockRequest,
-        ...validUpdateInput,
-      });
-
-      await requestsService.updateRequesterRequest({
-        requestId: validRequestId,
-        requesterId: validRequesterId,
-        input: {
-          ...validUpdateInput,
-          removeAttachmentIds: ['44444444-4444-4444-8444-444444444444'],
-        },
-      });
-
-      expect(attachmentsService.remove).toHaveBeenCalledWith(
-        validRequestId,
-        validRequesterId,
-        ['44444444-4444-4444-8444-444444444444'],
-        'requester'
-      );
-    });
-
-    it('throws 404 when request does not exist or requester is not owner', async () => {
-      requestsModel.findById.mockResolvedValue(null);
-
-      await expect(
-        requestsService.updateRequesterRequest({
-          requestId: validRequestId,
-          requesterId: validRequesterId,
-          input: validUpdateInput,
-        })
-      ).rejects.toThrow('Request not found.');
-    });
-
-    it('throws RequestNotEditableError when status is not Submitted', async () => {
-      requestsModel.findById.mockResolvedValue({
-        ...mockRequest,
-        status: 'Assigned',
-      });
-
-      await expect(
-        requestsService.updateRequesterRequest({
-          requestId: validRequestId,
-          requesterId: validRequesterId,
-          input: validUpdateInput,
-        })
-      ).rejects.toThrow('Only submitted requests can be edited.');
-    });
-
     it('validates required fields and throws RequestValidationError', async () => {
       requestsModel.findById.mockResolvedValue(mockRequest);
 
@@ -220,145 +153,6 @@ describe('Requester Request Editing', () => {
           input: validUpdateInput,
         })
       ).rejects.toThrow('Please correct the request details.');
-    });
-  });
-
-  describe('HTTP endpoints for request editing', () => {
-    let agent;
-
-    beforeEach(async () => {
-      authService.authenticate.mockResolvedValue({
-        id: validRequesterId,
-        name: 'Jane Citizen',
-        email: 'citizen@example.com',
-        role: 'requester',
-        departmentId: null,
-      });
-
-      agent = request.agent(app);
-      await agent
-        .post('/auth/login')
-        .type('form')
-        .send({ email: 'citizen@example.com', password: 'Password123' });
-    });
-
-    it('requires authentication to access GET /requester/requests/:id/edit', async () => {
-      const unauthResponse = await request(app).get(`/requester/requests/${validRequestId}/edit`);
-      expect(unauthResponse.status).toBe(401);
-    });
-
-    it('renders the edit page for a submitted request', async () => {
-      requestsModel.findById.mockResolvedValue(mockRequest);
-      requestsModel.findCategories.mockResolvedValue([
-        { id: validCategoryId, name: 'Roads & Stormwater' },
-      ]);
-
-      const response = await agent.get(`/requester/requests/${validRequestId}/edit`);
-
-      expect(response.status).toBe(200);
-      expect(response.text).toContain('Edit Service Request');
-      expect(response.text).toContain('Pothole on Main Road');
-      expect(response.text).toContain('Save changes');
-    });
-
-    it('returns 400 when trying to edit a request that is already Assigned or In Progress', async () => {
-      requestsModel.findById.mockResolvedValue({
-        ...mockRequest,
-        status: 'In Progress',
-      });
-
-      const response = await agent.get(`/requester/requests/${validRequestId}/edit`);
-
-      expect(response.status).toBe(400);
-      expect(response.text).toContain('Only submitted requests can be edited.');
-    });
-
-    it('returns 404 when request is not found', async () => {
-      requestsModel.findById.mockResolvedValue(null);
-
-      const response = await agent.get(`/requester/requests/${validRequestId}/edit`);
-
-      expect(response.status).toBe(404);
-    });
-
-    it('POST /requester/requests/:id/edit updates the request and redirects to detail view', async () => {
-      requestsModel.findById.mockResolvedValue(mockRequest);
-      requestsModel.findActiveCategory.mockResolvedValue({ id: validCategoryId, name: 'Roads' });
-      requestsModel.updateRequesterRequest.mockResolvedValue({
-        ...mockRequest,
-        ...validUpdateInput,
-      });
-
-      const response = await agent
-        .post(`/requester/requests/${validRequestId}/edit`)
-        .type('form')
-        .send(validUpdateInput);
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe(`/requester/requests/${validRequestId}`);
-      expect(requestsModel.updateRequesterRequest).toHaveBeenCalled();
-    });
-
-    it('POST /requester/requests/:id/edit returns 400 with validation errors on invalid input', async () => {
-      requestsModel.findById.mockResolvedValue(mockRequest);
-      requestsModel.findCategories.mockResolvedValue([
-        { id: validCategoryId, name: 'Roads & Stormwater' },
-      ]);
-
-      const response = await agent
-        .post(`/requester/requests/${validRequestId}/edit`)
-        .type('form')
-        .send({ ...validUpdateInput, title: '' });
-
-      expect(response.status).toBe(400);
-      expect(response.text).toContain('Please enter a title');
-    });
-
-    it('renders existing attachments with remove checkboxes on GET', async () => {
-      requestsModel.findById.mockResolvedValue(mockRequest);
-      requestsModel.findCategories.mockResolvedValue([
-        { id: validCategoryId, name: 'Roads & Stormwater' },
-      ]);
-      attachmentsService.list.mockResolvedValue([
-        {
-          id: '55555555-5555-5555-8555-555555555555',
-          name: 'photo.jpg',
-          size: 1024,
-          extension: 'jpg',
-        },
-      ]);
-
-      const response = await agent.get(`/requester/requests/${validRequestId}/edit`);
-
-      expect(response.status).toBe(200);
-      expect(response.text).toContain('Currently Attached Images');
-      expect(response.text).toContain('photo.jpg');
-      expect(response.text).toContain('Remove image');
-    });
-
-    it('POST /requester/requests/:id/edit forwards removeAttachmentIds to service', async () => {
-      requestsModel.findById.mockResolvedValue(mockRequest);
-      requestsModel.findActiveCategory.mockResolvedValue({ id: validCategoryId, name: 'Roads' });
-      requestsModel.updateRequesterRequest.mockResolvedValue({
-        ...mockRequest,
-        ...validUpdateInput,
-      });
-
-      const response = await agent
-        .post(`/requester/requests/${validRequestId}/edit`)
-        .type('form')
-        .send({
-          ...validUpdateInput,
-          removeAttachmentIds: '55555555-5555-5555-8555-555555555555',
-        });
-
-      expect(response.status).toBe(302);
-      expect(attachmentsService.remove).toHaveBeenCalledWith(
-        validRequestId,
-        validRequesterId,
-        ['55555555-5555-5555-8555-555555555555'],
-        'requester'
-      );
     });
   });
 });

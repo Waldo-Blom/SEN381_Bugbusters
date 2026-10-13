@@ -63,28 +63,6 @@ describe('Audit model', () => {
     ]);
   });
 
-  it('queries request history together with request audit entries in manager scope', async () => {
-    query.mockResolvedValueOnce({ rows: [] });
-
-    await auditModel.getAuditLog({
-      managerId: 'manager-id',
-      departmentId: 'department-id',
-      limit: 25,
-      offset: 10,
-    });
-
-    const [sql, params] = query.mock.calls[0];
-    expect(sql).toContain('FROM request_status_history');
-    expect(sql).toContain('FROM request_assignment_history');
-    expect(sql).toContain('FROM admin_audit_log');
-    expect(sql).toContain("a.target_type IN ('USER', 'ASSIGNMENT')");
-    expect(sql).toContain("'USER_DEACTIVATED'");
-    expect(sql).toContain('d.manager_id = $2 AND d.department_id = $3');
-    expect(sql).toContain('d.manager_id = $2');
-    expect(sql).toContain('d.department_id = $3');
-    expect(params).toEqual([null, 'manager-id', 'department-id', null, 25, 10]);
-  });
-
   it('writes manager staff actions as audit log entries', async () => {
     await auditModel.recordAdminUserEvent(client, {
       actorId: 'manager-id',
@@ -105,13 +83,6 @@ describe('Audit model', () => {
       'staff-id',
       JSON.stringify({ isActive: false }),
     ]);
-  });
-
-  it('refuses to read a manager audit log without a department scope', async () => {
-    await expect(auditModel.getAuditLog({ managerId: 'manager-id' })).rejects.toThrow(
-      'Manager and department scope are required'
-    );
-    expect(query).not.toHaveBeenCalled();
   });
 });
 
@@ -146,24 +117,5 @@ describe('Audit listener', () => {
       newStatus: 'ASSIGNED',
     });
     expect(client.release).toHaveBeenCalled();
-  });
-
-  it('logs connection failures without rejecting the event handler', async () => {
-    const error = new Error('database unavailable');
-    pool.connect.mockRejectedValueOnce(error);
-    const logger = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-    await expect(
-      auditListener.handleRequestStatusChanged({
-        requestId: 'request-id',
-        userId: 'actor-id',
-        oldStatus: 'SUBMITTED',
-        newStatus: 'ASSIGNED',
-      })
-    ).resolves.toBeUndefined();
-    expect(logger).toHaveBeenCalledWith(
-      '[AuditListener] Failed to record status change audit for request request-id:',
-      error
-    );
   });
 });

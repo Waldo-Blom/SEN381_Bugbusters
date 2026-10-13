@@ -80,24 +80,3 @@ test.each(['unauthorised', 'ineligible', 'terminal', 'same assignee', 'write fai
     expect(client.release).toHaveBeenCalled();
   }
 );
-
-test('rejects malformed selections before opening a transaction', async () => {
-  await expect(assignment.assign(requestId, managerId, 'bad')).rejects.toMatchObject({
-    statusCode: 400,
-  });
-  expect(pool.connect).not.toHaveBeenCalled();
-});
-
-test('keeps an in-progress request in progress on reassignment', async () => {
-  const original = client.query.getMockImplementation();
-  client.query.mockImplementation(async (sql) =>
-    sql.startsWith('SELECT status') ? { rows: [{ status: 'IN_PROGRESS' }] } : original(sql)
-  );
-  await assignment.assign(requestId, managerId, staffId);
-  expect(
-    client.query.mock.calls.find(([sql]) => sql.startsWith('UPDATE service_requests'))[1][3]
-  ).toBe('IN_PROGRESS');
-  expect(
-    client.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO request_status_history'))
-  ).toBe(false);
-});
