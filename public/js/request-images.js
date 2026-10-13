@@ -53,7 +53,11 @@
   document.querySelectorAll('[data-attachment-gallery]').forEach(async (gallery) => {
     const status = gallery.querySelector('[data-attachment-status]');
     try {
-      const response = await fetch(`/requests/${gallery.dataset.requestId}/attachments`, { credentials: 'same-origin', cache: 'no-store' });
+      const response = await fetch(`/requests/${gallery.dataset.requestId}/attachments`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      });
       if (!response.ok) throw new Error('Images could not be loaded. Please reload the page.');
       const images = await response.json();
       status.textContent = images.length ? `${images.length} attached image${images.length === 1 ? '' : 's'}.` : 'No images attached yet.';

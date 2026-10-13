@@ -3,6 +3,7 @@ const contextModel = require('./requests.contact-access.model');
 const { RequestAccessError } = require('./requests.access');
 const { isUuid } = require('./requests.schema');
 const auditModel = require('../audit/audit.model');
+const { withTransaction } = require('../../shared/database/transaction');
 
 exports.listEligible = async (requestId, managerId) => {
   const context = await require('./requests.contact-access.service').getForManager(
@@ -25,9 +26,7 @@ exports.assign = async (requestId, managerId, staffId, priority) => {
     throw new RequestAccessError('Select a valid staff member.', 400);
   if (priority !== undefined && !['Low', 'Medium', 'High', 'Urgent'].includes(priority))
     throw new RequestAccessError('Select a valid priority.', 400);
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+  return withTransaction(pool, async (client) => {
     const context = await contextModel.findContext(requestId, managerId, client, true);
     if (!context) throw new RequestAccessError('Request not found.', 404);
     if (!context.manager_allowed)
@@ -80,11 +79,5 @@ exports.assign = async (requestId, managerId, staffId, priority) => {
       target_id: requestId,
       changed_data: { previousAssignee: context.assigned_staff_id, assignedToStaffId: staffId },
     });
-    await client.query('COMMIT');
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 };

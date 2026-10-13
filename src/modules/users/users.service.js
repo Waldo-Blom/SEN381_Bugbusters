@@ -1,7 +1,7 @@
 const usersModel = require('./users.model');
 const bcrypt = require('bcrypt');
+const { normalizeEmail, isValidEmail } = require('../../shared/validation/input');
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_BCRYPT_BYTES = 72;
 const BCRYPT_ROUNDS = 12;
@@ -155,7 +155,7 @@ class RequestCategoryNotFoundError extends Error {
 const validateStaffDetails = (input = {}) => {
   const firstName = typeof input.firstName === 'string' ? input.firstName.trim() : '';
   const lastName = typeof input.lastName === 'string' ? input.lastName.trim() : '';
-  const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
+  const email = normalizeEmail(input.email);
   const phone = typeof input.phone === 'string' ? input.phone.trim() : '';
   const password = typeof input.password === 'string' ? input.password : '';
   const errors = {};
@@ -166,7 +166,7 @@ const validateStaffDetails = (input = {}) => {
   if (!lastName || lastName.length > 100) {
     errors.lastName = 'Enter a last name (up to 100 characters).';
   }
-  if (!email || email.length > 255 || !EMAIL_PATTERN.test(email)) {
+  if (!isValidEmail(email)) {
     errors.email = 'Enter a valid email address.';
   }
   if (phone.length > 15) {

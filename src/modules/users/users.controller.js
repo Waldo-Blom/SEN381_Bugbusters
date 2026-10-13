@@ -3,6 +3,8 @@ const usersModel = require('./users.model');
 const { pageContext } = require('../../shared/views/pageContext');
 const { getAuthenticatedUserId } = require('../auth/auth.middleware');
 const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
+const { sendHttpError } = require('../../shared/middleware/error.middleware');
+const { isValidEmail } = require('../../shared/validation/input');
 
 const renderAdminUsers = async (
   req,
@@ -141,7 +143,7 @@ exports.staffList = async (req, res) => {
     });
   } catch (error) {
     if (error instanceof usersService.ManagerDepartmentError) {
-      return res.status(error.statusCode).send(error.message);
+      return sendHttpError(req, res, error.statusCode, error.message);
     }
     throw error;
   }
@@ -163,7 +165,7 @@ exports.createStaff = async (req, res) => {
       });
     }
     if (error instanceof usersService.ManagerDepartmentError) {
-      return res.status(error.statusCode).send(error.message);
+      return sendHttpError(req, res, error.statusCode, error.message);
     }
     throw error;
   }
@@ -175,7 +177,7 @@ exports.deactivateStaff = async (req, res) => {
     return res.redirect('/manager/users?status=deactivated');
   } catch (error) {
     if (error instanceof usersService.StaffNotFoundError) {
-      return res.status(error.statusCode).send(error.message);
+      return sendHttpError(req, res, error.statusCode, error.message);
     }
     throw error;
   }
@@ -190,7 +192,7 @@ exports.reactivateStaff = async (req, res) => {
       error instanceof usersService.StaffNotFoundError ||
       error instanceof usersService.StaffAssignmentConflictError
     ) {
-      return res.status(error.statusCode).send(error.message);
+      return sendHttpError(req, res, error.statusCode, error.message);
     }
     throw error;
   }
@@ -263,7 +265,7 @@ exports.deactivateRequestCategory = async (req, res) => {
     return res.redirect('/admin/categories?status=deactivated');
   } catch (error) {
     if (error instanceof usersService.RequestCategoryNotFoundError) {
-      return res.status(error.statusCode).send(error.message);
+      return sendHttpError(req, res, error.statusCode, error.message);
     }
     throw error;
   }
@@ -278,7 +280,7 @@ exports.reactivateRequestCategory = async (req, res) => {
     return res.redirect('/admin/categories?status=activated');
   } catch (error) {
     if (error instanceof usersService.RequestCategoryNotFoundError) {
-      return res.status(error.statusCode).send(error.message);
+      return sendHttpError(req, res, error.statusCode, error.message);
     }
     throw error;
   }
@@ -309,7 +311,7 @@ exports.deactivateUser = async (req, res) => {
     return res.redirect('/admin/users?status=deactivated');
   } catch (error) {
     if (error instanceof usersService.AdminUserNotFoundError) {
-      return res.status(error.statusCode).send(error.message);
+      return sendHttpError(req, res, error.statusCode, error.message);
     }
     throw error;
   }
@@ -340,7 +342,7 @@ const renderRequesterSettings = async (
   { error = null, success = null, profile = null } = {}
 ) => {
   const settings = await usersModel.findRequesterSettings(getAuthenticatedUserId(req));
-  if (!settings) return res.status(404).send('Requester account not found.');
+  if (!settings) return sendHttpError(req, res, 404, 'Requester account not found.');
   const name = `${settings.firstName} ${settings.lastName}`;
   const user = {
     ...pageContext('requester', req).user,
@@ -391,8 +393,7 @@ exports.updateRequesterProfile = async (req, res) => {
     !lastName ||
     firstName.length > 100 ||
     lastName.length > 100 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-    email.length > 255 ||
+    !isValidEmail(email) ||
     phone.length > 15
   ) {
     return renderRequesterSettings(req, res, {
@@ -402,7 +403,7 @@ exports.updateRequesterProfile = async (req, res) => {
   }
   try {
     const updated = await usersModel.updateRequesterProfile(getAuthenticatedUserId(req), profile);
-    if (!updated) return res.status(404).send('Requester account not found.');
+    if (!updated) return sendHttpError(req, res, 404, 'Requester account not found.');
     req.session.user.name = `${updated.firstName} ${updated.lastName}`;
     req.session.user.email = updated.email;
     req.session.user.avatarInitials = `${updated.firstName[0]}${updated.lastName[0]}`.toUpperCase();

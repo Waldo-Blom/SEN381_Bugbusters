@@ -41,7 +41,7 @@ exports.dashboard = async (req, res) => {
   });
 };
 
-exports.assignRequest = async (req, res) => {
+exports.assignRequest = async (req, res, next) => {
   const requestId = req.params.id;
   const staffUserId = req.session?.user?.id;
 
@@ -49,9 +49,6 @@ exports.assignRequest = async (req, res) => {
     await workflowService.assignToSelf(requestId, staffUserId);
     res.redirect(`/staff/requests/${requestId}`);
   } catch (error) {
-    if (error instanceof workflowService.AssignmentAuthorizationError) {
-      return res.status(403).send(error.message);
-    }
-    res.status(400).send(error.message);
+    next(error);
   }
 };

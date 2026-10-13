@@ -1,6 +1,7 @@
 const { query, pool } = require('../../config/database');
 const { RequestAccessError, requireStaffAccess } = require('./requests.access');
 const eventBus = require('../../shared/events/eventBus');
+const { withTransaction } = require('../../shared/database/transaction');
 
 // Resolve ownership from PostgreSQL rather than trusting session department IDs.
 exports.findContext = async (requestId, actorId, client = { query }, lock = false) => {
@@ -30,20 +31,7 @@ const requireManager = (context) => {
     throw new RequestAccessError("You do not manage this request's department.");
 };
 
-const transaction = async (operation) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await operation(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-};
+const transaction = (operation) => withTransaction(pool, operation);
 
 const setApproval = (client, requestId, managerId, approved) =>
   client.query(

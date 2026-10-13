@@ -8,11 +8,16 @@ jest.mock('../requests.service', () => ({
 jest.mock('../../workflow/workflow.service', () => ({ assignToSelf: jest.fn() }));
 
 const express = require('express');
+const path = require('path');
 const request = require('supertest');
+const { errorHandler } = require('../../../shared/middleware/error.middleware');
+const HttpError = require('../../../shared/errors/httpError');
 const requestsService = require('../requests.service');
 const requestsRoutes = require('../requests.routes');
 
 const app = express();
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, '../../../shared/views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use((req, res, next) => {
@@ -22,6 +27,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/', requestsRoutes);
+app.use(errorHandler);
 
 describe('Requests controller workflow routes', () => {
   beforeEach(() => {
@@ -65,13 +71,13 @@ describe('Requests controller workflow routes', () => {
 
   it('returns a bad request when the workflow rejects a transition', async () => {
     requestsService.workflow.transitionRequest.mockRejectedValue(
-      new Error('A resolution comment is required to resolve a request.')
+      new HttpError(400, 'A resolution comment is required to resolve a request.')
     );
 
     const response = await request(app).post('/staff/requests/request-1/resolve').send({});
 
     expect(response.status).toBe(400);
-    expect(response.text).toBe('A resolution comment is required to resolve a request.');
+    expect(response.text).toContain('A resolution comment is required to resolve a request.');
   });
 
   it('delegates self-assignment to the existing workflow assignment service', async () => {

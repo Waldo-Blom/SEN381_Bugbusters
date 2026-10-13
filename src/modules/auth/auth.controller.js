@@ -1,5 +1,7 @@
 const authService = require('./auth.service');
 const { validateLogin, validateRegistration } = require('./auth.schema');
+const { sendHttpError } = require('../../shared/middleware/error.middleware');
+const { normalizeEmail } = require('../../shared/validation/input');
 
 const redirectByRole = {
   requester: '/requester/my-requests',
@@ -29,7 +31,7 @@ const getConfiguredDemoCredentials = (role) => {
     return null;
   }
 
-  const email = process.env[`${configuredRole.envPrefix}_EMAIL`]?.trim().toLowerCase();
+  const email = normalizeEmail(process.env[`${configuredRole.envPrefix}_EMAIL`]);
   const password = process.env[`${configuredRole.envPrefix}_PASSWORD`];
   return email && password ? { email, password } : null;
 };
@@ -71,7 +73,7 @@ exports.passwordResetPage = (req, res) => {
 };
 
 exports.register = async (req, res) => {
-  const { errors, values } = validateRegistration(req.body);
+  const { errors, value: values } = req.validation?.body || validateRegistration(req.body);
   if (errors.length) {
     return res.status(400).render('auth/views/register', {
       title: 'Create Account',
@@ -103,7 +105,7 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   if (req.body.demoRole !== undefined) {
     if (!isDemoLoginEnabled()) {
-      return res.status(404).send('Not Found');
+      return sendHttpError(req, res, 404, 'The requested sign-in option is not available.');
     }
 
     const credentials = getConfiguredDemoCredentials(req.body.demoRole);
@@ -140,7 +142,7 @@ exports.login = async (req, res) => {
     return res.redirect(redirectByRole[user.role] || '/');
   }
 
-  const { errors, values } = validateLogin(req.body);
+  const { errors, value: values } = req.validation?.body || validateLogin(req.body);
   if (errors.length) {
     return res.status(400).render('auth/views/login', {
       title: 'Sign in',

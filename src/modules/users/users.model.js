@@ -1,5 +1,6 @@
 const { query, pool } = require('../../config/database');
 const auditModel = require('../audit/audit.model');
+const { withTransaction } = require('../../shared/database/transaction');
 
 exports.findRequesterSettings = async (userId) => {
   const result = await query(
@@ -32,20 +33,7 @@ exports.updateRequesterNotifications = async (userId, preferences) => {
   return result.rowCount > 0;
 };
 
-const transaction = async (operation) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await operation(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-};
+const transaction = (operation) => withTransaction(pool, operation);
 
 exports.findManagerDepartment = async (managerId) => {
   const result = await query(

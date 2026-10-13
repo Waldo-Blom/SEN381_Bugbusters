@@ -1,6 +1,7 @@
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALLOWED_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 const CONTACT_METHODS = ['PHONE', 'EMAIL'];
+const { isValidEmail } = require('../../shared/validation/input');
 
 const stringValue = (input, field) => (typeof input[field] === 'string' ? input[field].trim() : '');
 
@@ -69,7 +70,7 @@ exports.validateExternalRequester = (input = {}) => {
   if (phone.length > 15) {
     errors.externalPhone = 'The phone number must be 15 characters or fewer.';
   }
-  if (email && (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+  if (email && !isValidEmail(email)) {
     errors.externalEmail = 'Please enter a valid email address (255 characters or fewer).';
   }
   if (!phone && !email) {

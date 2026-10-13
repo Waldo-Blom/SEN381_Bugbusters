@@ -14,26 +14,11 @@ CREATE TABLE "admin_audit_log" (
 	"changed_data" json,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
-CREATE FUNCTION reject_admin_audit_log_mutations()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-	RAISE EXCEPTION 'admin_audit_log is append-only; % is not permitted', TG_OP
-		USING ERRCODE = '55000';
-END;
-$$;
-CREATE TRIGGER admin_audit_log_append_only
-	BEFORE UPDATE OR DELETE ON admin_audit_log
-	FOR EACH ROW EXECUTE FUNCTION reject_admin_audit_log_mutations();
-CREATE TRIGGER admin_audit_log_no_truncate
-	BEFORE TRUNCATE ON admin_audit_log
-	FOR EACH STATEMENT EXECUTE FUNCTION reject_admin_audit_log_mutations();
 CREATE TABLE "departments" (
 	"department_id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	"name" varchar(100) NOT NULL CONSTRAINT "departments_name_key" UNIQUE,
 	"description" text,
-	"manager_id" uuid NOT NULL CONSTRAINT "departments_manager_id_key" UNIQUE,
+	"manager_id" uuid CONSTRAINT "departments_manager_id_key" UNIQUE,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now()
@@ -84,6 +69,22 @@ CREATE TABLE "request_comments" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp,
 	"is_deleted" boolean DEFAULT false
+);
+CREATE TABLE "request_contact_access_requests" (
+	"contact_access_request_id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"request_id" uuid NOT NULL,
+	"requested_by" uuid NOT NULL,
+	"department_id" uuid NOT NULL,
+	"reason" text NOT NULL,
+	"status" varchar(10) DEFAULT 'PENDING' NOT NULL,
+	"requested_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"reviewed_by" uuid,
+	"reviewed_at" timestamp with time zone,
+	"review_note" text,
+	CONSTRAINT "contact_access_reason_not_blank" CHECK ((length(btrim(reason)) > 0)),
+	CONSTRAINT "contact_access_review_state" CHECK (((((status)::text = 'PENDING'::text) AND (reviewed_by IS NULL) AND (reviewed_at IS NULL)) OR (((status)::text = ANY ((ARRAY['APPROVED'::character varying, 'REJECTED'::character varying])::text[])) AND (reviewed_by IS NOT NULL) AND (reviewed_at IS NOT NULL)) OR (((status)::text = 'CANCELLED'::text) AND (reviewed_at IS NOT NULL)))),
+	CONSTRAINT "contact_access_review_time" CHECK (((reviewed_at IS NULL) OR (reviewed_at >= requested_at))),
+	CONSTRAINT "contact_access_valid_status" CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'CANCELLED'::character varying])::text[])))
 );
 CREATE TABLE "request_status_history" (
 	"status_history_id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -159,6 +160,10 @@ CREATE INDEX "request_comments_commented_by_idx" ON "request_comments" ("comment
 CREATE INDEX "request_comments_created_at_idx" ON "request_comments" ("created_at");
 CREATE UNIQUE INDEX "request_comments_pkey" ON "request_comments" ("comment_id");
 CREATE INDEX "request_comments_request_id_idx" ON "request_comments" ("request_id");
+CREATE INDEX "contact_access_department_status_requested_at" ON "request_contact_access_requests" ("department_id","status","requested_at");
+CREATE UNIQUE INDEX "contact_access_one_pending_per_staff_request" ON "request_contact_access_requests" ("request_id","requested_by");
+CREATE INDEX "contact_access_staff_requested_at" ON "request_contact_access_requests" ("requested_by","requested_at");
+CREATE UNIQUE INDEX "request_contact_access_requests_pkey" ON "request_contact_access_requests" ("contact_access_request_id");
 CREATE INDEX "request_status_history_changed_at_idx" ON "request_status_history" ("changed_at");
 CREATE UNIQUE INDEX "request_status_history_pkey" ON "request_status_history" ("status_history_id");
 CREATE INDEX "request_status_history_request_id_idx" ON "request_status_history" ("request_id");
@@ -188,6 +193,10 @@ ALTER TABLE "request_attachments" ADD CONSTRAINT "uploads" FOREIGN KEY ("uploade
 ALTER TABLE "request_categories" ADD CONSTRAINT "routes" FOREIGN KEY ("department_id") REFERENCES "departments"("department_id");
 ALTER TABLE "request_comments" ADD CONSTRAINT "comments" FOREIGN KEY ("request_id") REFERENCES "service_requests"("request_id") ON DELETE CASCADE;
 ALTER TABLE "request_comments" ADD CONSTRAINT "writes" FOREIGN KEY ("commented_by") REFERENCES "users"("user_id");
+ALTER TABLE "request_contact_access_requests" ADD CONSTRAINT "request_contact_access_requests_department_id_fkey" FOREIGN KEY ("department_id") REFERENCES "departments"("department_id");
+ALTER TABLE "request_contact_access_requests" ADD CONSTRAINT "request_contact_access_requests_request_id_fkey" FOREIGN KEY ("request_id") REFERENCES "service_requests"("request_id") ON DELETE CASCADE;
+ALTER TABLE "request_contact_access_requests" ADD CONSTRAINT "request_contact_access_requests_requested_by_fkey" FOREIGN KEY ("requested_by") REFERENCES "users"("user_id");
+ALTER TABLE "request_contact_access_requests" ADD CONSTRAINT "request_contact_access_requests_reviewed_by_fkey" FOREIGN KEY ("reviewed_by") REFERENCES "users"("user_id");
 ALTER TABLE "request_status_history" ADD CONSTRAINT "changes" FOREIGN KEY ("changed_by") REFERENCES "users"("user_id");
 ALTER TABLE "request_status_history" ADD CONSTRAINT "history" FOREIGN KEY ("request_id") REFERENCES "service_requests"("request_id") ON DELETE CASCADE;
 ALTER TABLE "service_requests" ADD CONSTRAINT "assigned_by_staff" FOREIGN KEY ("assigned_by") REFERENCES "users"("user_id");

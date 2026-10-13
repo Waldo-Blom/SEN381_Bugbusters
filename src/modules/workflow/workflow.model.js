@@ -1,5 +1,7 @@
 const { query, pool } = require('../../config/database');
 const eventBus = require('../../shared/events/eventBus');
+const { withTransaction } = require('../../shared/database/transaction');
+const HttpError = require('../../shared/errors/httpError');
 
 /**
  * Validates whether a staff member belongs to the same department as the request category.
@@ -58,26 +60,21 @@ exports.validateStaffDepartment = async (requestId, staffUserId) => {
  * @returns {Promise<object>} updated request record
  */
 exports.assignToStaff = async (requestId, staffUserId) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
+  const assignment = await withTransaction(pool, async (client) => {
     // 1. Lock request row
     const reqRes = await client.query(
       'SELECT status, assigned_staff_id FROM service_requests WHERE request_id = $1 FOR UPDATE',
       [requestId]
     );
     if (reqRes.rows.length === 0) {
-      throw new Error('Request not found');
+      throw new HttpError(404, 'Request not found.');
     }
     const currentStatus = reqRes.rows[0].status;
     const previousAssignee = reqRes.rows[0].assigned_staff_id;
     const { requestsService } = require('../requests');
     await requestsService.checkStaffAccess(requestId, staffUserId, client);
     if (reqRes.rows[0].assigned_staff_id || currentStatus !== 'SUBMITTED') {
-      const error = new Error('This request is not available for assignment.');
-      error.statusCode = 403;
-      throw error;
+      throw new HttpError(403, 'This request is not available for assignment.');
     }
     const now = new Date();
 
@@ -114,27 +111,25 @@ exports.assignToStaff = async (requestId, staffUserId) => {
       );
     }
 
-    await client.query('COMMIT');
-
-    // Emit audit event for assignment (after successful commit)
-    eventBus.emitAuditEvent('RequestAssigned', {
-      requestId,
-      assignedToStaffId: staffUserId,
-      userId: staffUserId,
-      previousAssignee,
-      timestamp: new Date(),
-    });
-
     return {
-      requestId,
-      status: newStatus,
-      assignedStaffId: staffUserId,
-      assignedAt: now,
+      result: {
+        requestId,
+        status: newStatus,
+        assignedStaffId: staffUserId,
+        assignedAt: now,
+      },
+      previousAssignee,
     };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
+
+  // Emit audit event only after the shared transaction helper commits successfully.
+  eventBus.emitAuditEvent('RequestAssigned', {
+    requestId,
+    assignedToStaffId: staffUserId,
+    userId: staffUserId,
+    previousAssignee: assignment.previousAssignee,
+    timestamp: new Date(),
+  });
+
+  return assignment.result;
 };

@@ -1,3 +1,5 @@
+const { sendHttpError } = require('../../shared/middleware/error.middleware');
+
 // Read the full session identity when a controller needs user details for a view.
 const getAuthenticatedUser = (req) => req.session?.user || null;
 
@@ -17,7 +19,7 @@ const getAuthenticatedUserRole = (req) => getAuthenticatedUser(req)?.role || nul
 const requireAuth = (req, res, next) => {
   // express-session attaches the user's saved session to req for every request.
   if (!getAuthenticatedUser(req) || !getAuthenticatedUserId(req)) {
-    return res.status(401).send('Please sign in to continue.');
+    return sendHttpError(req, res, 401, 'Please sign in to continue.');
   }
   next();
 };
@@ -33,10 +35,10 @@ const requireRole = (
   return (req, res, next) => {
     const user = getAuthenticatedUser(req);
     if (!user || !getAuthenticatedUserId(req)) {
-      return res.status(401).send(unauthenticatedMessage);
+      return sendHttpError(req, res, 401, unauthenticatedMessage);
     }
     if (!user.email || !allowedRoles.includes(getAuthenticatedUserRole(req))) {
-      return res.status(403).send(message);
+      return sendHttpError(req, res, 403, message);
     }
     next();
   };
@@ -48,7 +50,7 @@ const requireManager = (req, res, next) => {
     return res.redirect('/auth/login');
   }
   if (!user.email || getAuthenticatedUserRole(req) !== 'management') {
-    return res.status(403).send('Only managers can access staff management.');
+    return sendHttpError(req, res, 403, 'Only managers can access staff management.');
   }
   next();
 };
@@ -57,10 +59,10 @@ const requireManager = (req, res, next) => {
 const requireDepartment = (departmentId) => (req, res, next) => {
   const user = getAuthenticatedUser(req);
   if (!user || !getAuthenticatedUserId(req)) {
-    return res.status(401).send('Please sign in to continue.');
+    return sendHttpError(req, res, 401, 'Please sign in to continue.');
   }
   if (!user.departmentId || user.departmentId !== departmentId) {
-    return res.status(403).send('You do not have permission to access this department.');
+    return sendHttpError(req, res, 403, 'You do not have permission to access this department.');
   }
   next();
 };

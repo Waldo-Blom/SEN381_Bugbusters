@@ -1,5 +1,6 @@
 const service = require('./requests.attachments.service');
 const { getAuthenticatedUserId, getAuthenticatedUserRole } = require('../auth/auth.middleware');
+const { sendHttpError } = require('../../shared/middleware/error.middleware');
 
 const action = (operation) => async (req, res, next) => {
   res.set('Cache-Control', 'private, no-store');
@@ -7,7 +8,7 @@ const action = (operation) => async (req, res, next) => {
   try {
     await operation(req, res);
   } catch (error) {
-    if (error.statusCode) return res.status(error.statusCode).send(error.message);
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
     next(error);
   }
 };
@@ -47,7 +48,7 @@ exports.operatorDetail = action(async (req, res) => {
   const id = getAuthenticatedUserId(req);
   await service.list(req.params.id, id, getAuthenticatedUserRole(req));
   const request = await require('./requests.service').getById(req.params.id);
-  if (!request) return res.status(404).send('Request not found.');
+  if (!request) return sendHttpError(req, res, 404, 'Request not found.');
   const { pageContext } = require('../../shared/views/pageContext');
   const { getCsrfToken } = require('../../shared/middleware/csrf.middleware');
   res.render('requests/views/requester/request-detail', {

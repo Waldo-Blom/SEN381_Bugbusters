@@ -214,7 +214,7 @@
         try {
           const response = await fetch(
             `/operator/community-members/search?q=${encodeURIComponent(term)}`,
-            { signal: activeSearch.signal }
+            { signal: activeSearch.signal, headers: { Accept: 'application/json' } }
           );
           if (!response.ok) throw new Error('Unable to search community members.');
 
