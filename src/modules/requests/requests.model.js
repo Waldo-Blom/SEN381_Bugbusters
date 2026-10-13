@@ -2,6 +2,7 @@ const { query, pool } = require('../../config/database');
 const { RequestAccessError, requireStaffAccess } = require('./requests.access');
 const { ALLOWED_TRANSITIONS } = require('./requests.constants');
 const { withTransaction } = require('../../shared/database/transaction');
+const { formatDate } = require('../../shared/datetime');
 
 const staffMembership = `EXISTS (
   SELECT 1 FROM staff_assignments sa JOIN users viewer ON viewer.user_id = sa.staff_id
@@ -27,11 +28,6 @@ const toTitleCase = (str) => {
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
-};
-
-const formatDate = (date) => {
-  if (!date) return '';
-  return new Date(date).toISOString().slice(0, 16).replace('T', ' ');
 };
 
 // Suppress contact fields in PostgreSQL before they reach staff-facing code.

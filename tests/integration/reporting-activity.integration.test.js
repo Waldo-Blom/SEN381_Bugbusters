@@ -62,7 +62,7 @@ describeDatabase('Reporting activity against PostgreSQL', () => {
       'status',
       'submission',
     ]);
-    expect(events[0].timestamp).toBe('2026-01-04 00:00');
+    expect(events[0].timestamp).toBe('2026-01-04 02:00');
     expect(events[0].actor).toBe('Test Staff');
     expect(events[1].assignee).toBe('Test Staff');
     expect(events.every((event) => event.reference === 'CC-1')).toBe(true);
@@ -76,7 +76,7 @@ describeDatabase('Reporting activity against PostgreSQL', () => {
     const first = await model.findRecentActivity(manager, 'department');
     const second = await model.findRecentActivity(manager, 'department');
     expect(first).toHaveLength(10);
-    expect(first.every((event) => event.timestamp === '2026-02-01 00:00')).toBe(true);
+    expect(first.every((event) => event.timestamp === '2026-02-01 02:00')).toBe(true);
     expect(first).toEqual(second);
   });
 });

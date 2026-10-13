@@ -85,10 +85,10 @@ exports.assignToStaff = async (requestId, staffUserId) => {
     await client.query(
       `UPDATE service_requests 
        SET assigned_staff_id = $1,
-           assigned_at = $2,
+           assigned_at = $2::timestamptz AT TIME ZONE 'UTC',
            assigned_by = $1,
            status = $3,
-           updated_at = $2
+           updated_at = $2::timestamptz AT TIME ZONE 'UTC'
        WHERE request_id = $4`,
       [staffUserId, now, newStatus, requestId]
     );
@@ -97,7 +97,7 @@ exports.assignToStaff = async (requestId, staffUserId) => {
     await client.query(
       `INSERT INTO request_assignment_history 
         (request_id, assigned_to_staff_id, assigned_by_id, assigned_at)
-       VALUES ($1, $2, $2, $3)`,
+       VALUES ($1, $2, $2, $3::timestamptz AT TIME ZONE 'UTC')`,
       [requestId, staffUserId, now]
     );
 
@@ -106,7 +106,7 @@ exports.assignToStaff = async (requestId, staffUserId) => {
       await client.query(
         `INSERT INTO request_status_history
           (request_id, old_status, new_status, changed_by, changed_at)
-         VALUES ($1, $2, $3, $4, $5)`,
+         VALUES ($1, $2, $3, $4, $5::timestamptz AT TIME ZONE 'UTC')`,
         [requestId, currentStatus, newStatus, staffUserId, now]
       );
     }

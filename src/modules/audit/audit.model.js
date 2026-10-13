@@ -126,7 +126,7 @@ const queryAuditLog = async ({
               NULLIF(concat_ws(' ', assignee.first_name, assignee.last_name), '') AS assignee_name,
               NULLIF(concat_ws(' ', subject.first_name, subject.last_name), '') AS subject_name,
               subject.email AS subject_email,
-              to_char(e.created_at, 'YYYY-MM-DD HH24:MI') AS timestamp
+              to_char(e.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI') AS timestamp
        FROM entries e
        LEFT JOIN users actor ON actor.user_id = e.actor_id
        LEFT JOIN users assignee ON assignee.user_id = e.assignee_id

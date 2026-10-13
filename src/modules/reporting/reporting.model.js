@@ -59,7 +59,7 @@ exports.findRecentActivity = async (managerId, departmentId) => {
      SELECT s.request_id AS id, s.request_number AS reference, s.title,
             s.category, s.status, s.priority, e.event_id, e.event_type,
             e.event_status, e.comment_type,
-            to_char(e.occurred_at, 'YYYY-MM-DD HH24:MI') AS timestamp,
+            to_char(e.occurred_at AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI') AS timestamp,
             NULLIF(concat_ws(' ', actor.first_name, actor.last_name), '') AS actor,
             NULLIF(concat_ws(' ', staff.first_name, staff.last_name), '') AS assignee
      FROM events e JOIN scoped s USING (request_id)
