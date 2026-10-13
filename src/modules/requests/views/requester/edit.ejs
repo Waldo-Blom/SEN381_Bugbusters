@@ -120,7 +120,7 @@
         <a href="/requester/requests/<%= request.id %>" class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-medium text-slate-700 hover:bg-slate-50">
           Cancel
         </a>
-        <button id="saveChangesButton" type="submit" class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+        <button id="saveChangesButton" type="submit" data-loading-text="Saving..." class="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
           Save changes
         </button>
       </div>
@@ -129,23 +129,6 @@
 </div>
 
 <script>
-  const editRequestForm = document.getElementById('editRequestForm');
-  const saveChangesButton = document.getElementById('saveChangesButton');
-
-  if (editRequestForm && saveChangesButton) {
-    editRequestForm.addEventListener('submit', (e) => {
-      if (e.defaultPrevented) return;
-      if (editRequestForm.dataset.submitting === 'true') {
-        e.preventDefault();
-        return false;
-      }
-      editRequestForm.dataset.submitting = 'true';
-      saveChangesButton.disabled = true;
-      saveChangesButton.textContent = 'Saving...';
-      saveChangesButton.classList.add('opacity-50', 'cursor-not-allowed');
-    });
-  }
-
   const priorityInput = document.getElementById('priority');
   const priorityButtons = document.querySelectorAll('[data-priority]');
 
