@@ -36,8 +36,8 @@
   </div>
 
   <div class="space-y-1.5">
-    <label for="phone" class="block text-sm font-medium text-slate-700">Phone number</label>
-    <input type="tel" id="phone" name="phone" value="<%= values.phone || '' %>" placeholder="+1 (555) 000-0000" maxlength="15"
+    <label for="phone" class="block text-sm font-medium text-slate-700">Phone number <span class="font-normal text-slate-500">(optional)</span></label>
+    <input type="tel" id="phone" name="phone" value="<%= values.phone || '' %>" placeholder="+27 82 123 4567" maxlength="15" autocomplete="tel"
            class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
   </div>
 
