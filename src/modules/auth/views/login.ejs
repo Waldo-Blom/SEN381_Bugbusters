@@ -43,26 +43,6 @@
     Sign in
   </button>
 
-  <% if (demoLoginsEnabled && demoRoles.length) { %>
-    <div class="space-y-3 border-t border-slate-200 pt-5">
-      <p class="text-center text-xs font-medium text-amber-800">
-        These demo buttons make it quicker to present our video demo. They will not appear in production.
-      </p>
-      <p class="text-center text-xs text-slate-500">
-        Use the buttons below to quickly sign in as each demo account.
-      </p>
-      <p class="text-center text-xs text-slate-500">Demo: sign in as</p>
-      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <% demoRoles.forEach(({ role, label }) => { %>
-          <button type="submit" name="demoRole" value="<%= role %>" formnovalidate
-                  class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-all">
-            <%= label %>
-          </button>
-        <% }) %>
-      </div>
-    </div>
-  <% } %>
-
   <p class="text-center text-sm text-slate-500">
     Don't have an account?
     <a href="/auth/register" class="font-semibold text-blue-600 hover:text-blue-700">Create one</a>
