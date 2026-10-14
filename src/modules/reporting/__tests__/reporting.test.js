@@ -2,38 +2,7 @@ jest.mock('../../../config/database', () => ({ query: jest.fn() }));
 // Keep reporting coverage together while keeping route authorization, service
 // calculations, activity formatting, and inbox privacy independently readable.
 describe('Audit reporting', () => {
-  const path = require('path');
-  const express = require('express');
-  const request = require('supertest');
   const { query } = require('../../../config/database');
-  const routes = require('../reporting.routes');
-
-  const managerId = '11111111-1111-4111-8111-111111111111';
-  const departmentId = '22222222-2222-4222-8222-222222222222';
-  const manager = {
-    id: managerId,
-    role: 'management',
-    name: 'Test Manager',
-    email: 'manager@example.com',
-    avatarInitials: 'TM',
-  };
-
-  const createApp = (user) => {
-    const app = express();
-    app.set('view engine', 'ejs');
-    app.set('views', [
-      path.resolve(__dirname, '../..'),
-      path.resolve(__dirname, '../../../shared/views'),
-    ]);
-    app.use((req, res, next) => {
-      req.session = { user };
-      next();
-    });
-    app.use(routes);
-    // eslint-disable-next-line no-unused-vars
-    app.use((error, req, res, next) => res.status(500).send('Unable to load report'));
-    return app;
-  };
 
   beforeEach(() => query.mockReset());
 
@@ -298,15 +267,11 @@ describe('Contact access inbox', () => {
   const path = require('path');
   const express = require('express');
   const request = require('supertest');
-  const ejs = require('ejs');
   const { query } = require('../../../config/database');
-  const service = require('../reporting.service');
   const routes = require('../reporting.routes');
-  const { managementNav, staffNav } = require('../../../shared/views/nav');
 
   const inboxPath = '/manager/contact-access-requests';
   const managerId = '11111111-1111-4111-8111-111111111111';
-  const department = { id: '22222222-2222-4222-8222-222222222222', name: 'Water and Sanitation' };
   const manager = {
     id: managerId,
     role: 'management',
@@ -332,17 +297,6 @@ describe('Contact access inbox', () => {
     // eslint-disable-next-line no-unused-vars
     app.use((error, req, res, next) => res.status(500).send('Database unavailable'));
     return app;
-  };
-
-  const viewContext = {
-    title: 'Contact Access Requests',
-    user: manager,
-    navItems: managementNav,
-    activeHref: inboxPath,
-    roleLabel: 'Management Console',
-    pageTitle: 'Contact Access Requests',
-    pageSubtitle: 'Review staff requests for requester contact information',
-    department,
   };
 
   beforeEach(() => query.mockReset());

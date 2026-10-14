@@ -188,16 +188,7 @@ jobs:
   ci-gate:
     name: CI gate
     needs:
-      [
-        lint,
-        dependency-audit,
-        secret-scan,
-        unit-tests,
-        functional-tests,
-        integration,
-        e2e,
-        db-test,
-      ]
+      [lint, dependency-audit, secret-scan, unit-tests, functional-tests, integration, e2e, db-test]
     if: always()
     runs-on: ubuntu-latest
     steps:

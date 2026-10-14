@@ -3,7 +3,6 @@ jest.mock('../../../config/database', () => ({
 }));
 
 const path = require('path');
-const ejs = require('ejs');
 const bcrypt = require('bcrypt');
 const express = require('express');
 const session = require('express-session');
@@ -14,7 +13,6 @@ const { validateRegistration } = require('../auth.schema');
 const authRoutes = require('../auth.routes');
 const { requireAuth, requireRole, requireDepartment } = require('../auth.middleware');
 const workflowRoutes = require('../../workflow/workflow.routes');
-const { pageContext } = require('../../../shared/views/pageContext');
 
 const app = express();
 app.set('view engine', 'ejs');

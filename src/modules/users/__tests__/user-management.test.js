@@ -4,14 +4,9 @@ jest.mock('../../../config/database', () => ({
 }));
 
 describe('Administrator user management', () => {
-  const path = require('path');
   const bcrypt = require('bcrypt');
-  const express = require('express');
-  const session = require('express-session');
-  const request = require('supertest');
   const db = require('../../../config/database');
   const usersService = require('../users.service');
-  const usersRoutes = require('../users.routes');
 
   const adminId = '11111111-1111-4111-8111-111111111111';
   const departmentId = '22222222-2222-4222-8222-222222222222';
@@ -26,38 +21,11 @@ describe('Administrator user management', () => {
     departmentId,
   };
 
-  const app = express();
-  app.set('view engine', 'ejs');
-  app.set('views', [path.join(__dirname, '../..'), path.join(__dirname, '../../../shared/views')]);
-  app.use(express.urlencoded({ extended: true }));
-  app.use(express.json());
-  app.use(
-    session({
-      secret: 'admin-user-tests',
-      resave: false,
-      saveUninitialized: false,
-    })
-  );
-  app.get('/test/login/:role', (req, res) => {
-    req.session.user = {
-      id: req.params.role === 'admin' ? adminId : managerId,
-      name: 'Test User',
-      email: 'test@example.com',
-      role: req.params.role,
-      departmentId,
-      avatarInitials: 'TU',
-    };
-    res.sendStatus(204);
-  });
-  app.use(usersRoutes);
-
   const makeClient = (implementation) => {
     const client = { query: jest.fn(implementation), release: jest.fn() };
     db.pool.connect.mockResolvedValue(client);
     return client;
   };
-
-  const csrfFrom = (html) => html.match(/name="_csrf" value="([^"]+)"/)[1];
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -237,55 +205,14 @@ describe('Administrator user management', () => {
 });
 
 describe('Manager and staff user management', () => {
-  const bcrypt = require('bcrypt');
-  const express = require('express');
-  const session = require('express-session');
-  const request = require('supertest');
   const db = require('../../../config/database');
   const usersModel = require('../users.model');
   const usersService = require('../users.service');
-  const usersRoutes = require('../users.routes');
 
   const managerId = '11111111-1111-4111-8111-111111111111';
   const departmentId = '22222222-2222-4222-8222-222222222222';
   const staffId = '33333333-3333-4333-8333-333333333333';
   const assignmentId = '44444444-4444-4444-8444-444444444444';
-  const staffInput = {
-    firstName: 'Jane',
-    lastName: 'Smith',
-    email: 'Jane.Smith@example.com',
-    phone: '555-1234',
-    password: 'InitialPass1',
-  };
-
-  const app = express();
-  app.set('view engine', 'ejs');
-  app.set('views', [
-    require('path').join(__dirname, '../..'),
-    require('path').join(__dirname, '../../../shared/views'),
-  ]);
-  app.use(express.urlencoded({ extended: true }));
-  app.use(express.json());
-  app.use(
-    session({
-      secret: 'manager-staff-tests',
-      resave: false,
-      saveUninitialized: false,
-    })
-  );
-  app.get('/test/login/:role', (req, res) => {
-    req.session.user = {
-      id: managerId,
-      name: 'Morgan Manager',
-      email: 'manager@example.com',
-      role: req.params.role,
-      departmentId,
-      avatarInitials: 'MM',
-    };
-    res.sendStatus(204);
-  });
-  app.use(usersRoutes);
-
   const makeClient = (queryImplementation) => {
     const client = {
       query: jest.fn(queryImplementation),
@@ -294,33 +221,6 @@ describe('Manager and staff user management', () => {
     db.pool.connect.mockResolvedValue(client);
     return client;
   };
-
-  const provideListData = () => {
-    db.query
-      .mockResolvedValueOnce({
-        rows: [{ departmentId, departmentName: 'Water and Sanitation' }],
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            userId: staffId,
-            firstName: 'Sam',
-            lastName: 'Staff',
-            email: 'sam@example.com',
-            isActive: true,
-          },
-          {
-            userId: '55555555-5555-4555-8555-555555555555',
-            firstName: 'Alex',
-            lastName: 'Former',
-            email: 'alex@example.com',
-            isActive: false,
-          },
-        ],
-      });
-  };
-
-  const csrfFrom = (html) => html.match(/name="_csrf" value="([^"]+)"/)[1];
 
   beforeEach(() => {
     jest.clearAllMocks();
