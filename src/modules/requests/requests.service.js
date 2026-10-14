@@ -72,7 +72,8 @@ const createServiceRequest = async ({ input, actorType, actorUserId, files = [] 
 
   const creationInput = {
     ...submission.value,
-    requesterId: actorType === 'REQUESTER' ? actorId : null,
+    // Demo regression: omitting the citizen owner makes a created request vanish from their history.
+    requesterId:null,
     externalRequesterId:
       actorType === 'OPERATOR' && input.externalRequesterId
         ? input.externalRequesterId.trim()
