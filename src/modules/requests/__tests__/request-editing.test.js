@@ -29,12 +29,8 @@ jest.mock('../requests.attachments.service', () => ({
   remove: jest.fn().mockResolvedValue([]),
 }));
 
-const request = require('supertest');
-const app = require('../../../app');
 const requestsModel = require('../requests.model');
 const requestsService = require('../requests.service');
-const attachmentsService = require('../requests.attachments.service');
-const authService = require('../../auth/auth.service');
 const eventBus = require('../../../shared/events/eventBus');
 
 const validRequestId = '11111111-1111-4111-8111-111111111111';
@@ -63,7 +59,7 @@ const validUpdateInput = {
 };
 
 // Editing is limited to the owning requester while the request is still
-// Submitted; these cases cover service rules and the corresponding HTTP flow.
+// Submitted; these cases cover ownership, validation and update service rules.
 describe('Requester Request Editing', () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -1,10 +1,10 @@
 CREATE SCHEMA "public";
-CREATE TYPE "user_type" AS ENUM('REQUESTER', 'STAFF', 'MANAGER', 'ADMIN');
-CREATE TYPE "request_status" AS ENUM('SUBMITTED', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REJECTED');
-CREATE TYPE "priority" AS ENUM('LOW', 'MEDIUM', 'HIGH', 'URGENT');
-CREATE TYPE "comment_type" AS ENUM('ACTION', 'RESOLUTION', 'NOTE', 'UPDATE');
 CREATE TYPE "action_type" AS ENUM('USER_CREATED', 'USER_MODIFIED', 'USER_DEACTIVATED', 'DEPARTMENT_CREATED', 'DEPARTMENT_MODIFIED', 'STAFF_ASSIGNED', 'STAFF_REMOVED', 'MANAGER_CREATED', 'MANAGER_REMOVED', 'CATEGORY_CREATED', 'CATEGORY_MODIFIED', 'CONTACT_ACCESS_REQUESTED', 'CONTACT_ACCESS_APPROVED', 'CONTACT_ACCESS_REJECTED', 'CONTACT_ACCESS_REVOKED', 'STATUS_CHANGED', 'REQUEST_ASSIGNED');
+CREATE TYPE "comment_type" AS ENUM('ACTION', 'RESOLUTION', 'NOTE', 'UPDATE');
+CREATE TYPE "priority" AS ENUM('LOW', 'MEDIUM', 'HIGH', 'URGENT');
+CREATE TYPE "request_status" AS ENUM('SUBMITTED', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REJECTED');
 CREATE TYPE "target_type" AS ENUM('USER', 'DEPARTMENT', 'CATEGORY', 'ASSIGNMENT', 'REQUEST');
+CREATE TYPE "user_type" AS ENUM('REQUESTER', 'STAFF', 'MANAGER', 'ADMIN', 'OPERATOR');
 CREATE TABLE "admin_audit_log" (
 	"audit_id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	"admin_id" uuid NOT NULL,
@@ -82,9 +82,9 @@ CREATE TABLE "request_contact_access_requests" (
 	"reviewed_at" timestamp with time zone,
 	"review_note" text,
 	CONSTRAINT "contact_access_reason_not_blank" CHECK ((length(btrim(reason)) > 0)),
-	CONSTRAINT "contact_access_review_state" CHECK (((((status)::text = 'PENDING'::text) AND (reviewed_by IS NULL) AND (reviewed_at IS NULL)) OR (((status)::text = ANY ((ARRAY['APPROVED'::character varying, 'REJECTED'::character varying])::text[])) AND (reviewed_by IS NOT NULL) AND (reviewed_at IS NOT NULL)) OR (((status)::text = 'CANCELLED'::text) AND (reviewed_at IS NOT NULL)))),
+	CONSTRAINT "contact_access_review_state" CHECK (((((status)::text = 'PENDING'::text) AND (reviewed_by IS NULL) AND (reviewed_at IS NULL)) OR (((status)::text = ANY (ARRAY[('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text])) AND (reviewed_by IS NOT NULL) AND (reviewed_at IS NOT NULL)) OR (((status)::text = 'CANCELLED'::text) AND (reviewed_at IS NOT NULL)))),
 	CONSTRAINT "contact_access_review_time" CHECK (((reviewed_at IS NULL) OR (reviewed_at >= requested_at))),
-	CONSTRAINT "contact_access_valid_status" CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'CANCELLED'::character varying])::text[])))
+	CONSTRAINT "contact_access_valid_status" CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('CANCELLED'::character varying)::text])))
 );
 CREATE TABLE "request_status_history" (
 	"status_history_id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),

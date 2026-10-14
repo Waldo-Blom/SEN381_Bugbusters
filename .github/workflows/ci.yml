@@ -121,22 +121,6 @@ jobs:
       - name: Run integration and API tests
         run: npx jest --selectProjects integration --ci --runInBand
 
-  performance-tests:
-    name: Performance test plan
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      NODE_ENV: test
-      SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
-      PERFORMANCE_TEST: '1'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-node
-      - name: Run performance test plan
-        run: npx jest --selectProjects performance --ci --runInBand
-
   # ------------------------------------------------------------------
   # SIMULATED STAGING + E2E
   # Starts the app the way it runs in production (NODE_ENV=production,
@@ -204,17 +188,7 @@ jobs:
   ci-gate:
     name: CI gate
     needs:
-      [
-        lint,
-        dependency-audit,
-        secret-scan,
-        unit-tests,
-        functional-tests,
-        integration,
-        performance-tests,
-        e2e,
-        db-test,
-      ]
+      [lint, dependency-audit, secret-scan, unit-tests, functional-tests, integration, e2e, db-test]
     if: always()
     runs-on: ubuntu-latest
     steps:

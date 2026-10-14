@@ -44,7 +44,6 @@
     const form = event.target;
     if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
     if (form.method.toUpperCase() === 'GET' || form.hasAttribute('data-no-loading')) return;
-    if (event.submitter?.name === 'demoRole') return;
 
     if (form.dataset.submitting === 'true') {
       event.preventDefault();

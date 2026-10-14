@@ -3,7 +3,6 @@ jest.mock('../../../config/database', () => ({
 }));
 
 const path = require('path');
-const ejs = require('ejs');
 const bcrypt = require('bcrypt');
 const express = require('express');
 const session = require('express-session');
@@ -14,7 +13,6 @@ const { validateRegistration } = require('../auth.schema');
 const authRoutes = require('../auth.routes');
 const { requireAuth, requireRole, requireDepartment } = require('../auth.middleware');
 const workflowRoutes = require('../../workflow/workflow.routes');
-const { pageContext } = require('../../../shared/views/pageContext');
 
 const app = express();
 app.set('view engine', 'ejs');
@@ -39,6 +37,24 @@ app.get('/department-only', requireDepartment('department-1'), (req, res) =>
 describe('Requester authentication', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('requires credentials when an old quick-login button request is submitted', async () => {
+    const agent = request.agent(app);
+    const response = await agent.post('/auth/login').send({ demoRole: 'admin' });
+
+    expect(response.status).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect((await agent.get('/protected')).status).toBe(401);
+  });
+
+  it('renders the normal sign-in form without quick-login buttons', async () => {
+    const response = await request(app).get('/auth/login');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('name="email"');
+    expect(response.text).toContain('name="password"');
+    expect(response.text).not.toContain('name="demoRole"');
   });
 
   it('hashes the password before creating a requester account', async () => {

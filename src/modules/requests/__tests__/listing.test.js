@@ -4,7 +4,6 @@ jest.mock('../../../config/database', () => ({ query: jest.fn(), pool: { connect
 describe('Requester history and staff comments', () => {
   const db = require('../../../config/database');
   const requestsModel = require('../requests.model');
-  const requestsService = require('../requests.service');
 
   describe('FR-103 Requester Request History & FR-204 Staff Comments', () => {
     const requesterId = 'requester-uuid-1';

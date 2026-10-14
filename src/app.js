@@ -12,6 +12,10 @@ const { notFoundHandler, errorHandler } = require('./shared/middleware/error.mid
 
 const app = express();
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Set EJS as the templating engine.
 // Views live inside each module, plus shared layouts/partials/errors.
 app.set('view engine', 'ejs');

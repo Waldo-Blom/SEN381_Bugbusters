@@ -1,7 +1,7 @@
 <%- include('partials/auth-layout-head', {
   title: 'Sign in',
   authTitle: 'Welcome back',
-  authSubtitle: 'Sign in to your CivicConnect account to continue.'
+  authSubtitle: 'Sign in to your CivicConnect account. This page is for all users, including requesters, staff, management, operators, and admins.'
 }) %>
 
 <a href="/" class="mb-6 inline-flex items-center gap-1.5 rounded text-sm font-medium text-slate-500 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors">
@@ -43,30 +43,10 @@
     Sign in
   </button>
 
-  <% if (demoLoginsEnabled && demoRoles.length) { %>
-    <div class="space-y-3 border-t border-slate-200 pt-5">
-      <p class="text-center text-xs font-medium text-amber-800">
-        Local development only. These temporary demo buttons must be removed before deployment to staging.
-      </p>
-      <p class="text-center text-xs text-slate-500">
-        Configure each account with its matching email and password in the local environment file.
-      </p>
-      <p class="text-center text-xs text-slate-500">Demo: sign in as</p>
-      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <% demoRoles.forEach(({ role, label }) => { %>
-          <button type="submit" name="demoRole" value="<%= role %>" formnovalidate
-                  class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-all">
-            <%= label %>
-          </button>
-        <% }) %>
-      </div>
-    </div>
-  <% } %>
-
   <p class="text-center text-sm text-slate-500">
     Don't have an account?
     <a href="/auth/register" class="font-semibold text-blue-600 hover:text-blue-700">Create one</a>
   </p>
 </form>
 
-<%- include('partials/auth-layout-foot') %>
+<%- include('partials/auth-layout-foot') %>

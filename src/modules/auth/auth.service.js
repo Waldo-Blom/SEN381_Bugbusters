@@ -52,6 +52,7 @@ const authenticate = async (email, password) => {
     STAFF: 'staff',
     MANAGER: 'management',
     ADMIN: 'admin',
+    OPERATOR: 'operator',
   };
   const role = roleByUserType[user.user_type];
   if (!role) {

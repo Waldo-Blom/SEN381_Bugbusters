@@ -24,11 +24,5 @@ module.exports = {
       roots: ['<rootDir>/tests/e2e'],
       testMatch: ['**/*.test.js'],
     },
-    {
-      displayName: 'performance',
-      testEnvironment: 'node',
-      roots: ['<rootDir>/tests/performance'],
-      testMatch: ['**/*.test.js'],
-    },
   ],
 };

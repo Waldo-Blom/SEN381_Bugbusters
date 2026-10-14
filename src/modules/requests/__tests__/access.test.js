@@ -59,7 +59,6 @@ describe('Department access', () => {
   const db = require('../../../config/database');
   const usersModel = require('../../users/users.model');
   const usersService = require('../../users/users.service');
-  const requestsModel = require('../requests.model');
   const requestsService = require('../requests.service');
 
   describe('FR-207 Department-relevant Access', () => {
@@ -149,10 +148,7 @@ describe('Department access', () => {
 describe('Staff request access and privacy', () => {
   const express = require('express');
   const supertest = require('supertest');
-  const path = require('path');
-  const ejs = require('ejs');
   const db = require('../../../config/database');
-  const model = require('../requests.model');
   const service = require('../requests.service');
   const routes = require('../requests.routes');
 
