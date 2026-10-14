@@ -1,7 +1,5 @@
 const authService = require('./auth.service');
 const { validateLogin, validateRegistration } = require('./auth.schema');
-const { sendHttpError } = require('../../shared/middleware/error.middleware');
-const { normalizeEmail } = require('../../shared/validation/input');
 
 const redirectByRole = {
   requester: '/requester/my-requests',
@@ -9,31 +7,6 @@ const redirectByRole = {
   management: '/manager/requests',
   operator: '/operator/submit',
   admin: '/admin/users',
-};
-
-const demoRoles = [
-  { role: 'requester', label: 'Requester', envPrefix: 'REQUESTER' },
-  { role: 'staff', label: 'Staff', envPrefix: 'STAFF' },
-  { role: 'management', label: 'Management', envPrefix: 'MANAGEMENT' },
-  { role: 'operator', label: 'Operator', envPrefix: 'OPERATOR' },
-  { role: 'admin', label: 'Admin', envPrefix: 'ADMIN' },
-];
-
-const isDemoLoginEnabled = () =>
-  ['development', 'test', 'staging'].includes(process.env.NODE_ENV) &&
-  process.env.ENABLE_DEMO_LOGINS === 'true';
-
-const getDemoRolesForEnvironment = () => (isDemoLoginEnabled() ? demoRoles : []);
-
-const getConfiguredDemoCredentials = (role) => {
-  const configuredRole = demoRoles.find((item) => item.role === role);
-  if (!configuredRole) {
-    return null;
-  }
-
-  const email = normalizeEmail(process.env[`${configuredRole.envPrefix}_EMAIL`]);
-  const password = process.env[`${configuredRole.envPrefix}_PASSWORD`];
-  return email && password ? { email, password } : null;
 };
 
 // Rotate the session ID after authentication to prevent session fixation, then
@@ -55,8 +28,6 @@ exports.loginPage = (req, res) => {
     title: 'Sign in',
     error: null,
     values: {},
-    demoRoles: getDemoRolesForEnvironment(),
-    demoLoginsEnabled: isDemoLoginEnabled(),
   });
 };
 
@@ -103,53 +74,12 @@ exports.register = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  if (req.body.demoRole !== undefined) {
-    if (!isDemoLoginEnabled()) {
-      return sendHttpError(req, res, 404, 'The requested sign-in option is not available.');
-    }
-
-    const credentials = getConfiguredDemoCredentials(req.body.demoRole);
-    if (!credentials) {
-      return res.status(400).render('auth/views/login', {
-        title: 'Sign in',
-        error: 'Demo login is not configured for that role.',
-        values: {},
-        demoRoles: getDemoRolesForEnvironment(),
-        demoLoginsEnabled: true,
-      });
-    }
-
-    const authenticatedUser = await authService.authenticate(
-      credentials.email,
-      credentials.password
-    );
-    const expectedRole = req.body.demoRole;
-    const isOperatorAccount =
-      expectedRole === 'operator' && ['staff', 'admin'].includes(authenticatedUser?.role);
-    if (!authenticatedUser || (authenticatedUser.role !== expectedRole && !isOperatorAccount)) {
-      return res.status(401).render('auth/views/login', {
-        title: 'Sign in',
-        error: 'The configured demo account is unavailable or does not match that role.',
-        values: {},
-        demoRoles: getDemoRolesForEnvironment(),
-        demoLoginsEnabled: true,
-      });
-    }
-
-    const user =
-      expectedRole === 'operator' ? { ...authenticatedUser, role: 'operator' } : authenticatedUser;
-    await renewSession(req, user);
-    return res.redirect(redirectByRole[user.role] || '/');
-  }
-
   const { errors, value: values } = req.validation?.body || validateLogin(req.body);
   if (errors.length) {
     return res.status(400).render('auth/views/login', {
       title: 'Sign in',
       error: errors[0],
       values,
-      demoRoles: getDemoRolesForEnvironment(),
-      demoLoginsEnabled: isDemoLoginEnabled(),
     });
   }
 
@@ -160,8 +90,6 @@ exports.login = async (req, res) => {
       title: 'Sign in',
       error: 'Email or password is incorrect.',
       values: { email: values.email },
-      demoRoles: getDemoRolesForEnvironment(),
-      demoLoginsEnabled: isDemoLoginEnabled(),
     });
   }
 
