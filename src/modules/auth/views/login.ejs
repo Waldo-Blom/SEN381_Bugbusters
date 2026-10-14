@@ -1,7 +1,7 @@
 <%- include('partials/auth-layout-head', {
   title: 'Sign in',
   authTitle: 'Welcome back',
-  authSubtitle: 'Sign in to your CivicConnect account to continue.'
+  authSubtitle: 'Sign in to your CivicConnect account. This page is for all users, including requesters, staff, management, operators, and admins.'
 }) %>
 
 <a href="/" class="mb-6 inline-flex items-center gap-1.5 rounded text-sm font-medium text-slate-500 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors">
@@ -46,10 +46,10 @@
   <% if (demoLoginsEnabled && demoRoles.length) { %>
     <div class="space-y-3 border-t border-slate-200 pt-5">
       <p class="text-center text-xs font-medium text-amber-800">
-        Local development only. These temporary demo buttons must be removed before deployment to staging.
+        These demo buttons make it quicker to present our video demo. They will not appear in production.
       </p>
       <p class="text-center text-xs text-slate-500">
-        Configure each account with its matching email and password in the local environment file.
+        Use the buttons below to quickly sign in as each demo account.
       </p>
       <p class="text-center text-xs text-slate-500">Demo: sign in as</p>
       <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -69,4 +69,4 @@
   </p>
 </form>
 
-<%- include('partials/auth-layout-foot') %>
+<%- include('partials/auth-layout-foot') %>

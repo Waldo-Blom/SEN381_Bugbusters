@@ -1,7 +1,7 @@
 <%- include('partials/auth-layout-head', {
   title: 'Create Account',
-  authTitle: 'Create your account',
-  authSubtitle: 'Join CivicConnect to report and track civic issues in your area.'
+  authTitle: 'Create a requester account',
+  authSubtitle: 'Sign-up is for requesters only. Staff, management, operator, and admin accounts are handled internally.'
 }) %>
 <a href="/" class="mb-6 inline-flex items-center gap-1.5 rounded text-sm font-medium text-slate-500 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors">
   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -60,7 +60,7 @@
 
   <label class="flex items-start gap-2 text-sm text-slate-600">
     <input type="checkbox" name="terms" required <%= values.termsAccepted ? 'checked' : '' %> class="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-    I agree to the Terms of Service and Privacy Policy
+    <span>I agree to the <button type="button" data-policy-dialog="terms-dialog" class="font-medium text-blue-600 underline hover:text-blue-700">Terms of Service</button> and <button type="button" data-policy-dialog="privacy-dialog" class="font-medium text-blue-600 underline hover:text-blue-700">Privacy Policy</button>.</span>
   </label>
 
   <button type="submit"
@@ -73,5 +73,67 @@
     <a href="/auth/login" class="font-semibold text-blue-600 hover:text-blue-700">Sign in</a>
   </p>
 </form>
+
+<dialog id="terms-dialog" aria-labelledby="terms-title" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-2xl rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+  <div class="flex max-h-[85vh] flex-col">
+    <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <h2 id="terms-title" class="text-xl font-bold text-slate-900">Terms of Service</h2>
+      <button type="button" data-close-policy class="rounded px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800" aria-label="Close Terms of Service">&times;</button>
+    </div>
+    <div class="space-y-4 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-slate-600">
+      <p>By creating a CivicConnect account, you agree to use the service lawfully and provide accurate information. These terms apply to your use of CivicConnect to submit, manage, and track community service requests.</p>
+      <h3 class="font-semibold text-slate-900">Your account</h3>
+      <p>Keep your sign-in details private and tell the service team if you believe someone has accessed your account without permission. You are responsible for activity carried out through your account.</p>
+      <h3 class="font-semibold text-slate-900">Requests and acceptable use</h3>
+      <p>Submit genuine, relevant requests and provide information that helps the responsible team understand the issue. Do not use the service to send unlawful, threatening, misleading, or abusive material, or to interfere with the service or other users.</p>
+      <h3 class="font-semibold text-slate-900">Service handling</h3>
+      <p>CivicConnect helps route and track requests, but submitting a request does not guarantee a particular response time or outcome. Do not use the service for emergencies; contact the appropriate emergency services instead.</p>
+      <h3 class="font-semibold text-slate-900">Changes and access</h3>
+      <p>The service may be updated or temporarily unavailable for maintenance. Accounts may be restricted where necessary to protect the service, its users, or the integrity of request handling. These terms may be updated as the service changes.</p>
+    </div>
+    <div class="border-t border-slate-200 px-6 py-4 text-right">
+      <button type="button" data-close-policy class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="privacy-dialog" aria-labelledby="privacy-title" class="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-2xl rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+  <div class="flex max-h-[85vh] flex-col">
+    <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <h2 id="privacy-title" class="text-xl font-bold text-slate-900">Privacy Policy</h2>
+      <button type="button" data-close-policy class="rounded px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800" aria-label="Close Privacy Policy">&times;</button>
+    </div>
+    <div class="space-y-4 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-slate-600">
+      <p>This policy explains how CivicConnect handles information when you use the service to report and track community service requests.</p>
+      <h3 class="font-semibold text-slate-900">Information you provide</h3>
+      <p>We collect account details such as your name and email address, and any optional contact details you provide. We also store the information, updates, and attachments you submit with service requests.</p>
+      <h3 class="font-semibold text-slate-900">How information is used</h3>
+      <p>Your information is used to create and secure your account, route requests to the relevant team, communicate about request progress, and operate and improve CivicConnect.</p>
+      <h3 class="font-semibold text-slate-900">Who can access it</h3>
+      <p>Request information may be available to the staff and authorised personnel who need it to handle the request and administer the service. Information may also be processed by service providers that support CivicConnect, or disclosed when required by law.</p>
+      <h3 class="font-semibold text-slate-900">Retention and security</h3>
+      <p>Information is kept for as long as needed to operate the service, maintain request records, and meet applicable obligations. Reasonable safeguards are used to protect information, though no online service can guarantee absolute security.</p>
+      <h3 class="font-semibold text-slate-900">Your choices</h3>
+      <p>Keep your account details current and contact the service team to ask about your personal information or request a correction. This policy may be updated as CivicConnect evolves.</p>
+    </div>
+    <div class="border-t border-slate-200 px-6 py-4 text-right">
+      <button type="button" data-close-policy class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  document.querySelectorAll('[data-policy-dialog]').forEach((button) => {
+    button.addEventListener('click', () => document.getElementById(button.dataset.policyDialog)?.showModal());
+  });
+  document.querySelectorAll('[data-close-policy]').forEach((button) => {
+    button.addEventListener('click', () => button.closest('dialog')?.close());
+  });
+  document.querySelectorAll('dialog[id$="-dialog"]').forEach((dialog) => {
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+  });
+</script>
 
 <%- include('partials/auth-layout-foot') %>
