@@ -10,8 +10,10 @@
   performance regressions may not be detected automatically; manual execution is required;
   additional review and configuration work remains.
 - **Current mitigation:** The manually executable [PT-001 test](../../tests/performance/README.md)
-  and its execution evidence, once completed. Implementation is available; execution is currently
-  pending owner review, environment preparation and explicit approval.
+  and its [recorded execution evidence](../../tests/performance/evidence/request-submission-evidence.md).
+  Authorised sanity and full runs were completed on 16 October 2026. Submission/persistence checks
+  passed; the NFR-201 latency target failed. The measured performance shortfall requires review
+  separately from this deferred-integration debt.
 - **Future resolution:** Review implementation; expand coverage if justified; finalise testing
   configuration; submit a pull request into staging; complete peer review; merge the approved
   implementation; consider a controlled performance-testing CI workflow.

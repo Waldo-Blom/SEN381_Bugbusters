@@ -1,0 +1,20 @@
+[
+  {
+    "request_id": "59b680dc-de73-4482-949e-c9c6851ad104",
+    "request_number": "CC-2026-0151",
+    "title": "PT001-sanity-20261016105919144-vu1-i0",
+    "status": "SUBMITTED",
+    "category_id": "06a77de9-6a87-47ab-a1fa-ccf2678a057f",
+    "requester_id": "b30af607-3694-48e6-b0c7-0db465b6c10c",
+    "created_at": "2026-10-16T10:59:29.578Z"
+  },
+  {
+    "request_id": "3c02c62c-2109-42e5-aaaf-d4e83469a544",
+    "request_number": "CC-2026-0152",
+    "title": "PT001-sanity-20261016105919144-vu1-i1",
+    "status": "SUBMITTED",
+    "category_id": "06a77de9-6a87-47ab-a1fa-ccf2678a057f",
+    "requester_id": "b30af607-3694-48e6-b0c7-0db465b6c10c",
+    "created_at": "2026-10-16T10:59:32.638Z"
+  }
+]

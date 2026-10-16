@@ -1,0 +1,67 @@
+{
+  "application": "Local Express application, current working tree",
+  "baseUrl": "http://127.0.0.1:3106",
+  "gitBranch": "staging_test/performance_test",
+  "neonBranch": "Staging",
+  "neonBranchId": "br-rough-pond-b54xlapu",
+  "database": "civicconnect_dev",
+  "region": "aws-us-east-2",
+  "computeMinCU": 0.25,
+  "computeMaxCU": 2,
+  "appHosting": "Local Windows Node.js; no Render service under test",
+  "runner": {
+    "os": "10.0.26200",
+    "architecture": "x64",
+    "cpus": 8,
+    "memoryGiB": 20,
+    "node": "v20.15.1"
+  },
+  "approvedBy": "User authorised setup and execution against existing Neon Staging database in chat",
+  "attachments": "None; bucket unchanged",
+  "notifications": "Creation path emits no notification event; only synthetic example.invalid accounts used",
+  "resources": "Render metrics not applicable; no database resource time series collected",
+  "runs": [
+    {
+      "mode": "sanity",
+      "runId": "sanity-20261016105919144",
+      "startUTC": "2026-10-16T10:59:27.387Z",
+      "preRunCount": 0,
+      "exitCode": 99,
+      "endUTC": "2026-10-16T10:59:36.118Z",
+      "persistedRows": 2,
+      "distinctTitles": 2,
+      "distinctReferences": 2,
+      "ownershipAndCategoryValid": true,
+      "markersContiguous": true,
+      "summaryPresent": true,
+      "classification": "FAIL",
+      "summary": {
+        "attempts": 2,
+        "successes": 2,
+        "failures": 0,
+        "responseTimeMs": {
+          "max": 1659.9674,
+          "avg": 1650.8491,
+          "med": 1650.8491,
+          "p(90)": 1658.14374,
+          "p(95)": 1659.05557
+        },
+        "successfulPerSecondOverall": 0.23243520833702322
+      }
+    }
+  ],
+  "gitCommit": "8d63e6744c80025a7a6d0d4bd785c48ab79db58f",
+  "initialGitStatus": "",
+  "initialDatabaseCounts": {
+    "requests": 150,
+    "users": 67
+  },
+  "categoryId": "06a77de9-6a87-47ab-a1fa-ccf2678a057f",
+  "syntheticAccountIds": [
+    "b30af607-3694-48e6-b0c7-0db465b6c10c",
+    "3bc6bccc-0193-44e1-9a56-f2a29d7a874f",
+    "cf86de1a-dbe6-4bc9-a1bc-fa32045a19c8",
+    "373f5055-3dcb-44d3-9b60-c609ff896b6c",
+    "2d6928b0-ca12-43a2-9495-e0fc86b648eb"
+  ]
+}

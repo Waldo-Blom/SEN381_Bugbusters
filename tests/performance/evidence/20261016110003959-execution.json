@@ -1,0 +1,69 @@
+{
+  "application": "Local Express application, current working tree",
+  "baseUrl": "http://127.0.0.1:3106",
+  "gitBranch": "staging_test/performance_test",
+  "neonBranch": "Staging",
+  "neonBranchId": "br-rough-pond-b54xlapu",
+  "database": "civicconnect_dev",
+  "region": "aws-us-east-2",
+  "computeMinCU": 0.25,
+  "computeMaxCU": 2,
+  "appHosting": "Local Windows Node.js; no Render service under test",
+  "runner": {
+    "os": "10.0.26200",
+    "architecture": "x64",
+    "cpus": 8,
+    "memoryGiB": 20,
+    "node": "v20.15.1"
+  },
+  "approvedBy": "User authorised setup and execution against existing Neon Staging database in chat",
+  "attachments": "None; bucket unchanged",
+  "notifications": "Creation path emits no notification event; only synthetic example.invalid accounts used",
+  "resources": "Render metrics not applicable; no database resource time series collected",
+  "runs": [
+    {
+      "mode": "full",
+      "runId": "full-20261016110003959",
+      "startUTC": "2026-10-16T11:00:08.740Z",
+      "preRunCount": 0,
+      "exitCode": 99,
+      "endUTC": "2026-10-16T11:01:36.825Z",
+      "persistedRows": 90,
+      "distinctTitles": 90,
+      "distinctReferences": 90,
+      "ownershipAndCategoryValid": true,
+      "markersContiguous": true,
+      "summaryPresent": true,
+      "classification": "FAIL",
+      "summary": {
+        "attempts": 90,
+        "successes": 90,
+        "failures": 0,
+        "responseTimeMs": {
+          "p(95)": 3046.8466099999996,
+          "max": 4475.9054,
+          "avg": 2536.094197777777,
+          "med": 2565.06835,
+          "p(90)": 2960.5126099999998
+        },
+        "successfulPerSecondOverall": 1.023985780341818
+      }
+    }
+  ],
+  "gitCommit": "8d63e6744c80025a7a6d0d4bd785c48ab79db58f",
+  "initialGitStatus": "?? tests/performance/evidence/20261016105919144-execution.json\n?? tests/performance/evidence/sanity-20261016105919144-persistence.json\n?? tests/performance/evidence/sanity-20261016105919144-summary.json",
+  "initialDatabaseCounts": {
+    "requests": 152,
+    "users": 72
+  },
+  "categoryId": "06a77de9-6a87-47ab-a1fa-ccf2678a057f",
+  "syntheticAccountIds": [
+    "b30af607-3694-48e6-b0c7-0db465b6c10c",
+    "3bc6bccc-0193-44e1-9a56-f2a29d7a874f",
+    "cf86de1a-dbe6-4bc9-a1bc-fa32045a19c8",
+    "373f5055-3dcb-44d3-9b60-c609ff896b6c",
+    "2d6928b0-ca12-43a2-9495-e0fc86b648eb"
+  ],
+  "sanityReference": "sanity-20261016105919144: functional/persistence checks passed, latency target failed",
+  "fullRunReason": "Collect authorised concurrent workload evidence with unchanged threshold after functional sanity succeeded"
+}

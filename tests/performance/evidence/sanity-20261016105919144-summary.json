@@ -1,0 +1,182 @@
+{
+  "testId": "PT-001",
+  "runId": "sanity-20261016105919144",
+  "mode": "sanity",
+  "workload": {
+    "vus": 1,
+    "rampSeconds": 1,
+    "steadySeconds": 5,
+    "downSeconds": 1,
+    "paceMin": 1,
+    "paceMax": 2
+  },
+  "attempts": 2,
+  "httpSuccessesPendingPersistence": 2,
+  "failures": 0,
+  "accountedSubmissions": 2,
+  "interruptedOrUnaccounted": 0,
+  "successRate": 1,
+  "errorRate": 0,
+  "responseTimeMs": {
+    "max": 1659.9674,
+    "avg": 1650.8491,
+    "med": 1650.8491,
+    "p(90)": 1658.14374,
+    "p(95)": 1659.05557
+  },
+  "elapsedSecondsIncludingSetupAndGrace": 8.6045484,
+  "attemptedPerSecondOverall": 0.23243520833702322,
+  "successfulPerSecondOverall": 0.23243520833702322,
+  "metrics": {
+    "pt_successful": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 2,
+        "rate": 0.23243520833702322
+      }
+    },
+    "pt_outcomes": {
+      "values": {
+        "count": 2,
+        "rate": 0.23243520833702322
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "pt_outcome_http_success_pending_persistence": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "rate": 0.23243520833702322,
+        "count": 2
+      }
+    },
+    "pt_outcome_authorisation_or_csrf": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_error_rate": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 2
+      },
+      "thresholds": {
+        "rate==0": {
+          "ok": true
+        }
+      }
+    },
+    "pt_outcome_transport_error": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcome_authentication": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcome_server_error": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcome_validation": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcome_unexpected": {
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "pt_outcome_rate_limited": {
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "pt_success_rate": {
+      "contains": "default",
+      "values": {
+        "passes": 2,
+        "fails": 0,
+        "rate": 1
+      },
+      "type": "rate"
+    },
+    "pt_outcome_timeout": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_submission_ms": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 1658.14374,
+        "p(95)": 1659.05557,
+        "max": 1659.9674,
+        "avg": 1650.8491,
+        "med": 1650.8491
+      },
+      "thresholds": {
+        "p(95)<800": {
+          "ok": false
+        }
+      }
+    },
+    "pt_failed": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_attempted": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 2,
+        "rate": 0.23243520833702322
+      },
+      "thresholds": {
+        "count>0": {
+          "ok": true
+        }
+      }
+    }
+  },
+  "persistence": "NOT VERIFIED: reconcile unique titles in approved test database",
+  "target": "NFR-201: p(95) < 800 ms; normal load is not formally defined"
+}

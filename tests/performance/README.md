@@ -1,7 +1,10 @@
 # PT-001 — Concurrent Service Request Submission
 
-Status: implemented locally; **not executed**. Execution requires the owner's review and explicit
-authorisation, including for the sanity run. No measurements or persistence evidence exist yet.
+Status: **executed on 16 October 2026 with owner authorisation** against a local application using
+the approved Neon Staging database. Sanity: 2/2 submissions persisted, p95 1,659.06 ms. Full:
+90/90 submissions persisted, p95 3,046.85 ms. Both runs failed the unchanged NFR-201 latency
+threshold; no submission errors occurred. See [recorded evidence](evidence/request-submission-evidence.md).
+Future executions still require explicit authorisation for their target and workload.
 
 ## Purpose and traceability
 
