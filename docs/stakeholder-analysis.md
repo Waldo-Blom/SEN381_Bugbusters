@@ -1,6 +1,6 @@
 ## 1.2 Stakeholder analysis
 
-The project consists of 5 different identified stakeholders, each of them having different needs and ways in which they will interact with the digital platform. Some stakeholders might have conflicts or competing expectations. Below is the breakdown for each stakeholder:
+The project consists of 7 different identified stakeholders, each of them having different needs and ways in which they will interact with the digital platform. Some stakeholders might have conflicts or competing expectations. Below is the breakdown for each stakeholder:
 
 #### 1.2.1 Product owner
 
@@ -12,7 +12,7 @@ Conflict / competing expectation: The Project owner wants the digital platform t
 
 #### 1.2.2 Development team (Waldo, Christian and Marco - "Bugbusters")
 
-This is us (Waldo, Christian and Marco) the Bugbusters team who are actually developing the project based on the identified requirements. Our responsibility is to ensure that we clearly understand the business need in order to identify the requirements of the project. But also, to ensure that we build a system that is maintainable, reliable and secure.
+This is us (Waldo, Christian and Marco) the "Bugbusters" team who are actually developing the project based on the identified requirements. Our responsibility is to ensure that we clearly understand the business need in order to identify the requirements of the project. But also, to ensure that we build a system that is maintainable, reliable and secure.
 
 We will test the system to ensure that it works correctly. We will not add additional items to the scope before properly considering the implications of doing so, also in the event that the scope changes we will properly document the decision and the change.
 
@@ -46,6 +46,16 @@ The staff are the people who are actually assigned to investigate, handle and re
 
 Their primary responsibility is to accept and claim ownership of the issue they are assigned to, including status updates, resolution details and contacting the requester in the event there is clarification needed (Scope item nr. 9 & out of scope item 2).
 
+Their core need is to clearly see the issues that they are assigned to, and to be able to update the status of the requests they are working on. They want an interface that is easy to interact with and that requires minimal clicks and fast loading time (As they are going to be using this system a lot).
+
+Conflict / competing expectation: Staff may resist to use this newly proposed solution in the event that it is slower than the current informal methods (WhatsApp, email, telephone calls etc.). In order to ensure that they will want to use the system, we must make the system as easy as possible to use, while still ensuring management has detailed reporting and accountability of their staff (who did what, when etc.).
+
 #### 1.2.6 Admin (added during M2)
 
 M2 review: During millstone 2 we identified another stakeholder. We refer to this as the admin stakeholder. We identified something that we missed previously; how the staff and managers will be registered. Requesters will be able to self-register, but the application would be insecure if anyone could register as a manager or staff. So, this is where the admin user comes in, they register the managers and managers are mainly responsible for registering staff. However, the admin user will also be able to manage staff across different divisions.
+
+#### 1.2.7 Operator (added during M3)
+
+M3 review: During Milestone 3, we identified a gap in the CivicConnect baseline. The platform assumes that requesters can access and use a digital interface. However, some of the requester stakeholders may be less tech-savvy or prefer existing communication channels. In addition, the organisation still holds incomplete or unresolved requests in email, telephone logs, WhatsApp messages, spreadsheets, and paper records. If these are not captured, service history becomes fragmented, open work may be lost, and accountability cannot be demonstrated.
+
+To address this gap, we introduced the Operator role through change request CR-001. The Operator acts as an intermediary between external requesters (requests received via email, phone calls and WhatsApp messages) and CivicConnect. The role allows requests received through existing channels to be logged accurately into the system, and allows legacy or in-process requests to be migrated so that they are not lost. This supports inclusion, business continuity, traceability, and the organisation's need for a single controlled service-request record.
