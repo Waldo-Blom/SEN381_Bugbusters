@@ -11,9 +11,10 @@
   additional review and configuration work remains.
 - **Current mitigation:** The manually executable [PT-001 test](../../tests/performance/README.md)
   and its [recorded execution evidence](../../tests/performance/evidence/request-submission-evidence.md).
-  Authorised sanity and full runs were completed on 16 October 2026. Submission/persistence checks
-  passed; the NFR-201 latency target failed. The measured performance shortfall requires review
-  separately from this deferred-integration debt.
+  Authorised local and Render-hosted sanity/full runs were completed on 16 October 2026.
+  Submission/persistence checks passed in both environments. Local latency failed; the subsequent
+  Render-hosted full run passed with p95 453.98 ms. Both results and their environment limitations
+  remain recorded separately from this deferred-integration debt.
 - **Future resolution:** Review implementation; expand coverage if justified; finalise testing
   configuration; submit a pull request into staging; complete peer review; merge the approved
   implementation; consider a controlled performance-testing CI workflow.

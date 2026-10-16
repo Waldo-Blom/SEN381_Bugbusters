@@ -1,0 +1,228 @@
+{
+  "testId": "PT-001",
+  "runId": "render-full-20261016115053593",
+  "resourceMetrics": {
+    "resourceId": "srv-db75l2cs728c73dh7k3g",
+    "timeRange": {
+      "start": "2026-10-16T11:50:00Z",
+      "end": "2026-10-16T11:54:00Z"
+    },
+    "metrics": [
+      {
+        "type": "cpu_usage",
+        "data": [
+          {
+            "labels": [
+              {
+                "field": "instance",
+                "value": "srv-db75l2cs728c73dh7k3g-xwmjk"
+              },
+              {
+                "field": "service",
+                "value": "srv-db75l2cs728c73dh7k3g"
+              },
+              {
+                "field": "resource",
+                "value": "srv-db75l2cs728c73dh7k3g"
+              }
+            ],
+            "unit": "cpu",
+            "values": [
+              {
+                "timestamp": "2026-10-16T11:52:00Z",
+                "value": 0.08975237
+              },
+              {
+                "timestamp": "2026-10-16T11:52:30Z",
+                "value": 0.044275034
+              },
+              {
+                "timestamp": "2026-10-16T11:53:00Z",
+                "value": 0.013777367
+              },
+              {
+                "timestamp": "2026-10-16T11:53:30Z",
+                "value": 0.013777367
+              },
+              {
+                "timestamp": "2026-10-16T11:54:00Z",
+                "value": 0.013777367
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "memory_usage",
+        "data": [
+          {
+            "labels": [
+              {
+                "field": "instance",
+                "value": "srv-db75l2cs728c73dh7k3g-xwmjk"
+              },
+              {
+                "field": "service",
+                "value": "srv-db75l2cs728c73dh7k3g"
+              },
+              {
+                "field": "resource",
+                "value": "srv-db75l2cs728c73dh7k3g"
+              }
+            ],
+            "unit": "bytes",
+            "values": [
+              {
+                "timestamp": "2026-10-16T11:51:30Z",
+                "value": 2625536
+              },
+              {
+                "timestamp": "2026-10-16T11:52:00Z",
+                "value": 62283776
+              },
+              {
+                "timestamp": "2026-10-16T11:52:30Z",
+                "value": 64643070
+              },
+              {
+                "timestamp": "2026-10-16T11:53:00Z",
+                "value": 65478656
+              },
+              {
+                "timestamp": "2026-10-16T11:53:30Z",
+                "value": 65478656
+              },
+              {
+                "timestamp": "2026-10-16T11:54:00Z",
+                "value": 65478656
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "instance_count",
+        "data": []
+      },
+      {
+        "type": "cpu_limit",
+        "data": [
+          {
+            "labels": [
+              {
+                "field": "instance",
+                "value": "srv-db75l2cs728c73dh7k3g-xwmjk"
+              },
+              {
+                "field": "service",
+                "value": "srv-db75l2cs728c73dh7k3g"
+              },
+              {
+                "field": "resource",
+                "value": "srv-db75l2cs728c73dh7k3g"
+              }
+            ],
+            "unit": "cpu",
+            "values": [
+              {
+                "timestamp": "2026-10-16T11:51:30Z",
+                "value": 0.15
+              },
+              {
+                "timestamp": "2026-10-16T11:52:00Z",
+                "value": 0.15
+              },
+              {
+                "timestamp": "2026-10-16T11:52:30Z",
+                "value": 0.15
+              },
+              {
+                "timestamp": "2026-10-16T11:53:00Z",
+                "value": 0.15
+              },
+              {
+                "timestamp": "2026-10-16T11:53:30Z",
+                "value": 0.15
+              },
+              {
+                "timestamp": "2026-10-16T11:54:00Z",
+                "value": 0.15
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "memory_limit",
+        "data": [
+          {
+            "labels": [
+              {
+                "field": "instance",
+                "value": "srv-db75l2cs728c73dh7k3g-xwmjk"
+              },
+              {
+                "field": "service",
+                "value": "srv-db75l2cs728c73dh7k3g"
+              },
+              {
+                "field": "resource",
+                "value": "srv-db75l2cs728c73dh7k3g"
+              }
+            ],
+            "unit": "bytes",
+            "values": [
+              {
+                "timestamp": "2026-10-16T11:51:30Z",
+                "value": 536870900
+              },
+              {
+                "timestamp": "2026-10-16T11:52:00Z",
+                "value": 536870900
+              },
+              {
+                "timestamp": "2026-10-16T11:52:30Z",
+                "value": 536870900
+              },
+              {
+                "timestamp": "2026-10-16T11:53:00Z",
+                "value": 536870900
+              },
+              {
+                "timestamp": "2026-10-16T11:53:30Z",
+                "value": 536870900
+              },
+              {
+                "timestamp": "2026-10-16T11:54:00Z",
+                "value": 536870900
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "httpMetrics": {
+    "resourceId": "srv-db75l2cs728c73dh7k3g",
+    "timeRange": {
+      "start": "2026-10-16T11:50:00Z",
+      "end": "2026-10-16T11:54:00Z"
+    },
+    "metrics": [
+      {
+        "type": "http_latency",
+        "data": []
+      },
+      {
+        "type": "http_request_count",
+        "data": []
+      }
+    ]
+  },
+  "deploymentAfterRun": {
+    "id": "dep-db7pn0qj9qps73da6th0",
+    "commit": "f6ecc481b3819eb5edb1fa097453bba70c7b645f",
+    "status": "live"
+  },
+  "limitations": "30-second server sampling includes preparation and post-run time; HTTP and instance-count series returned no points. Peaks describe observed samples, not continuous maxima."
+}

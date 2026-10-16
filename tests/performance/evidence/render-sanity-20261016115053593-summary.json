@@ -1,0 +1,182 @@
+{
+  "testId": "PT-001",
+  "runId": "render-sanity-20261016115053593",
+  "mode": "sanity",
+  "workload": {
+    "vus": 1,
+    "rampSeconds": 1,
+    "steadySeconds": 5,
+    "downSeconds": 1,
+    "paceMin": 1,
+    "paceMax": 2
+  },
+  "attempts": 4,
+  "httpSuccessesPendingPersistence": 4,
+  "failures": 0,
+  "accountedSubmissions": 4,
+  "interruptedOrUnaccounted": 0,
+  "successRate": 1,
+  "errorRate": 0,
+  "responseTimeMs": {
+    "avg": 462.11382499999996,
+    "med": 345.89455,
+    "p(90)": 681.88842,
+    "p(95)": 752.4252599999998,
+    "max": 822.9621
+  },
+  "elapsedSecondsIncludingSetupAndGrace": 11.384337299999999,
+  "attemptedPerSecondOverall": 0.351359933792545,
+  "successfulPerSecondOverall": 0.351359933792545,
+  "metrics": {
+    "pt_successful": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 4,
+        "rate": 0.35135993379254493
+      }
+    },
+    "pt_failed": {
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "pt_success_rate": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 4,
+        "fails": 0
+      }
+    },
+    "pt_outcome_server_error": {
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "type": "counter"
+    },
+    "pt_error_rate": {
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 4
+      },
+      "thresholds": {
+        "rate==0": {
+          "ok": true
+        }
+      },
+      "type": "rate"
+    },
+    "pt_attempted": {
+      "thresholds": {
+        "count>0": {
+          "ok": true
+        }
+      },
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 4,
+        "rate": 0.35135993379254493
+      }
+    },
+    "pt_outcome_http_success_pending_persistence": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 4,
+        "rate": 0.35135993379254493
+      }
+    },
+    "pt_submission_ms": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 681.88842,
+        "p(95)": 752.4252599999998,
+        "max": 822.9621,
+        "avg": 462.11382499999996,
+        "med": 345.89455
+      },
+      "thresholds": {
+        "p(95)<800": {
+          "ok": true
+        }
+      }
+    },
+    "pt_outcome_authentication": {
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "type": "counter"
+    },
+    "pt_outcome_unexpected": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcome_timeout": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcome_transport_error": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcomes": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 4,
+        "rate": 0.35135993379254493
+      }
+    },
+    "pt_outcome_authorisation_or_csrf": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcome_rate_limited": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    },
+    "pt_outcome_validation": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      }
+    }
+  },
+  "persistence": "NOT VERIFIED: reconcile unique titles in approved test database",
+  "target": "NFR-201: p(95) < 800 ms; normal load is not formally defined"
+}

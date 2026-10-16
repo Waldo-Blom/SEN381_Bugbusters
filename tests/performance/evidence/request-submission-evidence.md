@@ -1,8 +1,8 @@
 # PT-001 execution evidence
 
-Status: **EXECUTED — FAIL against NFR-201 latency target; submission and persistence checks passed.**
+Status: **EXECUTED — local latency FAIL; subsequent Render-hosted run PASS. Submission and persistence checks passed in both environments.**
 
-## Recorded execution — 16 October 2026
+## Local execution — 16 October 2026
 
 The owner authorised setup and execution against the existing Neon Staging database in chat.
 The existing `.env` endpoint was matched to Neon branch metadata before execution. No Render,
@@ -92,6 +92,94 @@ retain the threshold outcomes and exit codes are recorded in the execution metad
 No passwords, cookies, tokens or connection strings are included in the linked evidence.
 92 synthetic service requests and five synthetic accounts remain in Staging. No cleanup occurred.
 Peer review of the results and any investigation/remediation remains outstanding.
+
+## Render-hosted execution — 16 October 2026
+
+The owner subsequently requested the test against Render and confirmed the workspace. The existing
+service was inspected; no service creation, deployment, restart, environment-variable change or
+Git write was performed. k6 ran on the same Windows runner and sent HTTPS requests to Render.
+The application itself ran on Render, rather than locally. This is a second environment execution
+of PT-001, not an additional performance scenario. Earlier local evidence above remains unchanged.
+
+| Environment | Recorded value |
+|---|---|
+| Hosted URL | `https://civicconnect-staging.onrender.com` |
+| Render service | `civicconnect-bugbusters`, `srv-db75l2cs728c73dh7k3g` |
+| Render configuration | Free plan, Virginia, one configured instance |
+| Deployed application branch / commit | `staging` / `f6ecc481b3819eb5edb1fa097453bba70c7b645f` |
+| Deployment | `dep-db7pn0qj9qps73da6th0`; confirmed live with the same commit after the run |
+| Test script branch / commit | `staging_test/performance_test` / `87c7210dddefed7791102ece8467b0ce887e5ab0` |
+| Source comparison | No differences found between deployed and test commits in inspected auth, submission route/controller/service/schema/model, session or notification-listener code |
+| Database | Existing approved Neon Staging database and category recorded above |
+| Database binding verification | Each of five new synthetic accounts registered through Render was found in the approved database before workload execution |
+| Initial database counts | 242 service requests, 72 users; five synthetic requester accounts then added |
+| Runner | Same Windows machine and k6 v2.2.0; no local application process used |
+| Preparation and warm state | Initial `/health` call returned 200 after 22,513 ms; account registration followed. Preparation latency is excluded from submission metrics |
+| Side effects | No triggers found on users/service_requests; normal registration and creation paths reviewed; only synthetic `example.invalid` accounts, no attachments |
+
+| Measurement | Render sanity | Render full |
+|---|---:|---:|
+| Run ID | `render-sanity-20261016115053593` | `render-full-20261016115053593` |
+| Local start, UTC+2 | 13:51:33 | 13:51:47 |
+| Local end, UTC+2 | 13:51:44 | 13:53:17 |
+| Maximum VUs | 1 | 5 |
+| Ramp / hold / down seconds | 1 / 5 / 1 | 10 / 60 / 10 |
+| Overall k6 elapsed seconds, including setup/grace | 11.38 | 90.13 |
+| Attempts / expected HTTP successes / failures | 4 / 4 / 0 | 191 / 191 / 0 |
+| Success / error rate | 100% / 0% | 100% / 0% |
+| Average response time (ms) | 462.11 | 353.62 |
+| Median response time (ms) | 345.89 | 329.98 |
+| p90 response time (ms) | 681.89 | 396.75 |
+| p95 response time (ms) | 752.43 | 453.98 |
+| Maximum response time (ms) | 822.96 | 824.84 |
+| Overall successful submissions/second | 0.3514 | 2.1193 |
+| Persisted rows / distinct titles / distinct references | 4 / 4 / 4 | 191 / 191 / 191 |
+| Interrupted or unaccounted attempts | 0 | 0 |
+| Ownership, category and contiguous markers | PASS | PASS |
+| Pre-run prefix row count | 0 | 0 |
+| k6 exit code | 0 | 0 |
+| p95 <800 ms / zero errors / nonzero attempts | PASS / PASS / PASS | PASS / PASS / PASS |
+| Classification | PASS | PASS |
+
+Pacing remained 1–2 seconds, request timeout 30 seconds, and graceful completion settings 35 seconds.
+All failure-category counters were zero. Persistence was independently checked after each workload;
+the raw summaries' pending-persistence labels were retained and are supplemented by the row exports
+and execution metadata. The original 800 ms threshold was not changed.
+
+Render resource samples were requested at 30-second resolution for 11:50–11:54 UTC, covering
+preparation, both workloads and surrounding time. The highest returned CPU sample was 0.08975237
+CPU units against the reported 0.15 limit (approximately 59.8%). Highest returned memory was
+65,478,656 bytes (62.45 MiB) against approximately 512 MiB. These are maxima of returned samples,
+not continuous peaks. HTTP latency/request-count and instance-count time series returned no points;
+k6 provides the submission latency and throughput evidence. No Neon resource time series was
+collected. No inference about resource headroom or maximum capacity is made from these samples.
+
+Interpretation: this Render-hosted workload met PT-001's latency and functional gates and all
+195 submissions across sanity/full persisted. The lower latency than the local run is consistent
+with different application hosting/network conditions, but the test does not prove a particular
+cause. No performance optimisation was applied between runs. Application commits and initial
+data volumes differ and are recorded explicitly. Results must not be presented as an improvement
+caused by a code fix or as proof of all-operation/production-scale NFR-201 compliance.
+
+The initial health response took 22.5 seconds; its cause was not isolated. This preparation is
+outside the measured operation, so the PASS does not demonstrate cold-start performance. The sanity
+sample is small; percentile interpolation can yield p95 below 800 ms even with an individual request
+above 800 ms. The full-run maximum also exceeded 800 ms; the configured requirement compares p95,
+not the maximum. Other scope and environment limitations described above still apply.
+
+Hosted evidence:
+
+- [Execution environment and reconciliation](render-20261016115053593-execution.json)
+- [Sanity summary](render-sanity-20261016115053593-summary.json)
+- [Sanity persisted rows](render-sanity-20261016115053593-persistence.json)
+- [Full summary](render-full-20261016115053593-summary.json)
+- [Full persisted rows](render-full-20261016115053593-persistence.json)
+- [Render resource samples and post-run deployment check](render-20261016115053593-resources.json)
+
+Five additional synthetic accounts and 195 additional requests remain in Staging from this hosted
+execution (ten accounts and 287 requests across local plus hosted executions). No cleanup occurred.
+The temporary runner was removed; its generated passwords existed only in process memory and were
+not saved. No secrets are included in these artefacts. Peer review remains outstanding.
 
 ## Template for future executions
 

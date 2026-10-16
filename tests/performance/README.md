@@ -1,9 +1,11 @@
 # PT-001 — Concurrent Service Request Submission
 
-Status: **executed on 16 October 2026 with owner authorisation** against a local application using
-the approved Neon Staging database. Sanity: 2/2 submissions persisted, p95 1,659.06 ms. Full:
-90/90 submissions persisted, p95 3,046.85 ms. Both runs failed the unchanged NFR-201 latency
-threshold; no submission errors occurred. See [recorded evidence](evidence/request-submission-evidence.md).
+Status: **executed on 16 October 2026 with owner authorisation** in two environments using the
+approved Neon Staging database. The local full run persisted 90/90 submissions but failed the
+800 ms latency threshold (p95 3,046.85 ms). The subsequent Render-hosted full run persisted
+191/191 submissions, recorded no submission errors and passed (p95 453.98 ms). Render sanity also
+passed (4/4 persisted, p95 752.43 ms). The tested Render application commit differs from the local
+test commit; both are recorded in [the evidence](evidence/request-submission-evidence.md).
 Future executions still require explicit authorisation for their target and workload.
 
 ## Purpose and traceability
