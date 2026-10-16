@@ -78,17 +78,31 @@ These are the core features and things that our application will and must be abl
 
     For our proposed digital platform, some of the screens we will adapt for mobile as this will improve the user experience for the requesters.
 
+16. **Operator-assisted request capture (Added during M3)**
+
+    For users unable to use CivicConnect for whatever reason, the option to call an operator or to capture a request via other channels such as email or WhatsApp. Operators can now create requests on behalf of citizens.
+
+17. **Request Editing (Added during M3)**
+
+    Requesters can edit their submitted request (title, description, category, location, priority) and add/remove image attachments while the request is still in 'Submitted' status.
+
+18. **Citizen Search (Added during M3)**
+
+    Requesters can search and filter their own past requests by text, reference number and status.
+
+M3 Scope Status Note: The listed items remain the agreed scope baseline. Their implementation and deployment readiness are evaluated separately in Sections 13.4, 13.8–13.9 and the Release Evidence Summary. In particular, operator editing (Issue #122), hosted SMTP delivery (Issue #124), password recovery (Issue #123), and manager export (Issue #121) remain incomplete or constrained. The existence of a user-interface control does not constitute verified completion.
+
 ### 2.1.2 Out of Scope
 
 These are explicit decisions that that we will not be moving forward with and are excluded from the baseline scope.
 
 1. **AI chatbot**
 
-   We will not create an AI chatbot for users to communicate with. It is unlikely that users will make use of this feature. Also, when implementing something like this it can be complex there are certain risks such as people missing the chatbot for personal reasons (Schuman, 2026). There are security and implementation risks associated that are not worth the potential value that it could add (Schuman, 2026).
+   We will not create an AI chatbot for users to communicate with. It is unlikely that users will make use of this feature. Also, when implementing something like this it can be complex there are certain risks such as people misusing the chatbot for personal reasons (Schuman, 2026). There are security and implementation risks associated that are not worth the potential value that it could add (Schuman, 2026).
 
 2. **Internal real time messaging system**
 
-   Requesters won't have direct communication with staff via the system. Staff will send an email or call the user only when the issue on the request is not clearly stated. The system will have the option to update the status of the issues.
+   Requesters won't have direct communication with staff via the system. Staff will send an email or call the user only when the issue on the request is not clearly stated. The system will have the option to update the status of the issues. However the staff do have the option to leave comments to the users to update them on the issues. The comment feature is different from real time communication as the requester can not repond to the comment, the comment is merely there to inform the requester of any information relating to the update of their request.
 
 3. **Video file upload**
 
@@ -113,11 +127,3 @@ These are recognised possible future things we could implement in future milesto
 2. **Portal for requesters to review their interactions with the staff**
 
    Adding a reviews portal where requesters could review their interaction with a specific staff member if they had one. This is also another "nice to have".
-
-3. **Additional role for across all management departments**
-
-   An additional user role that will have access to a dashboard to view overall metrics of the system such as how many tasks assigned to what department, how long on average does each department take to resolve specific issues. It would give metrics about the performance of the staff and management overall at a glance (Like an Admin user). So, this is not department specific but a user that has a greater level of access. We defer this decision as we would first like to establish a baseline system and then if there is available time for this feature, we will implement it
-
-4. **Extent of the Mobile adaptability**
-
-   For our proposed digital platform, we would like to have a mobile adaptability for the requesters. But we don't yet know if we want to apply this same mobile adaptability for the Managers or Staff. Further investigation into their needs is required and also a deeper understanding of what needs to be displayed on the screens is required. For example, the management dashboard will most likely not be made responsive on a mobile screen as this is something that won't be easily achievable.
