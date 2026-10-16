@@ -153,6 +153,7 @@ These milestone PEDs show how the project evolved from its initial requirements 
 - [Project scope](./docs/scope-baseline.md)
 - [Requirements traceability matrix](./docs/registers/rtm.md)
 - [Risk register](./docs/registers/risk-register.md)
+- [Technical debt register](./docs/registers/techical-debt-register.md)
 - [Decision log](./docs/registers/decision-log.md)
 - [AI usage register](./docs/registers/ai-usage-register.md)
 - [GitHub workflow and governance](./docs/github-governance.md)
