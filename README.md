@@ -5,7 +5,7 @@
 CivicConnect is a web application for submitting and managing community service requests. Requesters can submit and track requests, operational staff can work on requests for their departments, and managers can monitor activity and oversee departmental workloads.
 
 > [!IMPORTANT]
-> **M3 release candidate — tag `V1.0.1`. This build is for milestone review and demonstration only. It is not intended for actual deployment to `main` or use as a production service.** The hosted instance is a staging environment and may be reset or changed during development.
+> **M4 final submission — release candidate tag `V1.0.2`. Final classification: CONDITIONALLY READY. Final deployment state: STAGING. Production release decision: NO-GO.** This build is for milestone review and demonstration only. It is not intended for actual deployment to `main` or use as a production service. The hosted instance is a staging environment.
 
 **Staging demo:** [https://civicconnect-staging.onrender.com/](https://civicconnect-staging.onrender.com/)
 
@@ -13,11 +13,11 @@ CivicConnect is a web application for submitting and managing community service 
 
 - [Features](#features)
 - [Technology stack](#technology-stack)
+- [M4 final decision and release status](#m4-final-decision-and-release-status)
 - [Known defects and incomplete functionality](#known-defects-and-incomplete-functionality)
 - [Demo accounts](#demo-accounts)
 - [Install and run locally](#install-and-run-locally)
 - [Project documentation](#project-documentation)
-- [Final classification and rationale](#final-classification-and-rationale)
 - [Team](#team)
 
 ## Features
@@ -25,7 +25,9 @@ CivicConnect is a web application for submitting and managing community service 
 - Requester registration, sign-in, request submission, status tracking, and request history
 - Request categories routed to the responsible department
 - Image attachments on service requests
+- Operator-assisted request capture on behalf of external requesters
 - Staff request search, filtering, department-scoped access, and self-assignment
+- Manager-approved access to requester contact details
 - Request status workflow with comments and lifecycle history
 - Manager dashboards, request assignment and reassignment, and audit history
 - Admin and manager tools for department and staff management
@@ -45,17 +47,36 @@ CivicConnect is a web application for submitting and managing community service 
 | Tests and quality checks | Jest, Supertest, ESLint, Prettier, GitHub Actions |
 | Staging hosting | Render; staging database hosted on Neon |
 
+## M4 final decision and release status
+
+- **Final readiness classification:** CONDITIONALLY READY
+- **Final deployment state:** STAGING
+- **Production release decision:** NO-GO (pending the release conditions below)
+
+**Summary.** M4 was a finalisation and stabilisation phase, not a new development phase. With a three-person team, a short schedule and a free-tier budget, we took a risk-based approach: fix the most important defects that could be fixed within our constraints, avoid adding features we could not properly verify, and be transparent about what remains. The core architecture, stakeholder workflows, staging deployment and automated verification demonstrate a working system (final scope completion is about 97% against the in-scope items and RTM). However, a working staging demo is not the same as a production-ready service, so we have deliberately **not** approved a production go-live.
+
+**What we did in M4**
+
+- **Fixed:** Operator request editing ([#122](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/122), urgent) was resolved in PR #129, because it restored functionality belonging to the approved Operator role.
+- **Retained as a known limitation:** SMTP email delivery on Render's free tier ([#124](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/124)). This is a hosting restriction, not a code defect, and resolving it requires a paid plan, which conflicts with the project's no-cost constraint.
+- **Not implemented:** Password reset ([#123](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/123)). It depends on email delivery, and a partial or unverifiable reset flow would be a security risk.
+- **Performance:** PT-001 passed for request submission (five virtual users, 191/191 requests persisted, p95 = 453.98 ms against the 800 ms target). It covers one operation under a limited workload and does not prove broader performance or cold-start readiness.
+
+**Conditions before production approval:** a hosting plan or email approach that supports reliable email delivery, working notifications and password recovery, closure or formal acceptance of high-priority defects, regression and acceptance verification on the final release candidate, broader performance and operational readiness checks (including backup and recovery), and controlled release approval via a tagged commit.
+
+> **For the complete justification, evidence and reasoning behind this decision, see Section 20 of the M4 PED:** [SEN381 Milestone 4 PED (Version 4)](./docs/PED/Milestone%204/SEN381_Milestone4_Bugbusters%20(PEDV4).pdf)
+
 ## Known defects and incomplete functionality
 
 These are the currently tracked open issues. Follow the [GitHub issue tracker](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues) for status changes and any additional issues.
 
-| Issue | Current limitation |
-|---|---|
-| [#121 – Manager audit log export](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/121) | The Export log action on the Report & Audit screen does not yet produce a usable export. |
-| [#122 – Operator editing logged requests](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/122) | An operator currently cannot edit a request that they logged. |
-| [#123 – Password reset](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/123) | The password-reset page is present, but the complete secure reset flow is not implemented. |
-| [#124 – Email delivery on Render's free tier](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/124) | Render's free tier blocks outbound SMTP, so status-change emails cannot be delivered from the staging service. The request/status update still succeeds if email delivery fails. |
-| [#125 – Timezone handling](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/125) | Displayed times currently use a temporary South African timezone setting; a user-specific timezone approach is not implemented. |
+| Issue | Status | Current limitation |
+|---|---|---|
+| [#121 – Manager audit log export](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/121) | Open (deprioritised in M4) | The Export log action on the Report & Audit screen does not yet produce a usable export. |
+| [#122 – Operator cannot edit logged request](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/122) | Fixed in M4 (PR #129) | Operators can now edit eligible requests they logged. |
+| [#123 – Password reset](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/123) | Open | The password-reset page is present, but the complete secure reset flow is not implemented. |
+| [#124 – Email delivery on Render's free tier](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/124) | Open (accepted limitation) | Render's free tier blocks outbound SMTP, so status-change emails cannot be delivered from the staging service. The request/status update still succeeds if email delivery fails. |
+| [#125 – Timezone handling](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/125) | Open (technical debt) | Displayed times currently use a temporary South African timezone setting; a user-specific timezone approach is not implemented. |
 
 ## Demo accounts
 
@@ -147,7 +168,7 @@ These milestone PEDs show how the project evolved from its initial requirements 
 | M1 – Engineering foundation and requirements baseline | [SEN381 Milestone 1 PED (Version 1)](./docs/PED/Milestone%201/SEN381_Milestone1_Bugbusters%20(PED_V1).pdf) |
 | M2 – Architecture and design | [SEN381 Milestone 2 PED (Version 2)](./docs/PED/Milestone%202/SEN381_Milestone2_Bugbusters%20(PEDV2).pdf) |
 | M3 – Implementation, testing, and staging | [SEN381 Milestone 3 PED (Version 3)](./docs/PED/Milestone%203/SEN381_Milestone3_Bugbusters%20(PEDV3).pdf) |
-| M4 – Final project | [SEN381 Milestone 4 PED (Version 4)](./docs/PED/Milestone%204/SEN381_Milestone4_Bugbusters%20(PEDV4).pdf) |
+| M4 – Final project (see Section 20 for the final go-live decision) | [SEN381 Milestone 4 PED (Version 4)](./docs/PED/Milestone%204/SEN381_Milestone4_Bugbusters%20(PEDV4).pdf) |
 
 - [Master Project Brief](./docs/PED/SEN381%20Master%20Project%20Brief.pdf)
 - [Project scope](./docs/scope-baseline.md)
@@ -157,35 +178,6 @@ These milestone PEDs show how the project evolved from its initial requirements 
 - [Decision log](./docs/registers/decision-log.md)
 - [AI usage register](./docs/registers/ai-usage-register.md)
 - [GitHub workflow and governance](./docs/github-governance.md)
-- [GitHub milestones](https://github.com/Waldo-Blom/SEN381_Bugbusters/milestones)
-
-## Final Classification & Rationale
-
-**Required final classification: CONDITIONALLY READY**
-
-### Engineering argument
-
-CivicConnect is classified as **CONDITIONALLY READY**. The system architecture, core functional workflows, security controls, and CI/CD pipeline are demonstrably functional and meet the architectural guardrails established in the baseline (ASR-01 through ASR-05). The project has progressed from the M2 navigational prototype to an integrated, database-backed platform.
-
-However, the system is not yet ready for production release because of identified open issues and project constraints:
-
-1. **Known issues and limitations:** Five issues remain open, two of which are classified as urgent. [Issue #122](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/122) (operators cannot edit their own logged requests) blocks a core operational workflow. [Issue #124](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/124) (SMTP email delivery on Render) is a known limitation resulting from the project's free-tier hosting budget. Although email failures do not roll back core transactions (DEC-012), this remains a significant operational limitation for the service-request platform.
-
-2. **Infrastructure and budget constraints:** The selected free-tier hosting environment (Render) restricts outbound SMTP traffic, preventing the Nodemailer/Gmail SMTP integration from functioning in the deployed staging environment. Resolving this requires migrating to a paid hosting tier or selecting an alternative email delivery approach.
-
-3. **Performance validation:** On 16 October 2026, the Render-hosted PT-001 workload used five concurrent k6 virtual users and recorded 191 successful submitted and persisted requests, no submission errors, and p95 = 453.98 ms against the 800 ms NFR-201 target. This is a PASS for this endpoint and recorded workload; it does not establish performance for all application operations, longer-duration conditions, or cold-start readiness.
-
-4. **Acceptance criteria:** While the system is functionally complete, formal acceptance evidence and stakeholder sign-off are documented in the M4 PED.
-
-### Path to READY
-
-If the team were granted approximately two additional weeks and a $25 budget to upgrade to a paid Render plan, we believe we could classify the system as READY for release. This time and budget would be allocated to:
-
-- Resolve urgent issues [#122](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/122) and [#124](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/124), and close the remaining open issues.
-- Migrate to a paid Render hosting tier or configure an alternative SMTP provider, then enable and verify email delivery in staging.
-- Integrate PT-001 into a controlled verification workflow through a peer-reviewed change.
-
-Until these residual risks are mitigated, **CONDITIONALLY READY** accurately reflects the system's engineering quality while accounting for the deliberate budget limitations and outstanding issue backlog.
 
 ## Team
 
