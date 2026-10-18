@@ -5,6 +5,8 @@ jest.mock('../requests.model', () => ({
   findCategories: jest.fn(),
   findActiveCategory: jest.fn(),
   updateRequesterRequest: jest.fn(),
+  updateOperatorRequest: jest.fn(),
+  findByCreatorAndId: jest.fn(),
   findByRequesterId: jest.fn(),
 }));
 
@@ -36,6 +38,7 @@ const eventBus = require('../../../shared/events/eventBus');
 const validRequestId = '11111111-1111-4111-8111-111111111111';
 const validCategoryId = '22222222-2222-4222-8222-222222222222';
 const validRequesterId = '33333333-3333-4333-8333-333333333333';
+const validOperatorId = '44444444-4444-4444-8444-444444444444';
 
 const mockRequest = {
   id: validRequestId,
@@ -150,5 +153,66 @@ describe('Requester Request Editing', () => {
         })
       ).rejects.toThrow('Please correct the request details.');
     });
+  });
+});
+
+describe('Operator Request Editing', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('allows the operator who created a submitted request and records audit history', async () => {
+    requestsModel.findByCreatorAndId.mockResolvedValue(mockRequest);
+    requestsModel.findActiveCategory.mockResolvedValue({ id: validCategoryId });
+    requestsModel.updateOperatorRequest.mockResolvedValue(mockRequest);
+    await requestsService.updateOperatorRequest({
+      requestId: validRequestId,
+      operatorId: validOperatorId,
+      input: validUpdateInput,
+    });
+    expect(requestsModel.findByCreatorAndId).toHaveBeenCalledWith(validRequestId, validOperatorId);
+    expect(requestsModel.updateOperatorRequest).toHaveBeenCalledWith(
+      validRequestId,
+      validOperatorId,
+      expect.any(Object)
+    );
+    expect(eventBus.emitAuditEvent).toHaveBeenCalledWith(
+      'RequestDetailsUpdated',
+      expect.objectContaining({ requestId: validRequestId, operatorId: validOperatorId })
+    );
+  });
+
+  it('denies an operator who did not create the request', async () => {
+    requestsModel.findByCreatorAndId.mockResolvedValue(null);
+    await expect(
+      requestsService.updateOperatorRequest({
+        requestId: validRequestId,
+        operatorId: validOperatorId,
+        input: validUpdateInput,
+      })
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(requestsModel.updateOperatorRequest).not.toHaveBeenCalled();
+  });
+
+  it('blocks requests outside Submitted status', async () => {
+    requestsModel.findByCreatorAndId.mockResolvedValue({ ...mockRequest, status: 'In Progress' });
+    await expect(
+      requestsService.updateOperatorRequest({
+        requestId: validRequestId,
+        operatorId: validOperatorId,
+        input: validUpdateInput,
+      })
+    ).rejects.toThrow('Only submitted requests can be edited.');
+    expect(requestsModel.updateOperatorRequest).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid input without updating the request', async () => {
+    requestsModel.findByCreatorAndId.mockResolvedValue(mockRequest);
+    await expect(
+      requestsService.updateOperatorRequest({
+        requestId: validRequestId,
+        operatorId: validOperatorId,
+        input: { ...validUpdateInput, title: '' },
+      })
+    ).rejects.toThrow('Please correct the request details.');
+    expect(requestsModel.updateOperatorRequest).not.toHaveBeenCalled();
   });
 });

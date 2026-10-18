@@ -344,6 +344,50 @@ exports.updateRequesterRequest = async ({ requestId, requesterId, input, files =
 
   return updated;
 };
+
+exports.getEditableForOperator = async (id, operatorId) => {
+  if (!operatorId) throw new SubmissionUserNotFoundError();
+  if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
+  const request = await requestsModel.findByCreatorAndId(id, operatorId);
+  if (!request) return null;
+  if (request.status !== 'Submitted') {
+    throw new RequestNotEditableError('Only submitted requests can be edited.');
+  }
+  return request;
+};
+
+exports.updateOperatorRequest = async ({ requestId, operatorId, input, files = [] }) => {
+  if (!operatorId) throw new SubmissionUserNotFoundError();
+  if (!isUuid(requestId)) throw new RequestAccessError('Invalid request identifier.', 400);
+  const existing = await requestsModel.findByCreatorAndId(requestId, operatorId);
+  if (!existing) throw new RequestAccessError('Request not found.', 404);
+  if (existing.status !== 'Submitted') throw new RequestNotEditableError();
+  const submission = validateSubmission(input);
+  if (Object.keys(submission.errors).length) throw new RequestValidationError(submission.errors);
+  const category = await requestsModel.findActiveCategory(submission.value.categoryId);
+  if (!category)
+    throw new RequestValidationError({ categoryId: 'Please select an available category.' });
+  const attachments = require('./requests.attachments.service');
+  let removeIds = input?.removeAttachmentIds || [];
+  if (!Array.isArray(removeIds)) removeIds = [removeIds];
+  if (removeIds.length) await attachments.remove(requestId, operatorId, removeIds, 'operator');
+  if (files.length) await attachments.add(requestId, operatorId, files, 'operator');
+  const updated = await requestsModel.updateOperatorRequest(
+    requestId,
+    operatorId,
+    submission.value
+  );
+  if (!updated)
+    throw new RequestNotEditableError(
+      'Unable to update request. It may have already been assigned or updated.'
+    );
+  eventBus.emitAuditEvent('RequestDetailsUpdated', {
+    requestId,
+    operatorId,
+    timestamp: new Date(),
+  });
+  return updated;
+};
 exports.getForStaff = async (id, staffUserId) => {
   if (!isUuid(id)) throw new RequestAccessError('Invalid request identifier.', 400);
   if (!isUuid(staffUserId)) throw new RequestAccessError('Invalid staff identifier.', 403);
