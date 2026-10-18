@@ -60,7 +60,6 @@ CivicConnect is a web application for submitting and managing community service 
 - **Fixed:** Operator request editing ([#122](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/122), urgent) was resolved in PR #129, because it restored functionality belonging to the approved Operator role.
 - **Retained as a known limitation:** SMTP email delivery on Render's free tier ([#124](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/124)). This is a hosting restriction, not a code defect, and resolving it requires a paid plan, which conflicts with the project's no-cost constraint.
 - **Not implemented:** Password reset ([#123](https://github.com/Waldo-Blom/SEN381_Bugbusters/issues/123)). It depends on email delivery, and a partial or unverifiable reset flow would be a security risk.
-- **Performance:** PT-001 passed for request submission (five virtual users, 191/191 requests persisted, p95 = 453.98 ms against the 800 ms target). It covers one operation under a limited workload and does not prove broader performance or cold-start readiness.
 
 **Conditions before production approval:** a hosting plan or email approach that supports reliable email delivery, working notifications and password recovery, closure or formal acceptance of high-priority defects, regression and acceptance verification on the final release candidate, broader performance and operational readiness checks (including backup and recovery), and controlled release approval via a tagged commit.
 
