@@ -275,6 +275,91 @@ exports.editRequestPage = async (req, res, next) => {
   }
 };
 
+exports.operatorEditRequestPage = async (req, res, next) => {
+  try {
+    const operatorId = getAuthenticatedUserId(req);
+    const request = await requestsService.getEditableForOperator(req.params.id, operatorId);
+    if (!request) return sendHttpError(req, res, 404, 'This request could not be found.');
+    const attachmentsService = require('./requests.attachments.service');
+    const atts = await attachmentsService.list(req.params.id, operatorId, 'operator');
+    res.render('requests/views/requester/edit', {
+      ...pageContext('operator', req),
+      title: 'Edit Request',
+      activeHref: '/operator/requests',
+      pageTitle: 'Edit Request',
+      pageSubtitle: `Update details for ${request.reference}`,
+      editBasePath: '/operator/requests',
+      request,
+      categories: await requestsService.listCategories(),
+      existingAttachments: atts.map((att) => ({
+        ...att,
+        url: `/requests/${request.id}/attachments/${att.id}`,
+      })),
+      values: {
+        categoryId: request.categoryId,
+        title: request.title,
+        description: request.description,
+        location: request.location,
+        priority: request.priority ? request.priority.toUpperCase() : 'MEDIUM',
+      },
+      errors: {},
+      uploadCsrfToken: getCsrfToken(req),
+    });
+  } catch (error) {
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
+    next(error);
+  }
+};
+
+exports.operatorUpdateRequest = async (req, res, next) => {
+  const operatorId = getAuthenticatedUserId(req);
+  try {
+    if (req.attachmentError) throw req.attachmentError;
+    await requestsService.updateOperatorRequest({
+      requestId: req.params.id,
+      operatorId,
+      input: req.body,
+      files: req.files || [],
+    });
+    return res.redirect(`/operator/requests/${req.params.id}`);
+  } catch (error) {
+    if (
+      error instanceof requestsService.RequestValidationError ||
+      error instanceof AttachmentError
+    ) {
+      try {
+        const request = await requestsService.getEditableForOperator(req.params.id, operatorId);
+        const atts = await require('./requests.attachments.service').list(
+          req.params.id,
+          operatorId,
+          'operator'
+        );
+        return res.status(error.statusCode || 400).render('requests/views/requester/edit', {
+          ...pageContext('operator', req),
+          title: 'Edit Request',
+          activeHref: '/operator/requests',
+          pageTitle: 'Edit Request',
+          pageSubtitle: `Update details for ${request.reference}`,
+          editBasePath: '/operator/requests',
+          request,
+          categories: await requestsService.listCategories(),
+          existingAttachments: atts.map((att) => ({
+            ...att,
+            url: `/requests/${request.id}/attachments/${att.id}`,
+          })),
+          values: req.body,
+          errors: error.errors || { attachment: error.message },
+          uploadCsrfToken: getCsrfToken(req),
+        });
+      } catch (renderError) {
+        return next(renderError);
+      }
+    }
+    if (error.statusCode) return sendHttpError(req, res, error.statusCode, error.message);
+    next(error);
+  }
+};
+
 exports.updateRequest = async (req, res, next) => {
   try {
     const requesterId = getAuthenticatedUserId(req);

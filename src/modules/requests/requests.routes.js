@@ -43,6 +43,14 @@ router.post(
 );
 router.get('/operator/requests', requireOperator, c.operatorLoggedRequests);
 router.get('/operator/requests/:id', requireOperator, attachments.operatorDetail);
+router.get('/operator/requests/:id/edit', requireOperator, c.operatorEditRequestPage);
+router.post(
+  '/operator/requests/:id/edit',
+  requireOperator,
+  parseImages,
+  requireUploadCsrf,
+  c.operatorUpdateRequest
+);
 router.get('/operator/community-members/search', requireOperator, c.searchExternalRequesters);
 
 router.get('/requests/:id/attachments', requireAttachmentViewer, attachments.list);

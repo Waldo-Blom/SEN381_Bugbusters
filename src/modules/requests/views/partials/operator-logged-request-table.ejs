@@ -28,6 +28,9 @@
             </td>
             <td class="px-4 py-3">
               <a href="/operator/requests/<%= request.id %>" class="block font-medium text-slate-800 hover:text-blue-700"><%= request.title %></a>
+              <% if (request.status === 'Submitted') { %>
+                <a href="/operator/requests/<%= request.id %>/edit" class="mt-1 inline-block text-xs font-semibold text-blue-700 hover:text-blue-900">Edit request</a>
+              <% } %>
               <span class="mt-0.5 block text-xs text-slate-500"><%= request.category %> · <%= request.location %></span>
             </td>
             <td class="whitespace-nowrap px-4 py-3">

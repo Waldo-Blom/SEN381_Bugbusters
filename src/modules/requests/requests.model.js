@@ -383,6 +383,34 @@ exports.updateRequesterRequest = async (requestId, requesterId, input) => {
   return result.rows[0] || null;
 };
 
+exports.updateOperatorRequest = async (requestId, operatorId, input) => {
+  const result = await query(
+    `UPDATE service_requests
+     SET title = $1, description = $2, category_id = $3, location = $4,
+         priority = $5::priority, updated_at = LOCALTIMESTAMP
+     WHERE request_id = $6 AND created_by = $7 AND status = 'SUBMITTED'
+     RETURNING request_id, request_number, status, updated_at`,
+    [
+      input.title,
+      input.description,
+      input.categoryId,
+      input.location,
+      input.priority,
+      requestId,
+      operatorId,
+    ]
+  );
+  return result.rows[0] || null;
+};
+
+exports.findByCreatorAndId = async (requestId, operatorId) => {
+  const result = await query(`${requestsSelect()} WHERE r.request_id = $1 AND r.created_by = $2`, [
+    requestId,
+    operatorId,
+  ]);
+  return result.rows[0] ? mapRowToRequest(result.rows[0]) : null;
+};
+
 exports.findByCreatorId = async (userId) => {
   const sql = `${requestsSelect()}
     WHERE r.created_by = $1

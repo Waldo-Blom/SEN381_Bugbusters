@@ -58,6 +58,7 @@ exports.operatorDetail = action(async (req, res) => {
     pageTitle: 'Request Details',
     pageSubtitle: 'Your logged request and images',
     request,
+    editHref: `/operator/requests/${request.id}/edit`,
     backHref: '/operator/requests',
     attachmentCsrfToken: getCsrfToken(req),
   });
